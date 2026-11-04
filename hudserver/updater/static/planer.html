@@ -1,0 +1,191 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HUDPilot Planer</title><link rel="icon" href="/logo.png" type="image/png">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mu:#667;--ac:#ff7a00;--ok:#1a8f3c;--er:#c62828;--bd:#dde1e6}
+@media(prefers-color-scheme:dark){:root{--bg:#14171a;--card:#1d2125;--tx:#e8eaed;--mu:#9aa;--bd:#2d3339}}
+html,body{height:100%;margin:0}body{background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,sans-serif;display:flex}
+#side{width:340px;max-width:44vw;overflow:auto;padding:12px;box-sizing:border-box;border-right:1px solid var(--bd)}#map{flex:1}
+h1{font-size:18px;margin:0 0 8px}h2{font-size:13px;margin:14px 0 6px;color:var(--ac);letter-spacing:.06em;text-transform:uppercase}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:10px}
+button{background:var(--ac);color:#fff;border:0;border-radius:7px;padding:7px 11px;font-size:14px;cursor:pointer;margin:2px 2px 2px 0}button.g{background:transparent;color:var(--tx);border:1px solid var(--bd)}button:disabled{opacity:.5}
+input,select{padding:6px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);max-width:100%;box-sizing:border-box}input[type=text],input[type=password],select{width:100%;margin:3px 0}
+.mu{color:var(--mu);font-size:13px}.er{color:var(--er)}.ok{color:var(--ok)}ol{margin:4px 0;padding-left:22px}li{margin:3px 0}li span.x{cursor:pointer;color:var(--er);margin-left:6px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--bd)}.row a{cursor:pointer}
+.maplibregl-popup-content{background:var(--card);color:var(--tx);border-radius:10px;padding:12px 10px 8px}.maplibregl-popup-tip{display:none}
+.pin{width:26px;height:26px;border-radius:50%;background:#ff7a00;color:#fff;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.5);font:700 12px/22px system-ui;text-align:center;cursor:grab}
+.pin.s{background:#1a8f3c}.pin.z{background:#c62828}.pop button{display:block;width:100%;margin:3px 0;text-align:left}
+li span.m{cursor:pointer;margin-left:6px;color:var(--mu)}
+@media(max-width:700px){body{flex-direction:column}#side{width:auto;max-width:none;height:46%;border-right:0}#map{height:54%}}
+</style></head><body><!--AUTH--><!--NAV-->
+<div id="side">
+<h1>Tourenplaner</h1>
+<div class="mu">Klick auf die Karte: Zwischenpunkt, Ziel oder Start setzen. Marker ziehen oder anklicken (löschen, zu Start/Ziel machen). Reihenfolge in der Liste mit ▲ ▼.</div>
+<h2>Karte</h2><div class="card"><select id="sty"></select><div class="mu" id="styhint"></div></div>
+<h2>Route</h2><div class="card">
+<select id="prof"><option value="motorrad_landstrasse">Landstraße (Motorrad)</option><option value="motorrad_kurvig">Kurvig (Motorrad)</option><option value="motorrad_schnell">Schnell (Motorrad)</option><option value="motorrad_schnellste">Schnellste (mit Autobahn)</option></select>
+<div class="mu" style="margin:8px 0 2px">Vermeiden:</div>
+<div id="avoid" style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-bottom:8px"><label><input type="checkbox" value="motorway"> Autobahn</label><label><input type="checkbox" value="ferry"> Fähren</label><label><input type="checkbox" value="toll"> Maut</label><label><input type="checkbox" value="unpaved"> Unbefestigt</label></div>
+<label style="display:block;margin-bottom:4px"><input type="checkbox" id="sperr" checked> Sperrungen umfahren</label>
+<label style="display:block;margin-bottom:8px"><input type="checkbox" id="bszeig" checked> Baustellen zeigen <span class="mu" id="bsinfo"></span></label>
+
+<ol id="pts"></ol><div id="info" class="mu">Noch keine Punkte.</div><div id="err" class="er"></div>
+<button class="g" id="bRev">Route umkehren</button><button class="g" id="bUndo">Letzten Punkt entfernen</button><button class="g" id="bClear">Alles löschen</button></div>
+<h2>Tour</h2><div class="card">
+<input type="text" id="name" placeholder="Name der Tour">
+<button id="bSave">Speichern</button><button class="g" id="bGpx">GPX laden</button>
+<div id="msg" class="mu"></div></div>
+<h2>Favoriten</h2><div class="card" id="favs"><span class="mu">…</span></div>
+<h2>Gespeicherte Touren</h2><div class="card" id="tours"><span class="mu">…</span></div>
+</div><div id="map"></div>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const OSM="© OpenStreetMap-Mitwirkende";
+const DEM={type:"raster-dem",tiles:["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],encoding:"terrarium",tileSize:256,maxzoom:14,attribution:"Höhendaten: Mapzen/AWS Terrain Tiles"};
+const ras=(tiles,mz,att)=>({version:8,sources:{r:{type:"raster",tiles,tileSize:256,maxzoom:mz,attribution:att}},layers:[{id:"r",type:"raster",source:"r"}]});
+const rasT=(tiles,mz,att,ex)=>({version:8,sources:{r:{type:"raster",tiles,tileSize:256,maxzoom:mz,attribution:att},dem:DEM,dem2:DEM},
+ layers:[{id:"r",type:"raster",source:"r"},{id:"hs",type:"hillshade",source:"dem2",paint:{"hillshade-exaggeration":.35,"hillshade-shadow-color":"#3a3a3a"}}],terrain:{source:"dem",exaggeration:ex}});
+const ESRI="https://server.arcgisonline.com/ArcGIS/rest/services/";
+const STYLES={
+ "Standard":{s:()=>ras(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],19,OSM),p:0},
+ "Hell (ruhig)":{s:()=>ras([ESRI+"Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"],16,"Tiles © Esri, "+OSM),p:0},
+ "Dunkel":{s:()=>ras([ESRI+"Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"],16,"Tiles © Esri, "+OSM),p:0},
+ "Straßen (Esri)":{s:()=>ras([ESRI+"World_Street_Map/MapServer/tile/{z}/{y}/{x}"],19,"Tiles © Esri"),p:0},
+ "Topografie (Höhenlinien)":{s:()=>ras(["https://a.tile.opentopomap.org/{z}/{x}/{y}.png","https://b.tile.opentopomap.org/{z}/{x}/{y}.png"],17,OSM+' © OpenTopoMap'),p:0},
+ "Satellit":{s:()=>ras([ESRI+"World_Imagery/MapServer/tile/{z}/{y}/{x}"],19,"Tiles © Esri"),p:0},
+ "3D Gelände (Karte)":{s:()=>rasT(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],19,OSM,1.5),p:62,hint:"Gelände in 3D. Neigen/Drehen: rechte Maustaste halten und ziehen (oder Strg + ziehen)."},
+ "3D Gelände (Satellit)":{s:()=>rasT([ESRI+"World_Imagery/MapServer/tile/{z}/{y}/{x}"],19,"Tiles © Esri",1.5),p:62,hint:"Satellitenbild auf 3D-Gelände. Neigen/Drehen: rechte Maustaste halten und ziehen."},
+ "3D Gebäude (Stadt)":{s:()=>"https://tiles.openfreemap.org/styles/liberty",p:60,hint:"Städte mit 3D-Gebäuden (OpenFreeMap). Nah heranzoomen, rechte Maustaste zum Neigen."}};
+let sty="Standard";try{sty=localStorage.getItem("hudstyle")||sty}catch(e){}if(!STYLES[sty])sty="Standard";
+Object.keys(STYLES).forEach(k=>{const o=document.createElement("option");o.value=o.textContent=k;$("sty").appendChild(o)});$("sty").value=sty;
+const map=new maplibregl.Map({container:"map",style:STYLES[sty].s(),center:[11.0,49.0],zoom:6.5,pitch:STYLES[sty].p,maxPitch:75,attributionControl:{compact:true}});
+map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),"top-right");
+map.addControl(new maplibregl.ScaleControl({unit:"metric"}),"bottom-left");
+let pts=[],markers=[],last=null,tid=null,timer=null,seq=0,routeGeo=null;
+try{$("prof").value=localStorage.getItem("hudprof")||"motorrad_landstrasse"}catch(e){}
+const avoidBoxes=()=>[...document.querySelectorAll("#avoid input")];
+const getAvoid=()=>avoidBoxes().filter(c=>c.checked).map(c=>c.value);
+const setAvoid=a=>avoidBoxes().forEach(c=>c.checked=(a||[]).includes(c.value));
+try{setAvoid(JSON.parse(localStorage.getItem("hudavoid")||"[]"))}catch(e){}
+try{if(localStorage.getItem("hudsperr")==="0")$("sperr").checked=false}catch(e){}
+$("sperr").onchange=()=>{try{localStorage.setItem("hudsperr",$("sperr").checked?"1":"0")}catch(e){}route()};
+avoidBoxes().forEach(c=>c.onchange=()=>{try{localStorage.setItem("hudavoid",JSON.stringify(getAvoid()))}catch(e){}route()});
+$("styhint").textContent=STYLES[sty].hint||"";
+$("sty").onchange=()=>{sty=$("sty").value;try{localStorage.setItem("hudstyle",sty)}catch(e){}
+ $("styhint").textContent=STYLES[sty].hint||"";map.setStyle(STYLES[sty].s());map.easeTo({pitch:STYLES[sty].p,duration:800})};
+let bsGeo={type:"FeatureCollection",features:[]},bsItems=[];
+const BSCOL=["match",["get","k"],"c","#e53935","r","#ff8f00","#ffb300"],BSW=["match",["get","k"],"c",7,"r",5,3.5];
+function ensureBs(){try{
+ if(!map.getSource("bs"))map.addSource("bs",{type:"geojson",data:bsGeo});
+ if(!map.getLayer("bs-line"))map.addLayer({id:"bs-line",type:"line",source:"bs",minzoom:8,layout:{"line-cap":"round","line-join":"round","visibility":$("bszeig").checked?"visible":"none"},paint:{"line-color":BSCOL,"line-width":BSW,"line-opacity":.85}});
+}catch(e){}}
+async function loadBs(){try{const r=await fetch("/api/baustellen");if(!r.ok)return;const j=await r.json();const t=j.test&&j.ref?j.ref:Math.floor(Date.now()/1000);
+ bsItems=[];const fs=[];(j.items||[]).forEach((x,i)=>{if((x.e&&x.e<t)||(x.s&&x.s>t))return;bsItems.push(x);
+  fs.push({type:"Feature",properties:{k:x.k,n:bsItems.length-1},geometry:{type:"LineString",coordinates:(x.g&&x.g.length>=2?x.g:[x.a,x.b]).map(q=>[q[1],q[0]])}})});
+ bsGeo={type:"FeatureCollection",features:fs};ensureBs();const src=map.getSource("bs");if(src)src.setData(bsGeo);
+ $("bsinfo").textContent=fs.length?"("+fs.length+(j.test?", Testdaten":"")+")":"(keine Daten)"}catch(e){}}
+const BSN={c:"Gesperrt",r:"Eingeschränkt",w:"Arbeiten"};
+function bsPopup(i,ll){const x=bsItems[i];if(!x)return;const d=document.createElement("div");d.style.fontSize="13px";
+ const h=document.createElement("b");h.textContent=(BSN[x.k]||"Baustelle")+(x.r?" · "+x.r:"");d.appendChild(h);
+ const t=document.createElement("div");t.style.whiteSpace="pre-line";t.style.marginTop="4px";t.textContent=x.t||"";d.appendChild(t);
+ if(x.e){const u=document.createElement("div");u.className="mu";u.style.marginTop="4px";u.textContent="Bis "+new Date(x.e*1000).toLocaleDateString("de-DE");d.appendChild(u)}
+ popup(ll,d)}
+$("bszeig").onchange=()=>{try{localStorage.setItem("hudbs",$("bszeig").checked?"1":"0")}catch(e){}if(map.getLayer("bs-line"))map.setLayoutProperty("bs-line","visibility",$("bszeig").checked?"visible":"none")};
+try{if(localStorage.getItem("hudbs")==="0")$("bszeig").checked=false}catch(e){}
+map.on("mouseenter","bs-line",()=>map.getCanvas().style.cursor="pointer");map.on("mouseleave","bs-line",()=>map.getCanvas().style.cursor="");
+function ensureRoute(){
+ ensureBs();
+ if(!map.isStyleLoaded&&!map.getStyle())return;
+ try{
+  if(!map.getSource("route"))map.addSource("route",{type:"geojson",data:routeGeo||{type:"FeatureCollection",features:[]}});
+  if(!map.getLayer("route-casing"))map.addLayer({id:"route-casing",type:"line",source:"route",layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":"#ffffff","line-width":9,"line-opacity":.9}});
+  if(!map.getLayer("route-line"))map.addLayer({id:"route-line",type:"line",source:"route",layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":"#ff7a00","line-width":5.5}});
+ }catch(e){}}
+map.on("style.load",ensureRoute);map.on("load",loadBs);
+function drawRoute(coords){
+ routeGeo=coords?{type:"Feature",geometry:{type:"LineString",coordinates:coords.map(q=>[q[0],q[1]])}}:null;
+ ensureRoute();const src=map.getSource("route");if(src)src.setData(routeGeo||{type:"FeatureCollection",features:[]})}
+const lab=(i,n)=>i==0?"Start":i==n-1?"Ziel":"Via "+i;
+function say(t,c){$("msg").className=c||"mu";$("msg").textContent=t}
+function popup(lnglat,node){new maplibregl.Popup({closeButton:true,maxWidth:"260px"}).setLngLat(lnglat).setDOMContent(node).addTo(map)}
+function closePopups(){document.querySelectorAll(".maplibregl-popup").forEach(p=>p.remove())}
+function pinEl(i,n){const d=document.createElement("div");d.className="pin "+(i==0?"s":i==n-1?"z":"");d.textContent=i==0?"S":i==n-1?"Z":i;d.title=lab(i,n);return d}
+function markerMenu(i){const d=document.createElement("div");d.className="pop";
+ const add=(t,f)=>{const b=document.createElement("button");b.className="g";b.textContent=t;b.onclick=()=>{closePopups();f()};d.appendChild(b)};
+ add("Punkt löschen",()=>{pts.splice(i,1);redraw();route()});
+ if(i>0)add("Als Start",()=>{const p=pts.splice(i,1)[0];pts.unshift(p);redraw();route()});
+ if(i<pts.length-1)add("Als Ziel",()=>{const p=pts.splice(i,1)[0];pts.push(p);redraw();route()});return d}
+function redraw(){
+ markers.forEach(m=>m.remove());markers=[];
+ pts.forEach((p,i)=>{const el=pinEl(i,pts.length);
+  const m=new maplibregl.Marker({element:el,draggable:true}).setLngLat([p[1],p[0]]).addTo(map);
+  m.on("dragend",()=>{const ll=m.getLngLat();pts[i]=[ll.lat,ll.lng];route()});
+  el.addEventListener("click",e=>{e.stopPropagation();closePopups();popup(m.getLngLat(),markerMenu(i))});markers.push(m)});
+ $("pts").innerHTML="";pts.forEach((p,i)=>{const li=document.createElement("li");li.textContent=lab(i,pts.length)+": "+p[0].toFixed(4)+", "+p[1].toFixed(4);
+  const mv=(t,d)=>{const x=document.createElement("span");x.className="m";x.textContent=t;x.onclick=()=>{const j=i+d;if(j<0||j>=pts.length)return;const q=pts.splice(i,1)[0];pts.splice(j,0,q);redraw();route()};li.appendChild(x)};
+  mv("▲",-1);mv("▼",1);
+  const x=document.createElement("span");x.className="x";x.textContent="✕";x.onclick=()=>{pts.splice(i,1);redraw();route()};li.appendChild(x);$("pts").appendChild(li)});
+}
+const hav=(a,b)=>{const R=6371000,r=Math.PI/180,dl=(b[0]-a[0])*r,dn=(b[1]-a[1])*r,x=Math.sin(dl/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(x))};
+/* Einfügeposition (Index in pts) für einen neuen Zwischenpunkt: mit Route entlang der Linie, sonst günstigste Einfügung */
+function insertIndex(p){
+ if(last&&last.length>2&&pts.length>=2){
+  const rv=last.map(q=>[q[1],q[0]]);const at=[];let from=0;
+  for(const q of pts){let bi=from,bd=1e18;for(let k=from;k<rv.length;k++){const d=hav(q,rv[k]);if(d<bd){bd=d;bi=k}}at.push(bi);from=bi}
+  let ci=0,cd=1e18;for(let k=0;k<rv.length;k++){const d=hav(p,rv[k]);if(d<cd){cd=d;ci=k}}
+  for(let i=0;i<pts.length-1;i++)if(ci>=at[i]&&ci<=at[i+1])return i+1;
+ }
+ let bi=1,bc=1e18;for(let i=0;i<pts.length-1;i++){const c=hav(pts[i],p)+hav(p,pts[i+1])-hav(pts[i],pts[i+1]);if(c<bc){bc=c;bi=i+1}}return bi}
+function full(){if(pts.length>=27){say("Höchstens 27 Punkte (Start, 25 Zwischenpunkte, Ziel).","er");return true}return false}
+map.on("click",e=>{const p=[e.lngLat.lat,e.lngLat.lng];if(full())return;closePopups();
+ if($("bszeig").checked&&map.getLayer("bs-line")){const f=map.queryRenderedFeatures([[e.point.x-8,e.point.y-8],[e.point.x+8,e.point.y+8]],{layers:["bs-line"]});if(f.length){bsPopup(f[0].properties.n,e.lngLat);return}}
+ const d=document.createElement("div");d.className="pop";
+ const add=(t,f)=>{const b=document.createElement("button");b.className="g";b.textContent=t;b.onclick=()=>{closePopups();f();redraw();route()};d.appendChild(b)};
+ if(pts.length<2){add(pts.length?"Ziel":"Start",()=>pts.push(p))}
+ else{add("Zwischenpunkt (passend in die Route)",()=>pts.splice(insertIndex(p),0,p));add("Neues Ziel (ans Ende)",()=>pts.push(p));add("Neuer Start (an den Anfang)",()=>pts.unshift(p))}
+ popup(e.lngLat,d)});
+
+async function loadFavs(){try{const j=await(await fetch("/api/favs")).json();const l=(j.favs||[]).filter(x=>!x.del).sort((a,b)=>(b.id=="home")-(a.id=="home")||a.name.localeCompare(b.name));const el=$("favs");
+ if(!l.length){el.innerHTML='<span class="mu">Noch keine Favoriten. In der App Adressen mit ☆ speichern oder 🏠 festlegen.</span>';return}
+ el.innerHTML="";l.forEach(x=>{const row=document.createElement("div");row.className="row";const n=document.createElement("a");n.textContent=(x.id=="home"?"🏠 ":"★ ")+x.name;n.onclick=()=>map.flyTo({center:[x.lon,x.lat],zoom:13});row.appendChild(n);
+  const sp=document.createElement("span");[["Start",0],["Via",1],["Ziel",2]].forEach(([t,m])=>{const b=document.createElement("button");b.className="g";b.textContent=t;b.onclick=()=>{if(full())return;const p=[x.lat,x.lon];
+   if(m==0)pts.unshift(p);else if(m==2||pts.length<2)pts.push(p);else pts.splice(insertIndex(p),0,p);redraw();route()};sp.appendChild(b)});row.appendChild(sp);el.appendChild(row)})}catch(e){}}
+loadFavs();
+$("bRev").onclick=()=>{pts.reverse();redraw();route()};
+$("bUndo").onclick=()=>{pts.pop();redraw();route()};
+$("bClear").onclick=()=>{pts=[];tid=null;$("name").value="";redraw();route()};
+$("prof").onchange=()=>{try{localStorage.setItem("hudprof",$("prof").value)}catch(e){}route()};
+function route(){clearTimeout(timer);timer=setTimeout(doRoute,300)}
+async function doRoute(){
+ drawRoute(null);last=null;$("err").textContent="";
+ if(pts.length<2){$("info").textContent=pts.length?"Noch ein Punkt für das Ziel setzen.":"Noch keine Punkte.";return}
+ const my=++seq;$("info").textContent="Berechne …";
+ const ll=pts.map(p=>p[1].toFixed(6)+","+p[0].toFixed(6)).join("|");
+ try{const r=await fetch("/api/route?lonlats="+encodeURIComponent(ll)+"&profile="+$("prof").value+"&avoid="+getAvoid().join(",")+($("sperr").checked?"&sperr=1":""));const j=await r.json();if(my!=seq)return;
+  if(!r.ok){$("info").textContent="";$("err").textContent=(j.fehler||"Fehler")+(/datafile .* not found/.test(j.fehler||"")?" – für diesen Bereich fehlen Routendaten auf dem Server (Region dort bauen lassen).":"");return}
+  const f=j.features[0],c=f.geometry.coordinates;last=c;drawRoute(c);
+  const km=(+f.properties["track-length"]/1000),min=Math.round(+f.properties["total-time"]/60);
+  $("info").textContent=km.toFixed(1)+" km · "+Math.floor(min/60)+" h "+String(min%60).padStart(2,"0")+" min · Anstieg "+(f.properties["filtered ascend"]||"?")+" m";
+  const sp=j.sperrung;if(sp){if(sp.umfahren>0)$("info").textContent+=" · ✓ "+sp.umfahren+(sp.umfahren==1?" Sperrung umfahren":" Sperrungen umfahren");
+   if(sp.n)$("err").textContent=(sp.umfahren<0?"Keine Umfahrung gefunden. ":"")+"Sperrung auf der Route: "+sp.bleibt.join("; ")}}
+ catch(e){if(my==seq){$("info").textContent="";$("err").textContent="Server nicht erreichbar."}}}
+async function post(p,b){
+ const r=await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});
+ const j=await r.json().catch(()=>({}));if(!r.ok)say(j.fehler||"Fehler","er");return r.ok?j:null}
+const body=()=>({id:tid,name:$("name").value||"Tour",profile:$("prof").value,avoid:getAvoid(),points:pts});
+$("bSave").onclick=async()=>{if(pts.length<2)return say("Erst Start und Ziel setzen.","er");const j=await post("/api/tour/save",body());if(j){tid=j.id;say("Gespeichert.","ok");tours()}};
+$("bGpx").onclick=()=>{if(!last)return say("Erst eine Route berechnen.","er");
+ const n=($("name").value||"Tour").replace(/[<>&]/g,"");let x='<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="HUDPilot Planer" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>'+n+'</name><trkseg>\n';
+ last.forEach(q=>{x+='<trkpt lat="'+q[1]+'" lon="'+q[0]+'">'+(q[2]!=null?'<ele>'+q[2]+'</ele>':'')+'</trkpt>\n'});x+='</trkseg></trk></gpx>';
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([x],{type:"application/gpx+xml"}));a.download=n.replace(/[^\w\- äöüÄÖÜß]/g,"_")+".gpx";a.click()};
+async function tours(){try{const j=await(await fetch("/api/tours")).json();const el=$("tours");el.innerHTML="";
+ if(!j.touren.length){el.innerHTML='<span class="mu">Noch keine Tour gespeichert.</span>';return}
+ j.touren.forEach(t=>{const row=document.createElement("div");row.className="row";const a=document.createElement("a");a.textContent=t.name+" ("+t.points+" Punkte)";a.onclick=()=>openTour(t.id);
+  const d=document.createElement("button");d.className="g";d.textContent="Löschen";d.onclick=async()=>{if(confirm("Tour löschen?")){await post("/api/tour/delete",{id:t.id});tours()}};row.appendChild(a);row.appendChild(d);el.appendChild(row)})}catch(e){}}
+async function openTour(id){const t=await(await fetch("/api/tour?id="+id)).json();if(!t.points)return;
+ tid=t.id;pts=t.points;$("name").value=t.name;$("prof").value=t.profile||"motorrad_landstrasse";setAvoid(t.avoid);redraw();
+ const b=new maplibregl.LngLatBounds();pts.forEach(p=>b.extend([p[1],p[0]]));map.fitBounds(b,{padding:60,maxZoom:14});route()}
+tours();
+{const q=new URLSearchParams(location.search).get("tour");if(q)map.on("load",()=>openTour(q))}
+</script></body></html>

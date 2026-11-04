@@ -1,0 +1,270 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HUDPilot Updater</title><link rel="icon" href="/logo.png" type="image/png">
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--soft:#f8f9fb;--tx:#1b1f24;--mu:#6b7280;--ac:#ff7a00;--ac2:#fff1e3;--ok:#1a8f3c;--okbg:#e8f6ec;--okbd:#bfe3c9;--okt:#14612b;--er:#c62828;--erbg:#fdecec;--erbd:#f3c0c0;--bd:#e3e6ea;--bd2:#eef0f2}
+@media(prefers-color-scheme:dark){:root{--bg:#121518;--card:#1b1f23;--soft:#22272c;--tx:#e8eaed;--mu:#9aa3ad;--ac2:#3a2a18;--okbg:#14301e;--okbd:#245a37;--okt:#8fd5a6;--erbg:#3a1b1b;--erbd:#6b2d2d;--bd:#2d3339;--bd2:#262b30}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,Segoe UI,sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:30}
+.top{max-width:980px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:12px 20px}
+.top img{width:30px;height:30px;border-radius:9px}.top b{font-size:17px}.sp{flex:1}.top a{color:var(--mu);text-decoration:none;font-size:14px;padding:6px 10px;border-radius:9px}.top a:hover{background:var(--soft)}
+.tabs{max-width:980px;margin:0 auto;display:flex;gap:2px;padding:0 14px;overflow-x:auto}
+.tabs a{padding:11px 14px;color:var(--mu);text-decoration:none;font-weight:600;font-size:14px;border-bottom:3px solid transparent;white-space:nowrap;cursor:pointer}
+.tabs a:hover{color:var(--tx)}.tabs a.on{color:var(--ac);border-color:var(--ac)}
+main{max-width:980px;margin:0 auto;padding:20px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px 20px;margin-bottom:16px}
+h2{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mu);margin:0 0 12px}
+.mu{color:var(--mu)}.note{color:var(--mu);font-size:12.5px;margin-top:10px}.er{color:var(--er)}.ok{color:var(--ok)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px 16px}.kpi b{display:block;font-size:26px;line-height:1.15}.kpi span{color:var(--mu);font-size:12.5px}
+.box{display:flex;gap:12px;align-items:flex-start;border-radius:12px;padding:12px 14px;border:1px solid var(--bd);background:var(--soft)}
+.box .ic{font-size:20px;line-height:1.2}.box b{display:block}.box small{display:block;color:var(--mu);font-size:13px;margin-top:1px}
+.box.ok{background:var(--okbg);border-color:var(--okbd);color:var(--okt)}.box.ok small{color:var(--okt);opacity:.85}
+.box.bad{background:var(--erbg);border-color:var(--erbd);color:var(--er)}.box.bad small{color:var(--er);opacity:.9}
+.box.run{background:var(--ac2);border-color:#ffd7b0}
+.bar{height:8px;background:var(--bd);border-radius:6px;overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--ac);transition:width .4s}
+.bar i.ind{width:35%;animation:ind 1.4s ease-in-out infinite}@keyframes ind{0%{margin-left:-35%}100%{margin-left:100%}}
+.bar.sl{height:6px;margin-top:6px}.bl{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--mu);margin-top:10px}.bl b{color:var(--tx)}
+.tp{max-width:980px;margin:0 auto;padding:0 20px 8px;font-size:12.5px;color:var(--mu)}.tp .bar{margin-top:4px;height:5px}.tp b{color:var(--tx)}
+tr.phrow td{background:var(--soft);padding:6px 12px;font-size:13.5px}.dl{color:var(--er)}
+tr.land td{background:var(--soft);cursor:pointer;padding:9px 8px;border-top:1px solid var(--bd);user-select:none}tr.land .mu{font-weight:400;font-size:12.5px;margin-left:6px}
+tr.sep td{background:var(--soft);color:var(--mu);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:7px 8px}
+.chk{display:flex;flex-wrap:wrap;gap:6px 18px;margin:8px 0}.chk label{display:flex;gap:7px;align-items:center;font-size:13.5px;cursor:pointer}
+.lv{display:inline-flex;border:1px solid var(--bd);border-radius:10px;overflow:hidden}.lv button{border:0;background:var(--card);color:var(--tx);font:inherit;font-size:13px;padding:6px 14px;cursor:pointer}.lv button.on{background:var(--ac);color:#fff}
+#lg div{padding:2px 0;border-bottom:1px solid var(--bd2)}#lg .t{color:var(--mu)}#lg .e{color:var(--er);font-weight:600}#lg .o{color:var(--ok)}#lg .a{color:#b85c00}
+.scope{color:var(--mu);font-size:13.5px;margin-top:10px}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+@media(max-width:600px){.btns{grid-template-columns:1fr}}
+.btn{border:1px solid var(--bd);border-radius:14px;padding:13px 16px;background:var(--card);color:var(--tx);text-align:left;cursor:pointer;font:inherit}
+.btn b{display:block;font-size:15px}.btn span{color:var(--mu);font-size:13px}.btn:hover{border-color:var(--ac)}
+.btn.p{background:var(--ac);border-color:var(--ac);color:#fff}.btn.p span{color:#ffe6cf}.btn:disabled{opacity:.5;cursor:default}
+.sm{white-space:nowrap;padding:6px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--tx);font:inherit;font-size:13px;cursor:pointer}.sm:hover{border-color:var(--ac)}.sm:disabled{opacity:.5}
+.sm.p{background:var(--ac);border-color:var(--ac);color:#fff}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse}th{color:var(--mu);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:8px 6px;border-bottom:1px solid var(--bd);white-space:nowrap}
+td{padding:11px 6px;border-bottom:1px solid var(--bd2)}tr:last-child td{border:0}.r{text-align:right}
+.tag{display:inline-block;font-size:12px;padding:2px 9px;border-radius:99px;background:var(--okbg);color:var(--ok);font-weight:600;white-space:nowrap}.tag.w{background:var(--soft);color:var(--mu)}.tag.b{background:var(--ac2);color:#b85c00}.tag.e{background:var(--erbg);color:var(--er)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px}.stats div{background:var(--soft);border-radius:12px;padding:11px 13px}.stats b{display:block;font-size:20px}.stats span{font-size:12.5px;color:var(--mu)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0}
+input[type=number],input[type=text],input[type=password]{padding:7px 9px;border:1px solid var(--bd);border-radius:9px;background:var(--soft);color:var(--tx);font:inherit}input[type=number]{width:84px}
+input[type=checkbox]{width:17px;height:17px;accent-color:var(--ac)}
+.warn{background:var(--ac2);border:1px solid #ffd7b0;border-radius:12px;padding:11px 14px;color:#8a4500}
+@media(prefers-color-scheme:dark){.warn{color:#ffc58a;border-color:#6b4a24}}
+.pane{display:none}.pane.on{display:block}
+details.menu{position:relative;display:inline-block}details.menu summary{list-style:none;cursor:pointer}details.menu summary::-webkit-details-marker{display:none}
+details.menu .dd{position:absolute;right:0;top:34px;z-index:10;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:6px;min-width:230px;box-shadow:0 8px 24px rgba(0,0,0,.14)}
+details.menu .dd button{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--tx);padding:9px 10px;border-radius:8px;font:inherit;font-size:13.5px;cursor:pointer}details.menu .dd button:hover{background:var(--soft)}
+pre,.logbox{margin:0;max-height:560px;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap}
+#scpop{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.5);align-items:center;justify-content:center;padding:16px}
+</style></head><body>
+<header><div class="top"><img src="/logo.png" alt=""><b>HUDPilot Updater</b><span class="mu" id="ver" style="font-size:12.5px"></span><span class="sp"></span><a href="/">Startseite</a><a href="#" id="logout">Abmelden</a></div>
+<nav class="tabs" id="tabs"><a data-t="t1">Übersicht</a><a data-t="t2">Regionen</a><a data-t="t3">Blitzer</a><a data-t="t4">Profile</a><a data-t="t5">Einstellungen</a><a data-t="t6">Protokoll</a></nav>
+<div class="tp" id="tp" style="display:none"><span id="tpt"></span><div class="bar"><i id="tpi" style="width:0"></i></div></div></header>
+<main><input type="hidden" id="pw">
+<section class="pane" id="t1">
+ <div class="kpis" id="gl"></div>
+ <div class="card" id="akc"><h2>Gerade aktiv</h2><div id="ak"></div></div>
+ <div class="card"><h2>Aktualisieren</h2><div id="res"></div><div class="scope" id="scope"></div>
+  <div class="btns"><button class="btn p" id="bAll"><b>Markierte neu erstellen</b><span>Karte, Routen, Orte, Straßendaten. Dauert Stunden.</span></button>
+  <button class="btn" id="bPoi"><b>Nur Straßen und Orte</b><span>Schnell, Karte bleibt.</span></button></div><div id="msg" class="er" style="margin-top:8px"></div></div>
+ <div class="card"><h2>Straßendaten auf dem Server</h2><div class="stats" id="sum"></div><div class="note" id="sumnote"></div></div>
+ <div class="card"><h2>Baustellen und Sperrungen</h2><div id="bsx"></div>
+  <div class="bar" id="bsbar" style="display:none;margin-top:8px"><i id="bsi" style="width:0"></i></div>
+  <div class="row" style="margin-top:10px"><button class="sm p" id="bsGo">Jetzt abrufen</button><button class="sm" id="bsStop" style="display:none">Abbrechen</button><span id="bsm" class="er"></span></div>
+  <div class="note">Quelle: Mobilithek Bayern, täglich. Ohne Abo: Testdatei <b>test.xml</b>.</div></div>
+ <div class="card"><h2>Speicher</h2><div class="bar"><i id="dkb" style="width:0"></i></div><div class="note" id="dk" style="margin-top:8px"></div></div>
+</section>
+<section class="pane" id="t2"><div class="card"><h2>Regionen</h2><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0"><input type="text" id="rq" placeholder="Land oder Region suchen …" style="flex:1;min-width:180px"><button class="sm" id="bGf">Europa-Liste holen</button></div><div class="note" id="gfi" style="margin:0 0 4px"></div><div class="note" id="gfm" style="margin:0 0 8px"></div><div class="tw"><table><thead><tr><th></th><th>Region</th><th class="r">Karte</th><th class="r">Straßen</th><th class="r">Orte</th><th>Stand</th><th>Status</th><th></th></tr></thead><tbody id="rg"></tbody></table></div>
+ <div class="note">Haken = wird automatisch aktuell gehalten und bei „Markierte neu erstellen“ mitgebaut. Regionen, die ein Handy meldet (90 Tage), auch. Routen-Kacheln teilen sich mehrere Regionen, die Größen überschneiden sich.</div></div></section>
+<section class="pane" id="t3"><div class="card"><h2>Blitzer-Liste (SCDB)</h2><div id="sc">…</div>
+ <div class="row"><input type="file" id="scf" accept=".gpx,.zip" multiple><button class="btn p" id="scUp" style="padding:9px 16px"><b>Hochladen</b></button><a href="https://www.scdb.info/my/" target="_blank" rel="noopener" style="text-decoration:none"><button type="button" class="btn" style="padding:9px 16px"><b>SCDB öffnen ↗</b></button></a><button class="sm" id="scClr">Liste leeren</button></div>
+ <div id="scm"></div><div id="scw"></div>
+ <div class="note">In der SCDB: Download → Format <b>GPX</b> → <b>Trennung nach einzelnen Kategorien</b>. Dateien oder ZIP hochladen. Der Server führt sie zusammen und verteilt sie an alle Handys. Erinnerung alle 30 Tage.</div></div></section>
+<section class="pane" id="t4"><div class="card"><h2>Profile</h2><div class="note" style="margin:-4px 0 10px">Jedes Profil hat eigene Touren und Fahrten, nur für sich sichtbar. Neue Profile entstehen in der App oder im Planer mit dem Einladungscode.</div>
+ <div class="row">Einladungscode: <input type="text" id="inv" size="10"> <button class="sm" id="bInv">Speichern</button></div>
+ <div class="tw"><table><thead><tr><th>Name</th><th>Code</th><th class="r">Handys</th><th class="r">Größe</th><th>Zuletzt</th><th></th></tr></thead><tbody id="pf"></tbody></table></div>
+ <div class="row"><input type="text" id="pn" placeholder="Neuer Name"> <button class="sm" id="bNew">Profil anlegen</button><span id="pm"></span></div></div></section>
+<section class="pane" id="t5"><div class="card"><h2>Einstellungen</h2>
+ <div class="row">Download-Tempo im Zeitfenster: <input type="number" id="li" min="0" step="1"> Mbit/s <span class="mu">(0 = unbegrenzt)</span></div>
+ <div class="row">Download-Tempo außerhalb: <input type="number" id="lo" min="0" step="1"> Mbit/s</div>
+ <div class="row">Zeitfenster (Uhr): von <input type="number" id="ws" min="0" max="23"> bis <input type="number" id="we" min="0" max="23"> <span class="mu">(gleiche Zahl = immer)</span></div>
+ <div class="row">Automatisch erneuern alle <input type="number" id="ed" min="1"> Tage <span class="mu">(nur im Zeitfenster)</span></div>
+ <div class="row"><button class="sm p" id="bSave">Speichern</button><span id="sm"></span></div>
+ <div class="note" id="verx"></div></div>
+ <div class="card"><h2>Zugriff von außen</h2>
+  <div class="row"><label style="display:flex;gap:9px;align-items:center;cursor:pointer"><input type="checkbox" id="xk"><b>Karten von außen laden</b></label><span id="xkt" class="tag w"></span></div>
+  <div class="note" style="margin-top:2px">Aus (empfohlen): Von außen nur Anmeldung, Planer, Touren, Fahrten und Sync. Karten sind groß und belasten den Upload. An: Die App lädt sie auch unterwegs.</div>
+  <div class="note" id="xn"></div>
+  <div class="note">Verwaltung, Passwort und neue Profile gibt es von außen nie. Nach 5 falschen Anmeldungen: 15 Minuten gesperrt.</div></div></section>
+<section class="pane" id="t6"><div class="card"><h2>Protokoll</h2>
+ <div class="row"><span class="mu">Ausführlichkeit:</span><span class="lv" id="lv"><button data-l="kurz">Kurz</button><button data-l="normal">Normal</button><button data-l="ausfuehrlich">Ausführlich</button></span><span id="lvx" class="mu"></span></div>
+ <div class="chk" id="lc"></div>
+ <div class="note" style="margin:0 0 12px">Start, Ende, Abbruch, Warnungen und Fehler stehen immer drin. Das Protokoll bleibt nach einem Neustart erhalten (etwa 1 MB, die ältesten Zeilen fallen weg).</div>
+ <div class="row"><span class="lv" id="lf"><button data-f="">Alles</button><button data-f="fehler">Nur Fehler</button></span><span class="sp"></span><button class="sm" id="lClr">Protokoll leeren</button></div>
+ <div class="logbox" id="lg"></div></div></section>
+</main>
+<div id="scpop"><div class="card" style="max-width:420px;margin:0"><h2>Blitzer-Liste auffrischen?</h2><p id="scpt" style="margin:0 0 12px"></p><div class="row"><a href="https://www.scdb.info/my/" target="_blank" rel="noopener" style="text-decoration:none"><button type="button" class="btn p" style="padding:9px 16px"><b>SCDB öffnen</b></button></a> <button class="sm" id="scLater">Später erinnern</button></div></div></div>
+<script>
+const $=id=>document.getElementById(id);let S=null,dirty=false,rgSig="",resSig="",lcSig="",lfil="";
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fb=b=>b>=1e9?(b/1e9).toFixed(2)+" GB":b>=1e6?(b/1e6).toFixed(0)+" MB":b>0?(b/1e3).toFixed(0)+" kB":"–";
+const nf=n=>Number(n||0).toLocaleString("de-DE");
+const fd=t=>t?new Date(t*1000).toLocaleString("de-DE",{dateStyle:"short",timeStyle:"short"}):"–";
+const fday=t=>t?new Date(t*1000).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"2-digit"}):"–";
+const ft=t=>new Date(t*1000).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"});
+const fdur=s=>s<90?s+" Sek":Math.round(s/60)+" Min";
+try{$("pw").value=localStorage.getItem("hudpw")||""}catch(e){}
+// ---- Tabs ----
+function tab(id){if(!$(id))id="t1";document.querySelectorAll("#tabs a").forEach(a=>a.classList.toggle("on",a.dataset.t==id));document.querySelectorAll(".pane").forEach(p=>p.classList.toggle("on",p.id==id));try{history.replaceState(null,"","#"+id)}catch(e){}}
+document.querySelectorAll("#tabs a").forEach(a=>a.onclick=()=>tab(a.dataset.t));tab((location.hash||"#t1").slice(1));
+// ---- Server ----
+async function post(p,body){try{localStorage.setItem("hudpw",$("pw").value)}catch(e){}
+ const r=await fetch(p,{method:"POST",headers:{"X-Admin-Password":$("pw").value,"Content-Type":"application/json"},body:JSON.stringify(body||{})});
+ const j=await r.json().catch(()=>({}));return[r.ok,j]}
+async function run(ids,only){$("msg").textContent="";const[ok,j]=await post("/api/run",{ids:ids,only:only||""});if(!ok){$("msg").textContent=j.fehler||"Fehler";tab("t1")}else{tab("t1")}load()}
+async function load(){try{const r=await fetch("/api/status");if(r.status==401){location.href="/admin";return}S=await r.json()}catch(e){$("res").innerHTML='<div class="box bad"><span class="ic">!</span><div><b>Server nicht erreichbar</b></div></div>';return}render()}
+const fmin=sec=>{sec=Math.max(0,Math.round(sec));return sec>=60?Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0")+" Min":sec+" Sek"};
+function result(){const s=S,e=s.ergebnis;
+ if(s.state=="running"){const ago=Math.max(0,s.jetzt-(s.beat||s.started||s.jetzt)),hang=ago>s.hang_s&&!s.stop,el=s.jetzt-(s.started||s.jetzt);
+  const stepBar=s.pct==null?'<div class="bar sl"><i class="ind"></i></div>':'<div class="bar sl"><i style="width:'+s.pct+'%"></i></div>';
+  const title=s.stop?"Abbruch läuft …":"Läuft: "+esc(s.current||"starte …")+" ("+s.done+" von "+s.total+")"+(s.step?" · Schritt "+s.step[0]+" von "+s.step[1]:"");
+  return'<div class="box '+(hang?"bad":"run")+'"><span class="ic">'+(hang?"⚠":"⏳")+'</span><div style="flex:1"><b>'+title+'</b>'
+   +(hang?'<small><b>Seit '+fmin(ago)+' keine Bewegung. Der Server hängt vermutlich.</b> „Abbrechen“ drücken oder auf Unraid <code>docker restart hud-updater</code>.</small>':"")
+   +'<small>'+esc(s.detail||"")+(s.pct==null?" · Fortschritt nicht messbar":"")+'</small>'+stepBar
+   +'<div class="bl"><span>Gesamt</span><b>'+s.gesamt_pct+' %</b></div><div class="bar"><i style="width:'+s.gesamt_pct+'%"></i></div>'
+   +'<div class="bl"><span>Läuft seit '+fmin(el)+'</span><span>Letzte Bewegung vor '+fmin(ago)+'</span></div>'
+   +'<div style="margin-top:10px"><button class="sm" id="bStop"'+(s.stop?" disabled":"")+'>'+(s.stop?"Abbruch läuft …":"Abbrechen")+'</button></div></div></div>'}
+ if(!e)return'<div class="box"><span class="ic">•</span><div><b>Bereit</b><small>Noch kein Bau gelaufen. Nächster automatischer Lauf: '+(s.next_run?fd(s.next_run):"beim nächsten Zeitfenster")+'.</small></div></div>';
+ const names=id=>(s.regionen.find(r=>r.id==id)||{name:id}).name;const errs=Object.entries(e.fehler||{});
+ const art=e.nur=="poi"?"Straßendaten und Orte":"Alles";
+ const sub=e.fertig+" von "+e.gesamt+" Regionen ("+art+"), Dauer "+fdur(e.dauer)+(s.next_run?" · nächster automatischer Lauf frühestens "+fday(s.next_run):"");
+ if(e.abgebrochen)return'<div class="box"><span class="ic">■</span><div><b>Abgebrochen um '+ft(e.ende)+'</b><small>'+esc(sub)+'</small></div></div>';
+ if(errs.length)return'<div class="box bad"><span class="ic">!</span><div><b>Fertig um '+ft(e.ende)+', aber mit Fehlern</b><small>'+esc(sub)+'</small>'+errs.map(x=>"<small><b>"+esc(x[0]=="_"?"Allgemein":names(x[0]))+":</b> "+esc(x[1])+"</small>").join("")+'</div></div>';
+ return'<div class="box ok"><span class="ic">✓</span><div><b>Fertig um '+ft(e.ende)+'</b><small>'+esc(sub)+'</small></div></div>'}
+function regionTag(r,s){if(r.fehler)return'<span class="tag e" title="'+esc(r.fehler)+'">Fehler</span>';if(s.state=="running"&&s.current==r.name)return'<span class="tag b">baut …</span>';if(r.wartet)return'<span class="tag b">wartet</span>';
+ if(!r.karte_bytes)return'<span class="tag w">nicht gebaut</span>';if(!r.strassen_bytes)return'<span class="tag b">Straßendaten noch nicht gebaut</span>';return'<span class="tag">aktuell</span>'}
+function render(){const s=S,c=s.cfg;
+ const rh=result();if(rh!==resSig){resSig=rh;$("res").innerHTML=rh;const st=$("bStop");if(st)st.onclick=()=>{st.disabled=true;st.textContent="Abbruch läuft …";post("/api/stop").then(load)}}
+ if(s.state=="running"){$("tp").style.display="block";$("tpt").innerHTML=(s.stop?"<b>Abbruch läuft …</b>":"<b>Läuft:</b> "+esc(s.current||"")+" · "+esc((s.detail||"").slice(0,70)))+" · "+s.gesamt_pct+" %";$("tpi").style.width=s.gesamt_pct+"%"}else $("tp").style.display="none";
+ $("scope").textContent=c.regions.length+" Region"+(c.regions.length==1?"":"en")+" angehakt · Tempo jetzt "+(s.limit_jetzt_mbit>0?s.limit_jetzt_mbit+" Mbit/s":"unbegrenzt")+" ("+(s.im_fenster?"im Zeitfenster":"außerhalb")+")";
+ const busy=s.state=="running"||!s.admin||!c.regions.length;$("bAll").disabled=busy;$("bPoi").disabled=busy;
+ if(!s.admin)$("msg").textContent="Nur ansehen: ADMIN_PASSWORD fehlt im Container.";
+ // Zahlen
+ const m=s.summe||{};const kp=(a,b)=>"<div><b>"+a+"</b><span>"+b+"</span></div>";
+ $("sum").innerHTML=m.regionen?[kp(nf(m.strassen),"Straßen"),kp(nf(m.mit_limit),"davon mit Tempolimit"),kp(nf(m.blitzer_osm),"Blitzer (OpenStreetMap)"),kp(nf(m.blitzer_scdb),"Blitzer (SCDB-Liste)"),kp(nf(m.ortsschilder),"Ortsschilder"),kp(nf(m.bahnuebergaenge),"Bahnübergänge"),kp(nf(m.zebrastreifen),"Zebrastreifen"),kp(nf(m.beruhigung),"Verkehrsberuhigung")].join(""):'<div class="mu" style="grid-column:1/-1">Noch keine Straßendaten gebaut. Reiter „Regionen“ → „Neu bauen“ oder oben „Nur Straßendaten und Orte“.</div>';
+ $("sumnote").textContent=m.regionen?"Summe über "+m.regionen+" Region"+(m.regionen==1?"":"en")+", an den Grenzen kann etwas doppelt zählen (ca.). Orte (Tanken, Essen …): "+nf(m.orte)+".":"";
+ const d=s.disk||{};$("dk").textContent="Festplatte des Servers: "+fb(d.frei)+" frei von "+fb(d.gesamt)+" · davon belegt durch Karten, Routen und Straßendaten: "+fb(s.belegt);$("dkb").style.width=(d.gesamt?Math.min(100,100*(d.gesamt-d.frei)/d.gesamt):0)+"%";
+ // Regionen (nur neu zeichnen, wenn sich etwas geändert hat, damit offene Menüs nicht zuklappen)
+ const sig=JSON.stringify([s.regionen,s.state,s.current,c.regions,s.regionsliste]);
+ RGS=s;gfInfo(s);
+ if(sig!=rgSig&&!document.querySelector("#rg details[open]")){rgSig=sig;drawRg()}
+ if(!dirty){$("li").value=c.limit_in_mbit;$("lo").value=c.limit_out_mbit;$("ws").value=c.win_start;$("we").value=c.win_end;$("ed").value=c.every_days}
+ const xk=$("xk");xk.checked=!!c.extern_karten;$("xkt").textContent=c.extern_karten?"AN":"aus";$("xkt").className="tag "+(c.extern_karten?"b":"w");
+ $("xn").textContent="Als „extern“ gilt alles, was über den Proxy (z. B. Nginx Proxy Manager) oder mit einem Weiterleitungs-Kopf ankommt.";
+ if(s.version){$("ver").textContent="v"+s.version;$("verx").textContent="Server v"+s.version+" · zuletzt gestartet "+fd(s.gestartet)}
+ scRender()}
+let RGS=null,landOpen={},phOpen={};
+function gfInfo(s){const i=s.regionsliste||{};$("gfi").textContent=i.extra?"Liste: "+i.gesamt+" Regionen ("+i.extra+" aus Geofabrik, Stand "+fday(i.stand)+")":"Liste: "+(i.gesamt||0)+" Regionen (mitgeliefert). „Europa-Liste holen“ ergänzt weitere Länder; es wird nichts geladen oder gebaut."}
+function drawRg(){const s=RGS;if(!s)return;const q=($("rq").value||"").trim().toLowerCase();
+ const row=r=>{const has=r.karte_bytes>0;
+  return'<tr><td><input type="checkbox" class="ck" value="'+r.id+'"'+(r.aktiv?" checked":"")+'></td><td><b>'+esc(r.name)+'</b>'+(r.fehler?'<br><span class="er" style="font-size:12.5px">'+esc(r.fehler)+"</span>":"")+'</td><td class="r">'+fb(r.karte_bytes)+'</td><td class="r">'+fb(r.strassen_bytes)+'</td><td class="r">'+(r.poi_anzahl?nf(r.poi_anzahl):"–")+"</td><td>"+fday(r.stand)+"</td><td>"+regionTag(r,s)+'</td><td class="r">'+(has?'<details class="menu"><summary class="sm">Neu bauen ▾</summary><div class="dd"><button data-id="'+r.id+'" data-o="">Alles (Karte, Routen, Orte, Straßen)</button><button data-id="'+r.id+'" data-o="poi">Nur Straßendaten und Orte</button><button data-del="'+r.id+'" class="dl">Vom Server löschen …</button></div></details>':'<button class="sm" data-id="'+r.id+'" data-o="">Bauen</button>')+"</td></tr>"};
+ const building=r=>s.state=="running"&&s.current==r.name;
+ const by={};s.regionen.forEach(r=>{(by[r.land]=by[r.land]||[]).push(r)});
+ const nm=L=>by[L][0].landname||L;
+ const lands=Object.keys(by).sort((a,b)=>a=="DE"?-1:b=="DE"?1:nm(a).localeCompare(nm(b),"de"));
+ let h="",hits=0;
+ for(const L of lands){
+  const all=by[L].slice().sort((a,b)=>((building(b)?1:0)-(building(a)?1:0))||((b.aktiv?1:0)-(a.aktiv?1:0))||a.name.localeCompare(b.name,"de"));
+  const shown=q?all.filter(r=>(r.name+" "+nm(L)).toLowerCase().includes(q)):all;
+  if(q&&!shown.length)continue;
+  const nAkt=all.filter(r=>r.aktiv).length,nGeb=all.filter(r=>r.karte_bytes>0).length,bld=all.some(building);
+  const open=q?true:(landOpen[L]!==undefined?landOpen[L]:(nAkt>0||nGeb>0||bld));
+  h+='<tr class="land" data-land="'+esc(L)+'"><td><input type="checkbox" class="lk" data-land="'+esc(L)+'" title="Alle Regionen dieses Landes an- oder abhaken"></td><td colspan="7"><b>'+(open?"▾ ":"▸ ")+esc(nm(L))+"</b><span class=\"mu\">"+nAkt+" von "+all.length+" angehakt · "+nGeb+" gebaut"+(bld?" · baut gerade":"")+"</span></td></tr>";
+  if(open){h+=shown.map(row).join("");hits+=shown.length}
+ }
+ $("rg").innerHTML=h||'<tr><td colspan="8" class="mu" style="padding:14px">Keine passende Region.</td></tr>';
+ document.querySelectorAll("#rg .ck").forEach(x=>x.onchange=saveRegions);
+ document.querySelectorAll("#rg button[data-id]").forEach(b=>b.onclick=()=>run([b.dataset.id],b.dataset.o));
+ document.querySelectorAll("#rg button[data-del]").forEach(b=>b.onclick=()=>delRegion(b.dataset.del));
+ document.querySelectorAll("#rg tr.land").forEach(t=>t.onclick=()=>{const L=t.dataset.land,o=landOpen[L]!==undefined?landOpen[L]:(by[L].some(r=>r.aktiv||r.karte_bytes>0||building(r)));landOpen[L]=!o;drawRg()});
+ document.querySelectorAll("#rg .lk").forEach(x=>{const l=by[x.dataset.land],n=l.filter(r=>r.aktiv).length;x.checked=n==l.length;x.indeterminate=n>0&&n<l.length;x.onclick=ev=>ev.stopPropagation();
+  x.onchange=async()=>{const ids=new Set(RGS.cfg.regions);l.forEach(r=>x.checked?ids.add(r.id):ids.delete(r.id));await post("/api/config",{regions:[...ids]});load()}})}
+async function saveRegions(){const ids=new Set(RGS.cfg.regions);document.querySelectorAll("#rg .ck").forEach(x=>x.checked?ids.add(x.value):ids.delete(x.value));await post("/api/config",{regions:[...ids]});load()}
+$("rq").oninput=()=>drawRg();
+async function delRegion(id){const r=RGS.regionen.find(x=>x.id==id);if(!r)return;
+ if(!confirm(r.name+" vom Server löschen?\n\nKarte, Orte und Straßendaten ("+fb(r.karte_bytes+r.strassen_bytes+r.poi_bytes)+") werden gelöscht, der Haken wird entfernt. Routendaten bleiben, wenn eine andere gebaute Region sie braucht. Handys, die die Region schon geladen haben, behalten sie. Du kannst sie später neu bauen."))return;
+ const[ok,j]=await post("/api/admin/region/loeschen",{id});$("gfm").className="note";$("gfm").innerHTML=ok?'<span class="ok">'+esc(r.name)+" gelöscht, "+fb(j.frei)+" frei.</span>":'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";rgSig="";load()}
+$("bGf").onclick=async()=>{const b=$("bGf");b.disabled=true;$("gfm").className="note";$("gfm").textContent="Hole die Liste von Geofabrik … (kann etwas dauern)";const[ok,j]=await post("/api/admin/regionen-holen",{});b.disabled=false;$("gfm").innerHTML=ok?'<span class="ok">'+j.anzahl+" Regionen ergänzt."+(j.fehlend&&j.fehlend.length?" Nicht gefunden: "+esc(j.fehlend.join(", ")):"")+"</span>":'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";rgSig="";load()};
+$("xk").onchange=async()=>{const[ok,j]=await post("/api/config",{extern_karten:$("xk").checked});if(!ok)$("xkt").textContent=j.fehler||"Fehler";load()};
+$("bAll").onclick=()=>run(S.cfg.regions,"");$("bPoi").onclick=()=>run(S.cfg.regions,"poi");
+$("bSave").onclick=async()=>{const[ok,j]=await post("/api/config",{limit_in_mbit:+$("li").value,limit_out_mbit:+$("lo").value,win_start:+$("ws").value,win_end:+$("we").value,every_days:+$("ed").value});$("sm").innerHTML=ok?'<span class="ok">Gespeichert</span>':'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";if(ok)dirty=false;load()};
+document.querySelectorAll("#t5 input[type=number]").forEach(x=>x.oninput=()=>dirty=true);
+$("logout").onclick=async e=>{e.preventDefault();await fetch("/api/logout",{method:"POST",body:"{}"});location.href="/"};
+// ---- Profile ----
+async function papi(body,url){const[ok,j]=await post(url||"/api/admin/profile",body);$("pm").innerHTML=ok?'<span class="ok">OK'+(j.code?" · Code: <b>"+esc(j.code)+"</b>":"")+'</span>':'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";loadP();return ok}
+async function loadP(){try{const r=await fetch("/api/admin/profiles");if(!r.ok)return;const j=await r.json();if(document.activeElement!==$("inv"))$("inv").value=j.invite;
+ $("pf").innerHTML=j.profile.map(p=>'<tr><td><b>'+esc(p.name)+"</b>"+(p.disabled?' <span class="tag e">gesperrt</span>':"")+'</td><td><code>'+esc(p.code)+'</code></td><td class="r"><a href="#" class="phl" data-n="'+encodeURIComponent(p.name)+'" title="Handys anzeigen">'+p.handys+(p.geraete&&p.geraete.length?(phOpen[p.name]?" ▴":" ▾"):"")+'</a></td><td class="r">'+fb(p.bytes)+'</td><td>'+fd(p.seen)+'</td><td class="r"><button class="sm" data-a="resetcode" data-n="'+encodeURIComponent(p.name)+'">Code neu</button> <button class="sm" data-a="'+(p.disabled?"enable":"disable")+'" data-n="'+encodeURIComponent(p.name)+'">'+(p.disabled?"Entsperren":"Sperren")+'</button> <button class="sm" data-a="delete" data-n="'+encodeURIComponent(p.name)+'">Löschen</button></td></tr>'+(phOpen[p.name]?'<tr class="phrow"><td colspan="6">'+(p.geraete||[]).map(g=>'<div style="display:flex;gap:10px;align-items:center;padding:4px 0"><span style="flex:1"><b>'+esc(g.name)+'</b> <span class="mu">· zuletzt '+fd(g.seen)+' · Kennung '+esc(g.id.slice(0,6))+'…</span></span><button class="sm" data-dev="'+esc(g.id)+'">Entfernen</button></div>').join("")+"</td></tr>":"")).join("")||'<tr><td colspan="6" class="mu">Noch keine Profile.</td></tr>';
+ document.querySelectorAll("#pf a.phl").forEach(a=>a.onclick=ev=>{ev.preventDefault();const n=decodeURIComponent(a.dataset.n);phOpen[n]=!phOpen[n];loadP()});
+ document.querySelectorAll("#pf button[data-dev]").forEach(b=>b.onclick=async()=>{if(!confirm("Dieses Handy aus der Liste entfernen? Meldet es sich wieder, taucht es neu auf."))return;await post("/api/admin/handy/entfernen",{id:b.dataset.dev});loadP()});
+ document.querySelectorAll("#pf button[data-a]").forEach(b=>b.onclick=()=>{const n=decodeURIComponent(b.dataset.n),a=b.dataset.a;
+  if(a=="delete"){const c=prompt("Alle Touren und Fahrten von "+n+" werden gelöscht. Zur Bestätigung den Namen eintippen:");if(c===null)return;papi({action:a,name:n,confirm:c})}else papi({action:a,name:n})})}catch(e){}}
+$("bInv").onclick=()=>papi({invite:$("inv").value},"/api/admin/invite");$("bNew").onclick=async()=>{if(await papi({action:"create",name:$("pn").value}))$("pn").value=""};
+// ---- Gerade aktiv (Downloads und Handys) ----
+const fsp=b=>b>=1e6?(b/1e6).toFixed(1)+" MB/s":b>0?Math.round(b/1e3)+" kB/s":"";
+const fago=s=>s<60?"vor "+s+" Sek":"vor "+Math.round(s/60)+" Min";
+async function aktiv(){if(document.hidden||!$("t1").classList.contains("on"))return;
+ try{const r=await fetch("/api/admin/aktiv");if(!r.ok)return;const j=await r.json();
+  const who=x=>esc(x.name||"Handy")+(x.profil?" · "+esc(x.profil):"")+(x.extern?" · von außen":"");
+  const dl=j.downloads.map(x=>'<div style="margin:8px 0"><div class="bl" style="margin:0"><span><b>'+esc(x.datei)+'</b> · '+who(x)+(x.dev?"":" ("+esc(x.ip)+")")+'</span><b>'+(x.laeuft?x.pct+" % · "+fsp(x.speed):(x.pct>=100?"fertig ":"unterbrochen ")+fago(x.vor))+'</b></div><div class="bar sl"><i style="width:'+x.pct+'%"></i></div></div>').join("");
+  const gs=j.geraete.map(x=>who(x)+' <span class="mu">('+fago(Math.round(Date.now()/1000-x.seen))+')</span>').join("<br>");
+  $("ak").innerHTML=(dl||'<div class="note">Gerade lädt niemand etwas herunter.</div>')+'<div class="note" style="margin-top:12px"><b>Handys, die sich in den letzten 10 Minuten gemeldet haben:</b> '+(j.geraete.length?"<br>"+gs:"keine")+"</div>"}catch(e){}}
+setInterval(aktiv,3000);aktiv();
+// ---- Kennzahlen oben ----
+async function glance(){try{const s=await(await fetch("/api/stats")).json();if(s.fehler)return;const g=[[s.regionen_bereit+" / "+s.regionen_gesamt,"Regionen bereit"],[s.laender,"Länder"],[fb(s.bytes),"Daten auf dem Server"],[s.profile,"Profile (User)"],[s.routing?"online":"startet …","Routenberechnung"]];
+ $("gl").innerHTML=g.map(x=>'<div class="kpi"><b>'+x[0]+"</b><span>"+x[1]+"</span></div>").join("")}catch(e){}}
+// ---- Blitzer (SCDB) ----
+const fsz=n=>n>=1e6?(n/1e6).toFixed(1)+" MB":(n/1e3).toFixed(0)+" kB";
+function scRender(){const c=S&&S.scdb;if(!c)return;
+ $("sc").innerHTML=c.anzahl?'<div style="font-size:17px"><b>'+nf(c.anzahl)+' Blitzer</b> aus '+c.dateien.length+' Datei'+(c.dateien.length==1?"":"en")+'</div><div class="note" style="margin:2px 0 10px">Stand '+fday(c.stand)+' (vor '+c.alter_tage+' Tagen) · '+c.dateien.map(esc).join(", ")+"</div>":'<div class="mu">Noch keine Liste hochgeladen. Es gelten nur die Blitzer aus OpenStreetMap.</div>';
+ $("scw").innerHTML=c.anzahl?(c.faellig?'<div class="warn">⏰ Die Liste ist '+c.alter_tage+' Tage alt. Zeit für eine neue.</div>':'<div class="note" style="margin-top:4px">Nächste Erinnerung in '+Math.max(0,c.erinnern_tage-c.alter_tage)+' Tagen.</div>'):"";
+ let snooze=0;try{snooze=+localStorage.getItem("scSnooze")||0}catch(e){}
+ const show=c.faellig&&Date.now()>snooze;$("scpop").style.display=show?"flex":"none";
+ if(show)$("scpt").textContent="Deine SCDB-Liste ist "+c.alter_tage+" Tage alt. Neue Blitzer-Daten holen und hier hochladen?"}
+$("scLater").onclick=()=>{try{localStorage.setItem("scSnooze",Date.now()+3*864e5)}catch(e){}$("scpop").style.display="none"};
+const b64=f=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(",")[1]||"");r.onerror=no;r.readAsDataURL(f)});
+$("scUp").onclick=async()=>{const fs=[...$("scf").files];if(!fs.length){$("scm").innerHTML='<span class="er">Erst Dateien wählen.</span>';return}
+ $("scUp").disabled=true;let last=null;try{for(let i=0;i<fs.length;i++){$("scm").textContent="Lade "+(i+1)+" von "+fs.length+" hoch ("+fsz(fs[i].size)+") …";
+  const[ok,j]=await post("/api/admin/scdb",{name:fs[i].name,b64:await b64(fs[i]),rebuild:i==fs.length-1});if(!ok){$("scm").innerHTML='<span class="er">'+esc(fs[i].name)+": "+esc(j.fehler||"Fehler")+"</span>";return}last=j}
+  $("scm").innerHTML='<span class="ok">Fertig: '+(last&&last.anzahl?nf(last.anzahl)+" Blitzer":"")+"</span>";$("scf").value=""}catch(e){$("scm").innerHTML='<span class="er">Fehler beim Hochladen.</span>'}finally{$("scUp").disabled=false;load()}};
+$("scClr").onclick=async()=>{if(!confirm("Die hochgeladene Blitzer-Liste löschen? Es gelten dann nur die OSM-Blitzer."))return;const[ok,j]=await post("/api/admin/scdb/clear",{});$("scm").innerHTML=ok?'<span class="ok">Gelöscht.</span>':'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";load()};
+// ---- Protokoll ----
+const lvName={kurz:"Kurz",normal:"Normal",ausfuehrlich:"Ausführlich",eigene:"Eigene Auswahl"};
+function logLine(x){const m=x.match(/^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d) (.*)$/s);const t=m?m[2]:"",tx=m?m[3]:x;
+ const c=/FEHLER|WARNUNG|fehlgeschlagen/.test(tx)?"e":/^Abgebrochen|Abbrechen/.test(tx)?"a":/^Fertig/.test(tx)?"o":"";
+ return'<div><span class="t">'+esc(m?m[1].slice(5).split("-").reverse().join(".")+" "+t:"")+"</span>  "+(c?'<span class="'+c+'">':"<span>")+esc(tx)+"</span></div>"}
+async function loadLog(){if(!$("t6").classList.contains("on"))return;
+ try{const r=await fetch("/api/admin/log?n=500"+(lfil?"&nur="+lfil:""));if(!r.ok)return;const j=await r.json();
+  const box=$("lg");box.innerHTML=j.zeilen.slice().reverse().map(logLine).join("")||'<div class="mu">Noch nichts protokolliert.</div>';
+  document.querySelectorAll("#lf button").forEach(b=>b.classList.toggle("on",b.dataset.f==lfil));
+  const sig=JSON.stringify([j.level,j.cats]);
+  if(sig!=lcSig){lcSig=sig;document.querySelectorAll("#lv button").forEach(b=>b.classList.toggle("on",b.dataset.l==j.level));$("lvx").textContent=j.level=="eigene"?"Eigene Auswahl":"";
+   $("lc").innerHTML=j.kategorien.map(k=>'<label><input type="checkbox" value="'+k[0]+'"'+(j.cats.includes(k[0])?" checked":"")+"> "+esc(k[1])+"</label>").join("");
+   document.querySelectorAll("#lc input").forEach(x=>x.onchange=async()=>{await post("/api/admin/logcfg",{cats:[...document.querySelectorAll("#lc input:checked")].map(y=>y.value)});lcSig="";loadLog()})}
+ }catch(e){}}
+document.querySelectorAll("#lv button").forEach(b=>b.onclick=async()=>{await post("/api/admin/logcfg",{level:b.dataset.l});lcSig="";loadLog()});
+document.querySelectorAll("#lf button").forEach(b=>b.onclick=()=>{lfil=b.dataset.f;loadLog()});
+$("lClr").onclick=async()=>{if(!confirm("Das ganze Protokoll löschen?"))return;await post("/api/admin/logclear",{});loadLog()};
+document.querySelectorAll("#tabs a").forEach(a=>a.addEventListener("click",()=>setTimeout(loadLog,50)));
+
+// ---- Baustellen ----
+async function bsLoad(){try{const r=await fetch("/api/admin/baustellen",{headers:{"X-Admin-Password":$("pw").value}});if(!r.ok)return;const j=await r.json();
+ const run=j.state=="running";$("bsbar").style.display=run?"block":"none";$("bsi").style.width=j.pct+"%";$("bsStop").style.display=run?"inline-block":"none";$("bsGo").disabled=run;
+ const q={live:"Mobilithek (Abo)",test:"Testdatei",none:"keine"}[j.quelle]||j.quelle;
+ let h='<div class="stats"><div><b>'+nf(j.n)+'</b><span>Meldungen</span></div><div><b>'+nf(j.n_gesperrt)+'</b><span>davon Sperrungen</span></div><div><b>'+nf(j.geom)+'</b><span>mit echter Straße</span></div></div>';
+ h+='<div class="note">Quelle: <b>'+esc(q)+'</b>'+(j.stand?" · Stand der Liste: "+fd(j.stand)+(j.letzte_quelle=="test"?" (Testdaten von "+fday(j.ref)+")":""):" · noch keine Liste")+(j.geprueft?" · zuletzt geprüft: "+fd(j.geprueft):"")+(j.bytes?" · "+fb(j.bytes):"")+"</div>";
+ if(run)h+='<div class="note"><b>'+esc(j.text||"läuft …")+"</b> ("+j.pct+" %)</div>";
+ if(j.fehler&&!run)h+='<div class="note er">Letzter Fehler: '+esc(j.fehler)+"</div>";
+ const k=$("bsx");if(k.dataset.h!==h){k.dataset.h=h;k.innerHTML=h}}catch(e){}}
+$("bsGo").onclick=async()=>{$("bsm").textContent="";const[ok,j]=await post("/api/admin/baustellen/abrufen",{});if(!ok||!j.ok)$("bsm").textContent=j.fehler||"Läuft schon.";bsLoad()};
+$("bsStop").onclick=async()=>{await post("/api/admin/baustellen/abrufen",{stop:true});bsLoad()};
+bsLoad();setInterval(bsLoad,2000);
+glance();setInterval(glance,15000);setInterval(loadLog,3000);setTimeout(loadLog,300);load();loadP();setInterval(load,3000);setInterval(loadP,10000);
+</script></body></html>

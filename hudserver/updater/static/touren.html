@@ -1,0 +1,169 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Touren · HUDPilot</title><link rel="icon" href="/logo.png" type="image/png">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+:root{--bg:#f3f4f7;--card:#fff;--tx:#1b1f24;--mu:#667;--ac:#ff7a00;--ok:#1a8f3c;--er:#c62828;--bd:#dde1e6}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1217;--card:#1a1e26;--tx:#e8eaed;--mu:#9aa;--bd:#2b313b}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}body{background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,sans-serif;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--bd);background:var(--card)}header img{width:34px;height:34px;border-radius:9px}
+header a{color:inherit;text-decoration:none;font-weight:700;font-size:17px}header span{color:var(--mu)}
+.wrap{flex:1;display:flex;min-height:0}#list{width:340px;max-width:42vw;overflow:auto;border-right:1px solid var(--bd);background:var(--card)}#det{flex:1;overflow:auto;padding:14px}
+.tabs{display:flex;gap:4px;position:sticky;top:0;background:var(--card);padding:10px;z-index:2}
+.tab{flex:1;text-align:center;padding:8px 4px;cursor:pointer;color:var(--mu);font-weight:600;font-size:14px;border-radius:10px;white-space:nowrap;transition:background .15s}.tab:hover{background:rgba(255,122,0,.08)}.tab.on{color:#fff;background:var(--ac);box-shadow:0 2px 8px rgba(255,122,0,.35)}
+.tab i{font-style:normal;font-size:12px;margin-left:5px;padding:1px 7px;border-radius:9px;background:rgba(127,127,127,.18)}.tab.on i{background:rgba(255,255,255,.28)}
+#items{padding:2px 10px 12px}
+.it{padding:11px 14px;margin-bottom:8px;border:1px solid var(--bd);border-left:4px solid var(--bd);border-radius:12px;cursor:pointer;background:var(--card);transition:transform .12s,box-shadow .12s}.it:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.12);border-left-color:var(--ac)}.it.on{background:rgba(255,122,0,.12);border-color:var(--ac);border-left-color:var(--ac)}.it b{display:block;font-size:15px}.it span{color:var(--mu);font-size:13px}
+.empty{color:var(--mu);padding:28px 20px;text-align:center}
+#det>.empty{margin:auto;max-width:340px;padding-top:18vh}#det>.empty:before{content:"🏍️";display:block;font-size:54px;margin-bottom:10px;opacity:.8}
+#list{box-shadow:2px 0 18px rgba(0,0,0,.06)}button{transition:filter .12s}button:hover{filter:brightness(.95)}
+h2{margin:0 0 4px;font-size:20px}.sub{color:var(--mu);margin-bottom:10px;font-size:14px}
+.kpi{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:10px 0}.k{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px 10px}.k b{display:block;font-size:19px}.k span{color:var(--mu);font-size:12px}
+#map{height:max(460px,62vh);border-radius:12px;border:1px solid var(--bd);margin:8px 0;position:relative}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}select,button{padding:7px 11px;border-radius:7px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:14px;cursor:pointer}button.p{background:var(--ac);color:#fff;border:0}
+.ch{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:8px 10px;margin:8px 0}.ch h4{margin:0 0 2px;font-size:13px;color:var(--mu);display:flex;justify-content:space-between}.ch canvas{width:100%;height:130px;display:block}
+.pin{width:22px;height:22px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5);font:700 11px/18px system-ui;text-align:center;color:#fff}.hov{width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid #ff7a00;box-shadow:0 0 6px rgba(0,0,0,.6)}
+.legend{font-size:12px;color:var(--mu)}
+@media(max-width:760px){.wrap{flex-direction:column}#list{width:auto;max-width:none;height:38%;border-right:0;border-bottom:1px solid var(--bd)}}
+.wl{padding:20px;overflow:auto;width:100%}.wl h2{margin:0}.wg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-top:16px}
+.wc{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:2px;transition:transform .15s,border-color .15s}.wc:hover{transform:translateY(-2px);border-color:var(--ac)}
+.wc .wp{height:110px;border-radius:10px;background:linear-gradient(135deg,rgba(255,122,0,.10),rgba(255,122,0,.03));margin-bottom:6px}.wc span{color:var(--mu);font-size:13px}
+</style></head><body><!--AUTH--><!--NAV-->
+<div class="wrap"><div id="list"><div class="tabs"><div class="tab on" id="t1">Geplant</div><div class="tab" id="t2">Gefahren</div><div class="tab" id="t3">Aufnahmen</div></div><div id="items"></div></div>
+<div id="det"><div class="empty">Wähle links eine Tour, um Karte, Diagramme und Kennzahlen zu sehen.</div></div></div>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let tab="geplant",tours=[],rides=[],sel=null,map=null,mapReady=false,layerData=null,mk=[],hov=null,charts=[],cur=null;
+const fmtD=ms=>new Date(ms).toLocaleString("de-DE",{dateStyle:"medium",timeStyle:"short"});
+const fmtKm=m=>(m/1000).toFixed(1).replace(".",",")+" km";
+const fmtT=ms=>{const m=Math.round(ms/60000);return Math.floor(m/60)+" h "+String(m%60).padStart(2,"0")+" min"};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+async function api(p,b){const r=await fetch(p,b?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}:{});return r.json().catch(()=>({}))}
+async function load(){try{tours=(await api("/api/tours")).touren||[];rides=(await api("/api/rides")).fahrten||[]}catch(e){}$("t1").innerHTML="Geplant<i>"+tours.length+"</i>";$("t2").innerHTML="Gefahren<i>"+kindOf("nav").length+"</i>";$("t3").innerHTML="Aufnahmen<i>"+kindOf("free").length+"</i>";renderList()}
+const kindOf=k=>rides.filter(r=>(r.kind||"free")==k);
+const setTab=t=>{tab=t;["geplant","gefahren","aufz"].forEach((n,i)=>$("t"+(i+1)).classList.toggle("on",n==t));renderList()};
+$("t1").onclick=()=>setTab("geplant");$("t2").onclick=()=>setTab("gefahren");$("t3").onclick=()=>setTab("aufz");
+function renderList(){const el=$("items");el.innerHTML="";
+ const arr=tab=="geplant"?tours:kindOf(tab=="gefahren"?"nav":"free");
+ const demoBtn=tab!="geplant"?'<div class="empty"><button id="dm">'+(rides.some(r=>r.demo)?"Beispielfahrten entfernen":"Beispielfahrten anlegen")+"</button></div>":"";
+ const bindDemo=()=>{const b=$("dm");if(b)b.onclick=async()=>{await api("/api/ride/demo",rides.some(r=>r.demo)?{weg:1}:{});sel=null;$("det").innerHTML='<div class="empty">Links eine Tour wählen.</div>';load()}};
+ if(!arr.length){el.innerHTML='<div class="empty">'+(tab=="geplant"?"Noch keine geplante Tour. Im Planer speichern.":tab=="gefahren"?"Noch keine Navigationsfahrt. Fahrten kommen automatisch vom Handy, sobald es im Heim-WLAN ist.":"Noch keine Aufzeichnung. Aufnahmen mit dem Aufnahme-Knopf in der Karte erscheinen hier, sobald das Handy im Heim-WLAN ist.")+"</div>"+demoBtn;bindDemo();return}
+ arr.forEach(x=>{const d=document.createElement("div");d.className="it"+(sel&&sel.id==x.id&&sel.tab==tab?" on":"");
+  const st=x.stats;d.innerHTML="<b>"+esc(x.name)+(x.demo?' <small style="color:var(--ac)">Beispiel</small>':"")+"</b><span>"+(tab=="geplant"?x.points+" Punkte · "+(x.profile||"").replace("motorrad_",""):fmtD(st.start)+" · "+fmtKm(st.dist_m)+" · max "+st.max_kmh+" km/h")+"</span>";
+  d.onclick=()=>{sel={id:x.id,tab};renderList();tab=="geplant"?showTour(x):showRide(x.id)};el.appendChild(d)});
+ if(demoBtn){const w=document.createElement("div");w.innerHTML=demoBtn;el.appendChild(w);bindDemo()}}
+/* ---------- Karte ---------- */
+const OSM="© OpenStreetMap-Mitwirkende",ESRI="https://server.arcgisonline.com/ArcGIS/rest/services/";
+const DEM={type:"raster-dem",tiles:["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],encoding:"terrarium",tileSize:256,maxzoom:14};
+const ras=(t,mz,a)=>({version:8,sources:{r:{type:"raster",tiles:t,tileSize:256,maxzoom:mz,attribution:a}},layers:[{id:"r",type:"raster",source:"r"}]});
+const rasT=(t,mz,a)=>({version:8,sources:{r:{type:"raster",tiles:t,tileSize:256,maxzoom:mz,attribution:a},dem:DEM,dem2:DEM},layers:[{id:"r",type:"raster",source:"r"},{id:"hs",type:"hillshade",source:"dem2",paint:{"hillshade-exaggeration":.35}}],terrain:{source:"dem",exaggeration:1.5}});
+const STY={"Standard":[()=>ras(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],19,OSM),0],"Dunkel":[()=>ras([ESRI+"Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"],16,"Tiles © Esri"),0],
+ "Satellit":[()=>ras([ESRI+"World_Imagery/MapServer/tile/{z}/{y}/{x}"],19,"Tiles © Esri"),0],
+ "3D Gelände (Karte)":[()=>rasT(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],19,OSM),60],"3D Gelände (Satellit)":[()=>rasT([ESRI+"World_Imagery/MapServer/tile/{z}/{y}/{x}"],19,"Tiles © Esri"),60]};
+let sty="Standard";try{sty=localStorage.getItem("hudstyle")||sty}catch(e){}if(!STY[sty])sty="Standard";
+function addLayers(){if(!map||!layerData)return;try{
+ if(!map.getSource("trk"))map.addSource("trk",{type:"geojson",data:layerData.fc,tolerance:0,buffer:64});else map.getSource("trk").setData(layerData.fc);
+ if(!map.getLayer("trk-c"))map.addLayer({id:"trk-c",type:"line",source:"trk",layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":"#fff","line-width":8,"line-opacity":.85}});
+ map.setPaintProperty("trk-c","line-opacity",layerData.color?.85:.85);
+ if(!map.getLayer("trk-l"))map.addLayer({id:"trk-l",type:"line",source:"trk",layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":"#ff7a00","line-width":5}});
+ map.setPaintProperty("trk-l","line-color",layerData.color||"#ff7a00")}catch(e){}}
+function ensureMap(){if(map)return;
+ map=new maplibregl.Map({container:"map",style:STY[sty][0](),center:[10.5,49],zoom:5,pitch:STY[sty][1],maxPitch:75});
+ map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),"top-right");map.on("style.load",addLayers)}
+function mapBar(){return '<div class="bar"><select id="sty">'+Object.keys(STY).map(k=>'<option'+(k==sty?" selected":"")+">"+k+"</option>").join("")+'</select><span class="legend" id="leg"></span></div><div id="map"></div>'}
+function bindSty(){$("sty").onchange=()=>{sty=$("sty").value;try{localStorage.setItem("hudstyle",sty)}catch(e){}map.setStyle(STY[sty][0]());map.easeTo({pitch:STY[sty][1],duration:700})}}
+function clearMarkers(){mk.forEach(m=>m.remove());mk=[];hov=null}
+function pin(ll,txt,col){const e=document.createElement("div");e.className="pin";e.style.background=col;e.textContent=txt;mk.push(new maplibregl.Marker({element:e}).setLngLat(ll).addTo(map))}
+function fit(coords){const b=new maplibregl.LngLatBounds();coords.forEach(c=>b.extend(c));map.fitBounds(b,{padding:50,maxZoom:15,duration:600})}
+function startMap(){ensureMap();bindSty()}
+/* ---------- Geplante Tour ---------- */
+async function showTour(t){cur=null;charts=[];
+ const j=await api("/api/tour?id="+t.id);if(!j.points)return;
+ $("det").innerHTML='<h2>'+esc(j.name)+'</h2><div class="sub">'+j.points.length+' Punkte · Profil '+esc((j.profile||"").replace("motorrad_",""))+' · zuletzt geändert '+fmtD(j.updated*1000)+'</div><div class="bar"><button class="p" id="op">Im Planer öffnen</button><button id="rn">Umbenennen</button><button id="dl">Löschen</button></div><div id="info" class="sub">Berechne Route …</div>'+mapBar();
+ $("op").onclick=()=>location.href="/planer?tour="+t.id;
+ $("rn").onclick=async()=>{const n=prompt("Neuer Name:",j.name);if(n){await api("/api/tour/rename",{id:t.id,name:n});await load();showTour(t)}};
+ $("dl").onclick=async()=>{if(confirm("Tour löschen?")){await api("/api/tour/delete",{id:t.id});sel=null;$("det").innerHTML='<div class="empty">Gelöscht.</div>';load()}};
+ map=null;mapReady=false;layerData=null;startMap();clearMarkers();
+ const wp=j.points.map(p=>[p[1],p[0]]);
+ map.on("load",()=>{wp.forEach((c,i)=>pin(c,i==0?"S":i==wp.length-1?"Z":i,i==0?"#1a8f3c":i==wp.length-1?"#c62828":"#ff7a00"));fit(wp)});
+ try{const r=await fetch("/api/route?lonlats="+encodeURIComponent(j.points.map(p=>p[1]+","+p[0]).join("|"))+"&profile="+j.profile);const g=await r.json();
+  if(!r.ok){$("info").textContent=g.fehler||"Route nicht berechenbar";return}
+  const f=g.features[0];layerData={fc:{type:"FeatureCollection",features:[{type:"Feature",geometry:{type:"LineString",coordinates:f.geometry.coordinates.map(q=>[q[0],q[1]])},properties:{}}]},color:null};
+  $("info").textContent=(f.properties["track-length"]/1000).toFixed(1).replace(".",",")+" km · "+fmtT(f.properties["total-time"]*1000)+" · Anstieg "+(f.properties["filtered ascend"]||"?")+" m";
+  if(map.loaded())addLayers();else map.on("load",addLayers);fit(f.geometry.coordinates)}catch(e){$("info").textContent="Route nicht berechenbar."}}
+/* ---------- Gefahrene Tour ---------- */
+const lerp=(stops,v)=>stops;
+function colorExpr(prop,lo,hi,cols){const n=cols.length;const e=["interpolate",["linear"],["get",prop]];cols.forEach((c,i)=>{e.push(lo+(hi-lo)*i/(n-1),c)});return e}
+const METRICS={"Tempo":{k:"speed",cols:["#2e9e5b","#ffd000","#ff3b30"],u:"km/h"},"Schräglage":{k:"lean",abs:1,cols:["#2e9e5b","#ffd000","#ff3b30"],u:"°"},"Höhe":{k:"ele",cols:["#2b6cff","#2e9e5b","#d9a441","#8b5a2b"],u:"m"},"Einfarbig":{k:null}};
+async function showRide(id){charts=[];const d=await api("/api/ride?id="+id);if(!d.stats)return;cur=d;const s=d.stats;
+ const k=(b,l)=>'<div class="k"><b>'+b+"</b><span>"+l+"</span></div>";
+ $("det").innerHTML='<h2>'+esc(d.name)+'</h2><div class="sub">'+fmtD(s.start)+' · '+((d.kind||"free")=="nav"?"Navigationsfahrt":"freie Aufzeichnung")+'</div><div class="bar"><button class="p" onclick="location.href=\'/api/ride/gpx?id='+id+'\'">GPX</button><button onclick="location.href=\'/api/ride/csv?id='+id+'\'">CSV</button><button id="rn">Umbenennen</button><button id="dl">Löschen</button></div>'+
+ '<div class="kpi">'+k(fmtKm(s.dist_m),"Strecke")+k(fmtT(s.total_ms),"Gesamtzeit")+k(fmtT(s.moving_ms),"in Bewegung")+k(s.avg_kmh+" km/h","Schnitt")+k(s.max_kmh+" km/h","Höchstgeschwindigkeit")+
+ (s.has_ele?k("↑ "+s.asc_m+" m  ↓ "+s.desc_m+" m","Höhenmeter"):"")+(s.has_limit?k(s.over,"Tempolimit überschritten"):"")+(s.has_lean?k("◀ "+s.lean_left+"°  ▶ "+s.lean_right+"°","größte Schräglage links / rechts"):"")+
+ k(s.max_acc.toFixed(1).replace(".",",")+" m/s²","stärkstes Beschleunigen")+k(s.max_brake.toFixed(1).replace(".",",")+" m/s²","stärkstes Bremsen")+'</div>'+
+ '<div class="bar"><b>Linie einfärben nach:</b><select id="met">'+Object.keys(METRICS).filter(m=>m=="Einfarbig"||(m=="Höhe"?s.has_ele:m=="Schräglage"?s.has_lean:true)).map(m=>"<option>"+m+"</option>").join("")+"</select></div>"+mapBar()+'<div id="chs"></div>';
+ $("rn").onclick=async()=>{const n=prompt("Neuer Name:",d.name);if(n){await api("/api/ride/rename",{id,name:n});await load();showRide(id)}};
+ $("dl").onclick=async()=>{if(confirm("Fahrt löschen?")){await api("/api/ride/delete",{id});sel=null;$("det").innerHTML='<div class="empty">Gelöscht.</div>';load()}};
+ map=null;layerData=null;startMap();clearMarkers();
+ const co=d.lon.map((x,i)=>[x,d.lat[i]]);
+ map.on("load",()=>{pin(co[0],"S","#1a8f3c");pin(co[co.length-1],"Z","#c62828");const e=document.createElement("div");e.className="hov";e.style.display="none";hov=new maplibregl.Marker({element:e}).setLngLat(co[0]).addTo(map);hov._e=e;fit(co)});
+ const setMetric=()=>{layerData=buildLine(d,METRICS[$("met").value]);if(map.loaded())addLayers();else map.on("load",addLayers)};
+ $("met").onchange=setMetric;setMetric();
+ buildCharts(d)}
+function buildLine(d,m){const n=d.lat.length,step=Math.max(1,Math.floor(n/5000)),feats=[];let lo=1e9,hi=-1e9;
+ const val=i=>{if(!m.k)return null;let v=d[m.k][i];if(v==null)return null;return m.abs?Math.abs(v):v};
+ for(let i=0;i<n;i++){const v=val(i);if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v)}}
+ if(m.k=="speed")lo=0;if(m.abs)lo=0;if(hi<=lo)hi=lo+1;
+ for(let i=0;i+step<n;i+=step){const j=i+step;const a=val(i),b=val(j);feats.push({type:"Feature",geometry:{type:"LineString",coordinates:[[d.lon[i],d.lat[i]],[d.lon[j],d.lat[j]]]},properties:{v:a==null?(b==null?lo:b):b==null?a:(a+b)/2}})}
+ $("leg").textContent=m.k?(lo.toFixed(0)+" "+m.u+" ▬▬▬ "+hi.toFixed(0)+" "+m.u):"";
+ return{fc:{type:"FeatureCollection",features:feats},color:m.k?colorExpr("v",lo,hi,m.cols):null}}
+/* ---------- Diagramme ---------- */
+function chartDef(title,unit,series,opt){return{title,unit,series,opt:opt||{}}}
+function buildCharts(d){charts=[];const box=$("chs");box.innerHTML="";const xs=d.dist.map(v=>v/1000);
+ const defs=[chartDef("Tempo und Tempolimit","km/h",[{ys:d.speed,c:"#ff7a00",fill:1,n:"Tempo"},...(d.stats.has_limit?[{ys:d.limit,c:"#e53935",step:1,n:"Limit"}]:[])],{zero:0})];
+ if(d.stats.has_ele)defs.push(chartDef("Höhenprofil","m",[{ys:d.ele,c:"#2e9e5b",fill:1,n:"Höhe"}]));
+ if(d.stats.has_lean)defs.push(chartDef("Schräglage (oben = links, unten = rechts)","°",[{ys:d.lean,c:"#2b6cff",fill:1,n:"Schräglage"}],{zero:1}));
+ defs.push(chartDef("Beschleunigen / Bremsen","m/s²",[{ys:d.acc,c:"#8e44ad",fill:1,n:"Beschl."}],{zero:1}));
+ defs.forEach(df=>{const w=document.createElement("div");w.className="ch";w.innerHTML='<h4><span>'+df.title+'</span><span class="rd"></span></h4><canvas></canvas>';box.appendChild(w);
+  const cv=w.querySelector("canvas");df.cv=cv;df.rd=w.querySelector(".rd");df.xs=xs;charts.push(df);
+  const mv=e=>{const r=cv.getBoundingClientRect(),x=(e.clientX-r.left)/r.width;const t=xs[xs.length-1]*Math.min(1,Math.max(0,(x*cv.width-df.l)/(cv.width-df.l-df.r)));
+   let lo=0,hi=xs.length-1;while(lo<hi){const m=(lo+hi)>>1;xs[m]<t?lo=m+1:hi=m}hover(lo)};
+  cv.addEventListener("mousemove",mv);cv.addEventListener("touchmove",e=>{mv(e.touches[0])},{passive:true});cv.addEventListener("mouseleave",()=>hover(-1))});
+ redraw(-1)}
+function hover(i){redraw(i);if(hov){if(i<0)hov._e.style.display="none";else{hov._e.style.display="block";hov.setLngLat([cur.lon[i],cur.lat[i]])}}}
+function redraw(hi){charts.forEach(df=>draw(df,hi))}
+function draw(df,hi){const cv=df.cv,dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;if(!W)return;cv.width=W*dpr;cv.height=H*dpr;const g=cv.getContext("2d");g.scale(dpr,dpr);
+ const L=44,R=8,T=6,B=18;df.l=L*dpr;df.r=R*dpr;const xs=df.xs,xm=xs[xs.length-1]||1;
+ let lo=1e9,hiV=-1e9;df.series.forEach(s=>s.ys.forEach(v=>{if(v!=null){lo=Math.min(lo,v);hiV=Math.max(hiV,v)}}));if(df.opt.zero!=null){lo=Math.min(lo,0);hiV=Math.max(hiV,0)}
+ if(df.opt.zero==1){const m=Math.max(Math.abs(lo),Math.abs(hiV),1);lo=-m;hiV=m}if(hiV<=lo)hiV=lo+1;const pad=(hiV-lo)*.06;if(df.opt.zero!=0){lo-=pad}hiV+=pad;
+ const X=v=>L+(W-L-R)*v/xm,Y=v=>T+(H-T-B)*(1-(v-lo)/(hiV-lo));
+ const cs=getComputedStyle(document.body);const mu=cs.getPropertyValue("--mu"),bd=cs.getPropertyValue("--bd");
+ g.font="11px system-ui";g.fillStyle=mu;g.strokeStyle=bd;g.lineWidth=1;
+ for(let i=0;i<=4;i++){const v=lo+(hiV-lo)*i/4,y=Y(v);g.beginPath();g.moveTo(L,y);g.lineTo(W-R,y);g.stroke();g.textAlign="right";g.fillText(Math.abs(v)>=100?v.toFixed(0):v.toFixed(1).replace(/\.0$/,""),L-4,y+4)}
+ g.textAlign="center";const nx=Math.min(6,Math.max(2,Math.floor(W/90)));for(let i=0;i<=nx;i++){const v=xm*i/nx;g.fillText(v.toFixed(v<10?1:0)+" km",Math.min(W-22,Math.max(L+8,X(v))),H-4)}
+ if(df.opt.zero!=null){g.strokeStyle=mu;g.beginPath();g.moveTo(L,Y(0));g.lineTo(W-R,Y(0));g.stroke()}
+ df.series.forEach(s=>{g.beginPath();let on=false,first=0,lastX=0;
+  for(let i=0;i<xs.length;i++){const v=s.ys[i];if(v==null){on=false;continue}const x=X(xs[i]),y=s.step&&on?Y(prev):Y(v);
+   if(!on){g.moveTo(x,Y(v));on=true;first=x}else{if(s.step)g.lineTo(x,Y(prev));g.lineTo(x,Y(v))}var prev=v;lastX=x}
+  g.strokeStyle=s.c;g.lineWidth=1.6;g.stroke();
+  if(s.fill&&!s.step){g.lineTo(lastX,Y(Math.max(lo,Math.min(hiV,df.opt.zero!=null?0:lo))));g.lineTo(first,Y(df.opt.zero!=null?0:lo));g.closePath();g.fillStyle=s.c+"33";g.fill()}});
+ if(hi>=0){const x=X(xs[hi]);g.strokeStyle=cs.getPropertyValue("--tx");g.lineWidth=1;g.beginPath();g.moveTo(x,T);g.lineTo(x,H-B);g.stroke();
+  df.rd.textContent=df.series.map(s=>s.ys[hi]!=null?s.n+" "+(+s.ys[hi]).toFixed(1).replace(/\.0$/,"").replace(".",",")+" "+df.unit:"").filter(Boolean).join(" · ")+" · km "+xs[hi].toFixed(1).replace(".",",")}else df.rd.textContent=""}
+window.addEventListener("resize",()=>redraw(-1));
+function prevSvg(p,w,h){const D=window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches,pd=18,L2=Math.LN2;
+ const mx=lo=>(lo+180)/360*256,my=la=>{const s=Math.sin(la*Math.PI/180);return(0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*256};
+ const X=p.map(q=>mx(q[1])),Y=p.map(q=>my(q[0]));const x0=Math.min(...X),x1=Math.max(...X),y0=Math.min(...Y),y1=Math.max(...Y);
+ const zf=Math.max(0,Math.min(17,Math.log(Math.min((w-2*pd)/Math.max(x1-x0,1e-7),(h-2*pd)/Math.max(y1-y0,1e-7)))/L2));
+ const sc=Math.pow(2,zf),cx=(x0+x1)/2*sc,cy=(y0+y1)/2*sc,z=Math.min(Math.floor(zf),16),ts=256*Math.pow(2,zf-z),n=Math.pow(2,z);
+ const ox=cx-w/2,oy=cy-h/2;let img="";
+ for(let tx=Math.floor(ox/ts);tx<=Math.floor((ox+w)/ts);tx++)for(let ty=Math.floor(oy/ts);ty<=Math.floor((oy+h)/ts);ty++){if(ty<0||ty>=n)continue;const u=((tx%n)+n)%n;
+  const url=D?"https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/"+z+"/"+ty+"/"+u:"https://tile.openstreetmap.org/"+z+"/"+u+"/"+ty+".png";
+  img+='<image href="'+url+'" x="'+(tx*ts-ox).toFixed(1)+'" y="'+(ty*ts-oy).toFixed(1)+'" width="'+(ts+.6).toFixed(1)+'" height="'+(ts+.6).toFixed(1)+'"/>'}
+ const pt=p.map((q,i)=>(X[i]*sc-ox).toFixed(1)+","+(Y[i]*sc-oy).toFixed(1)),b=pt[0].split(","),e=pt[pt.length-1].split(",");
+ return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" preserveAspectRatio="xMidYMid slice" style="display:block;border-radius:10px;height:'+h+'px">'+img+'<polyline points="'+pt.join(" ")+'" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/><polyline points="'+pt.join(" ")+'" fill="none" stroke="#ff7a00" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="'+b[0]+'" cy="'+b[1]+'" r="5" fill="#1a8f3c" stroke="#fff" stroke-width="1.5"/><circle cx="'+e[0]+'" cy="'+e[1]+'" r="5" fill="#c62828" stroke="#fff" stroke-width="1.5"/><text x="'+(w-3)+'" y="'+(h-3)+'" text-anchor="end" font-size="7" fill="'+(D?"#ccc":"#444")+'">© OpenStreetMap'+(D?" · Esri":"")+'</text></svg>'}
+function welcome(){const r=rides.filter(x=>!x.demo&&!/^Beispiel:/.test(x.name)).slice(0,12);if(!r.length)return;if(kindOf("nav").length)setTab("gefahren");
+ $("det").innerHTML='<div class="wl"><h2>Deine letzten Fahrten</h2><div class="sub">Eine Fahrt anklicken, um Karte und Diagramme zu sehen.</div><div class="wg">'+r.map(x=>'<div class="wc" data-id="'+x.id+'"><div class="wp" id="wp'+x.id+'"></div><b>'+esc(x.name)+'</b><span>'+fmtD(x.stats.start)+'</span><span><strong>'+fmtKm(x.stats.dist_m)+'</strong> · '+fmtT(x.stats.total_ms)+' · max '+x.stats.max_kmh+' km/h</span></div>').join("")+'</div></div>';
+ document.querySelectorAll(".wc").forEach(c=>c.onclick=()=>{const x=rides.find(y=>y.id==c.dataset.id);setTab((x.kind||"free")=="nav"?"gefahren":"aufz");sel={id:x.id,tab};renderList();showRide(x.id)});
+ r.forEach(x=>api("/api/ride/preview?id="+x.id).then(j=>{const el=$("wp"+x.id);if(el&&j.p&&j.p.length>1)el.innerHTML=prevSvg(j.p,260,110)}))}
+load().then(()=>{const q=new URLSearchParams(location.search),rid=q.get("ride");if(rid){const r=rides.find(x=>x.id==rid);if(r){setTab((r.kind||"free")=="nav"?"gefahren":"aufz");sel={id:r.id,tab};renderList();showRide(r.id);return}}welcome()});
+</script></body></html>

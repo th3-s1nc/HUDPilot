@@ -1,0 +1,20 @@
+<style>#hpA{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:9999;font-family:system-ui,sans-serif}
+#hpA .b{background:#1c1c1e;color:#fff;padding:22px;border-radius:16px;max-width:340px;width:90%}#hpA h3{margin:0 0 6px;font-size:19px}#hpA p{margin:6px 0;font-size:14px;color:#bbb}
+#hpA input{width:100%;box-sizing:border-box;margin:6px 0 10px;padding:10px;border-radius:8px;border:1px solid #444;background:#111;color:#fff;font-size:16px}
+#hpA button{padding:10px 14px;border:0;border-radius:8px;background:#ff7a00;color:#000;font-weight:700;font-size:15px;margin-right:8px;cursor:pointer}#hpA button.g{background:#3a3a3c;color:#fff}
+#hpM{color:#ff9f0a;min-height:20px}#hpB{position:fixed;bottom:8px;right:10px;z-index:9000;font:13px system-ui,sans-serif;color:#ddd;background:rgba(0,0,0,.55);padding:4px 10px;border-radius:12px}#hpB a{color:#ff9f0a;cursor:pointer;text-decoration:underline}</style>
+<div id="hpA"><div class="b"><h3>Profil</h3><p>Name und Code eintragen.<!--NEWPROF--> Neu hier? Name und Einladungscode eintragen, dann „Neu anlegen“.<!--/NEWPROF--></p>
+<input id="hpN" placeholder="Name" autocomplete="username"><input id="hpC" placeholder="Code" autocomplete="off">
+<div><button id="hpGo">Anmelden</button><!--NEWPROF--><button class="g" id="hpNew">Neu anlegen</button><!--/NEWPROF--></div><p id="hpM"></p></div></div><div id="hpB" style="display:none"></div>
+<script>(function(){const $=i=>document.getElementById(i);
+function ck(n,c){document.cookie="hudprof="+encodeURIComponent(n+"|"+c)+"; path=/; max-age=31536000; SameSite=Strict"}
+function out(){document.cookie="hudprof=; path=/; max-age=0";location.reload()}
+async function me(){try{const r=await fetch("/api/me");return r.ok?await r.json():null}catch(e){return null}}
+me().then(j=>{if(j){const b=$("hpB");b.style.display="block";b.innerHTML="Profil: <b></b> · <a id='hpO'>wechseln</a>";b.querySelector("b").textContent=j.name;$("hpO").onclick=out}else $("hpA").style.display="flex"});
+$("hpGo").onclick=async()=>{const n=$("hpN").value.trim(),c=$("hpC").value.trim();if(!n||!c){$("hpM").textContent="Name und Code eintragen.";return}
+ ck(n,c);if(await me())location.reload();else{$("hpM").textContent="Name oder Code stimmt nicht.";document.cookie="hudprof=; path=/; max-age=0"}};
+if($("hpNew"))$("hpNew").onclick=async()=>{const n=$("hpN").value.trim(),c=$("hpC").value.trim();if(!n||!c){$("hpM").textContent="Name und Einladungscode eintragen.";return}
+ const r=await fetch("/api/profile/create",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:n,invite:c})});const j=await r.json().catch(()=>({}));
+ if(!r.ok){$("hpM").textContent=j.fehler||"Fehler";return}ck(j.name,j.code);
+ $("hpA").querySelector(".b").innerHTML="<h3>Profil angelegt</h3><p>Dein persönlicher Code (bitte merken, damit meldest du dich am Handy und an anderen Geräten an):</p><p style='font-size:28px;color:#fff;letter-spacing:3px'>"+j.code+"</p><button id='hpOk'>Weiter</button>";$("hpOk").onclick=()=>location.reload()};
+})();</script>

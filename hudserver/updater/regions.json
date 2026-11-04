@@ -1,0 +1,230 @@
+[
+ {
+  "id": "bw",
+  "name": "Baden-Württemberg",
+  "land": "DE",
+  "bbox": [
+   7.51,
+   47.53,
+   10.5,
+   49.79
+  ],
+  "pbf": "europe/germany/baden-wuerttemberg"
+ },
+ {
+  "id": "by",
+  "name": "Bayern",
+  "land": "DE",
+  "bbox": [
+   8.97,
+   47.27,
+   13.84,
+   50.56
+  ],
+  "pbf": "europe/germany/bayern"
+ },
+ {
+  "id": "be",
+  "name": "Berlin",
+  "land": "DE",
+  "bbox": [
+   13.09,
+   52.34,
+   13.76,
+   52.68
+  ],
+  "pbf": "europe/germany/berlin"
+ },
+ {
+  "id": "bb",
+  "name": "Brandenburg",
+  "land": "DE",
+  "bbox": [
+   11.27,
+   51.36,
+   14.77,
+   53.56
+  ],
+  "pbf": "europe/germany/brandenburg"
+ },
+ {
+  "id": "hb",
+  "name": "Bremen",
+  "land": "DE",
+  "bbox": [
+   8.45,
+   52.95,
+   9.0,
+   53.65
+  ],
+  "pbf": "europe/germany/bremen"
+ },
+ {
+  "id": "hh",
+  "name": "Hamburg",
+  "land": "DE",
+  "bbox": [
+   9.7,
+   53.35,
+   10.35,
+   53.8
+  ],
+  "pbf": "europe/germany/hamburg"
+ },
+ {
+  "id": "he",
+  "name": "Hessen",
+  "land": "DE",
+  "bbox": [
+   7.77,
+   49.39,
+   10.24,
+   51.66
+  ],
+  "pbf": "europe/germany/hessen"
+ },
+ {
+  "id": "mv",
+  "name": "Mecklenburg-Vorpommern",
+  "land": "DE",
+  "bbox": [
+   10.59,
+   53.11,
+   14.41,
+   54.69
+  ],
+  "pbf": "europe/germany/mecklenburg-vorpommern"
+ },
+ {
+  "id": "ni",
+  "name": "Niedersachsen",
+  "land": "DE",
+  "bbox": [
+   6.65,
+   51.3,
+   11.6,
+   53.9
+  ],
+  "pbf": "europe/germany/niedersachsen"
+ },
+ {
+  "id": "nw",
+  "name": "Nordrhein-Westfalen",
+  "land": "DE",
+  "bbox": [
+   5.86,
+   50.32,
+   9.46,
+   52.53
+  ],
+  "pbf": "europe/germany/nordrhein-westfalen"
+ },
+ {
+  "id": "rp",
+  "name": "Rheinland-Pfalz",
+  "land": "DE",
+  "bbox": [
+   6.11,
+   48.97,
+   8.51,
+   50.94
+  ],
+  "pbf": "europe/germany/rheinland-pfalz"
+ },
+ {
+  "id": "sl",
+  "name": "Saarland",
+  "land": "DE",
+  "bbox": [
+   6.36,
+   49.11,
+   7.41,
+   49.64
+  ],
+  "pbf": "europe/germany/saarland"
+ },
+ {
+  "id": "sn",
+  "name": "Sachsen",
+  "land": "DE",
+  "bbox": [
+   11.87,
+   50.17,
+   15.04,
+   51.69
+  ],
+  "pbf": "europe/germany/sachsen"
+ },
+ {
+  "id": "st",
+  "name": "Sachsen-Anhalt",
+  "land": "DE",
+  "bbox": [
+   10.56,
+   50.94,
+   13.19,
+   53.04
+  ],
+  "pbf": "europe/germany/sachsen-anhalt"
+ },
+ {
+  "id": "sh",
+  "name": "Schleswig-Holstein",
+  "land": "DE",
+  "bbox": [
+   7.87,
+   53.36,
+   11.31,
+   55.06
+  ],
+  "pbf": "europe/germany/schleswig-holstein"
+ },
+ {
+  "id": "th",
+  "name": "Thüringen",
+  "land": "DE",
+  "bbox": [
+   9.88,
+   50.2,
+   12.65,
+   51.65
+  ],
+  "pbf": "europe/germany/thueringen"
+ },
+ {
+  "id": "at",
+  "name": "Österreich",
+  "land": "AT",
+  "bbox": [
+   9.53,
+   46.37,
+   17.16,
+   49.02
+  ],
+  "pbf": "europe/austria"
+ },
+ {
+  "id": "ch",
+  "name": "Schweiz (mit Liechtenstein)",
+  "land": "CH",
+  "bbox": [
+   5.96,
+   45.82,
+   10.49,
+   47.81
+  ],
+  "pbf": "europe/switzerland"
+ },
+ {
+  "id": "cz",
+  "name": "Tschechien",
+  "land": "CZ",
+  "bbox": [
+   12.09,
+   48.55,
+   18.86,
+   51.06
+  ],
+  "pbf": "europe/czech-republic"
+ }
+]

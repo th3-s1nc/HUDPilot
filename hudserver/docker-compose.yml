@@ -1,0 +1,12 @@
+# HUDPilot Updater - ein Container: Verwaltung, Planer und Dateien für die App auf Port 8085
+services:
+  hud:
+    build: ./updater
+    container_name: hud-updater
+    restart: unless-stopped
+    ports: ["8085:8085"]
+    environment:
+      TZ: Europe/Berlin
+      ADMIN_PASSWORD: "BITTE-AENDERN"
+      # NPM_IPS: "<IP-deines-Proxys>"   # optional, wenn du den Server über einen Reverse Proxy von außen erreichbar machst
+    volumes: ["./data:/data"]
