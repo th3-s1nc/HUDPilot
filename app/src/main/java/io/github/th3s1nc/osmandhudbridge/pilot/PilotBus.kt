@@ -46,6 +46,16 @@ object PilotBus {
     /** Aktuelles Tempolimit in km/h; 0 = unbekannt oder die Angabe ist älter als 6 s. */
     fun limit(now: Long = System.currentTimeMillis()): Int = if (now - limitAt < 6_000L) limitKmh else 0
 
+    // Früherkennung: das kommende Tempolimit auf der Route (km/h und Entfernung in m)
+    @Volatile private var aheadKmh = 0
+    @Volatile private var aheadM = 0
+    @Volatile private var aheadAt = 0L
+
+    fun setLimitAhead(kmh: Int, distM: Int, now: Long = System.currentTimeMillis()) { aheadKmh = kmh; aheadM = distM; aheadAt = now }
+
+    /** Kommendes Limit (km/h, Entfernung m) oder null; höchstens 3 s alt. */
+    fun limitAhead(now: Long = System.currentTimeMillis()): Pair<Int, Int>? = if (aheadKmh > 0 && now - aheadAt < 3_000L) Pair(aheadKmh, aheadM) else null
+
     @Volatile var hazards: List<Hazard> = emptyList()
         private set
     @Volatile private var hazardsAt = 0L

@@ -80,6 +80,7 @@ class MainActivity : AppCompatActivity() {
         tvLog = findViewById(R.id.tvLog)
 
         setupNavigation()
+        setupAdminMessages()
         setupDisplay()
         setupInfoButtons()
         setupLanguage()
@@ -117,6 +118,7 @@ class MainActivity : AppCompatActivity() {
         autoConnect()
         refresh()
         trackHandler.post(trackTick)
+        refreshAdminButton(); adminHandler.removeCallbacks(adminTick); adminHandler.post(adminTick)
         refreshRides()
         offerUnfinishedRide()
     }
@@ -127,7 +129,42 @@ class MainActivity : AppCompatActivity() {
         ImportBus.onChange = null
         DownloadBus.onChange = null
         trackHandler.removeCallbacks(trackTick)
+        adminHandler.removeCallbacks(adminTick)
         super.onStop()
+    }
+
+    // ---------------- Admin-Meldungen (nur für Profile, die der Admin am Server dafür bestimmt hat) ----------------
+
+    private val adminHandler = Handler(Looper.getMainLooper())
+    private val adminExec = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val adminTick = object : Runnable {
+        override fun run() {
+            adminExec.execute {
+                val fresh = try { io.github.th3s1nc.osmandhudbridge.pilot.AdminNotes.checkAndAnnounce(this@MainActivity) } catch (_: Exception) { emptyList() }
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    refreshAdminButton()
+                    if (fresh.isNotEmpty()) Toast.makeText(this@MainActivity, io.github.th3s1nc.osmandhudbridge.pilot.AdminNotesLogic.notifyText(fresh, Tx.en), Toast.LENGTH_LONG).show()
+                }
+            }
+            adminHandler.postDelayed(this, 30_000L)
+        }
+    }
+
+    private fun setupAdminMessages() {
+        findViewById<View>(R.id.btnAdminMsg).setOnClickListener { showAdminMessages() }
+        refreshAdminButton()
+    }
+
+    /** Knopf nur zeigen, wenn der Server dieses Profil als Empfänger kennt (sonst gar nicht vorhanden). */
+    private fun refreshAdminButton() {
+        val ok = io.github.th3s1nc.osmandhudbridge.pilot.AdminNotes.allowed(this)
+        findViewById<View>(R.id.cardAdminMsg).visibility = if (ok) View.VISIBLE else View.GONE
+        findViewById<MaterialButton>(R.id.btnAdminMsg).text = io.github.th3s1nc.osmandhudbridge.pilot.AdminNotesLogic.buttonText(io.github.th3s1nc.osmandhudbridge.pilot.AdminNotes.unread(this), Tx.en)
+    }
+
+    private fun showAdminMessages() {
+        startActivity(Intent(this, AdminMessagesActivity::class.java))
     }
 
     // ---------------- Aufbau ----------------
@@ -249,6 +286,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupInfoButtons() {
         setupInfoToggle(R.id.btnInfoWarn, R.id.tvInfoWarn)
         setupInfoToggle(R.id.btnInfoSound, R.id.tvInfoSound)
+        setupInfoToggle(R.id.btnInfoAhead, R.id.tvInfoAhead)
         setupInfoToggle(R.id.btnInfoCamera, R.id.tvInfoCamera)
         // Karte Blitzer: zugeklappt nur mit Überschrift, Zustand wird gemerkt
         run {
@@ -432,6 +470,12 @@ class MainActivity : AppCompatActivity() {
         camText(camLevel)
         cameraUi()
         soundEnabledUi()
+        val swAhead = findViewById<MaterialSwitch>(R.id.swLimitAhead)
+        swAhead.isChecked = prefs.getBoolean(BridgeService.KEY_LIMIT_AHEAD, false)
+        swAhead.setOnCheckedChangeListener { _, on ->
+            prefs.edit().putBoolean(BridgeService.KEY_LIMIT_AHEAD, on).apply()
+            applyConfigIfRunning()
+        }
         swWarnSound.setOnCheckedChangeListener { _, on ->
             prefs.edit().putBoolean(BridgeService.KEY_WARN_SOUND, on).apply()
             applyConfigIfRunning()
@@ -1397,6 +1441,12 @@ class MainActivity : AppCompatActivity() {
 
     /** Aufruf von außen (Karte → Menü → Touren): Reiter "Touren" öffnen. */
     private fun handleOpenPage(i: Intent?) {
+        if (i?.getBooleanExtra("open_admin", false) == true) {
+            i.removeExtra("open_admin")
+            findViewById<BottomNavigationView>(R.id.bottomNav).selectedItemId = R.id.nav_home
+            showAdminMessages()
+            return
+        }
         if ((i?.getIntExtra("open_page", -1) ?: -1) != 5) return
         i?.removeExtra("open_page")
         setTrackSettings(false)

@@ -2,6 +2,48 @@
 
 (Deutsch. HUDPilot ist eine Kopie der OSMAnd HUD Bridge v0.11.101 mit eigener Navigation und zählt ab 0.1.0 neu. Der Verlauf der Bridge steht darunter.)
 
+## v0.36.1 (HUDPilot, einheitliche Symbole und schwarzer Start)
+- **Menü:** „Freunde“ hat jetzt ein orangenes Linien-Symbol wie die übrigen Punkte (vorher ein farbiges Emoji). Im Untermenü Freunde ebenso „Standort teilen“ und „Darf mich sehen“.
+- **Start der App (Android 12 und neuer):** Der Startbildschirm hat jetzt schwarzen statt weißen Grund. Das Fenster ist auch sonst schwarz hinterlegt.
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
+## v0.36.0 (HUDPilot, Seite für Admin-Meldungen)
+- **Admin-Meldungen sind jetzt eine eigene Seite** (statt eines Fensters): oben der **Serverstatus** als Kacheln mit farbigem Punkt (grün in Ordnung, orange Achtung, rot Fehler; ein laufendes Update mit Fortschrittsbalken), darunter die **Meldungen** als Karten mit Symbol, Titel, Text und Zeit („heute 07:00“, „gestern 01:03“). Neue Meldungen haben einen orangen Rand. Die Seite aktualisiert sich alle 10 Sekunden.
+- Welche Status-Kacheln erscheinen, wählt der Admin am Webserver (Einstellungen, Admin-Meldungen). Braucht Server ab v1.34.0; mit einem älteren Server bleibt die Kachel-Gruppe leer, die Meldungen gehen weiter.
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
+## v0.35.0 (HUDPilot, Admin-Meldungen)
+- **Admin-Meldungen** (Server ab v1.33.0): Der Admin bestimmt am Webserver im Tab Profile, welche Profile sie bekommen. Nur diese Profile sehen im **Status-Tab** den Knopf „Admin-Meldungen“ (mit Zahl der ungelesenen); bei allen anderen ist er gar nicht vorhanden. Die Berechtigung prüft der Server.
+- Meldungen sind zum Beispiel: SCDB-Liste fällig, Update fertig oder mit Fehlern, Server hängt, Baustellen-Abruf fehlgeschlagen, Zertifikat läuft ab, Festplatte voll, Server neu gestartet. Welche Arten kommen, stellt der Admin am Server ein.
+- Neue Meldungen kommen als Benachrichtigung (App im Hintergrund etwa alle 15 Minuten) beziehungsweise als kurzer Hinweis bei offener App (etwa 30 Sekunden). Ein Tipp auf die Benachrichtigung öffnet die Liste. Beim ersten Mal wird der alte Verlauf nicht angekündigt.
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
+## v0.34.1 (HUDPilot, Teilen-Knopf bei Navigation)
+- **„Standort teilen“-Knopf** liegt während der Navigation **unten links über dem Menü** und nicht mehr unter der Navigationsanzeige (dort war er verdeckt). Ohne Navigation bleibt er links unter dem Haus-Knopf.
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
+## v0.34.0 (HUDPilot, Baustellen ehrlicher darstellen)
+- **Baustellen ohne gefundene Straße** (Server ab v1.32.0 liefert dann nur zwei Punkte) werden als **gestrichelte Luftlinie** gezeichnet, nicht mehr wie eine echte Sperr-Straße. Tippen auf die Linie zeigt wie bisher den Meldungstext.
+- Nach einem App-Update wird die Baustellen-Liste einmal sofort neu vom Server geholt (statt erst nach bis zu 6 Stunden).
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
+## v0.33.0 (HUDPilot, Freunde und Live-Standort)
+- **Freunde:** Neuer Menüpunkt „Freunde“. Freunde findest du über den genauen Profilnamen auf deinem Server, die andere Person muss die Anfrage annehmen. Offene Anfragen zeigt ein Punkt am Menü.
+- **Live-Standort:** Pro Freund schaltest du „darf mich sehen“ (bleibt dauerhaft). Gesendet wird nur, wenn der Schalter „Standort teilen“ an ist und die App Positionen bekommt: unterwegs alle 5 Sekunden, im Stand alle 30. Auf der Karte erscheint der Freund als Marker mit Schild „Anna · 87 km/h · vor 3 s“. Simulationen werden nie geteilt.
+- **Knopf „Standort teilen“** links unter dem Haus-Knopf (nur sichtbar, wenn es Freunde gibt). Orange = Freunde sehen dich; ein Tipp zeigt kurz „Sichtbar für 2 Freunde“.
+- **Benachrichtigung** bei neuer Freundschaftsanfrage: bei geöffneter App nach spätestens etwa 30 Sekunden, im Hintergrund etwa alle 15 Minuten (mehr erlaubt Android normalen Apps nicht).
+- Braucht den Server v1.30.0. Positionen liegen dort nur im Arbeitsspeicher und verfallen nach 2 Minuten.
+
+## v0.32.0 (HUDPilot, gefahrene Fahrten genau navigieren)
+- **Planer-Routen mit vielen Punkten:** Eine im Webplaner übernommene gefahrene Fahrt (bis 300 Punkte) wird in der App genau entlang der Spur gerechnet. Die vielen Punkte sind reine Formpunkte: kein Zwischenziel-Ansagen, nicht in der Liste, nicht mitgezählt (die Grenze von 25 echten Zwischenzielen bleibt). Die Liste zeigt stattdessen „Route folgt der gefahrenen Spur“. Passt zum Server v1.29.0.
+
+## v0.31.0 (HUDPilot, Kurvenwarner mit Route, Früherkennung, Auto)
+- **Kurvenwarner mit Route:** Bei aktiver Navigation rechnet er mit der geplanten Route statt mit der Straße unter dir (kein Raten mehr an Abzweigen). Wo du ohnehin abbiegst (Abbiegung, Kreisverkehr, Gabelung, bis 40 m neben der Kurve), kommt kein Kurventon. Ohne Navigation ändert sich nichts.
+- **Früherkennung (neuer Schalter, Tempolimit-Seite, unter „Ton bei Überschreitung“, standardmäßig aus):** Zeigt bei aktiver Navigation das nächste Tempolimit kurz vor dem Wechsel als „Gleich 50“ neben dem Schild, etwa 4 Sekunden vorher (mindestens 40 m, höchstens 150 m). Nur ein ausdrücklich eingetragenes Limit, nur wenn das jetzige Limit bekannt ist, ohne Ton.
+- **Neues Profil „Auto“** (schnellste Route, Autobahn und Bundesstraßen bevorzugt), mit denselben Vermeiden-Schaltern. Passt zum Server v1.23.0.
+- **Routen aus dem Webplaner** werden mit dem Profil **und den Vermeiden-Schaltern** gerechnet, mit denen sie dort geplant wurden, egal was in der App eingestellt ist. Ein kurzer Hinweis zeigt das beim Laden und beim Start. Danach gilt wieder dein eigenes Profil (auch wenn du selbst umstellst oder die Planung leerst). Vorher wurde das Profil übernommen und blieb dann dauerhaft geändert, die Vermeiden-Schalter kamen gar nicht an.
+- **Hinweis „Diese App zeigt keine Karte“** auf der Tempolimit-Seite entfernt.
+
 ## v0.30.1 (HUDPilot, neuer Schreibname)
 - **Umbenannt:** Aus „HUD Pilot“ wird überall „HUDPilot“ (App-Name, Texte, Dokumentation). Die interne App-Kennung bleibt gleich, die App wird als normales Update installiert, Einstellungen und Karten bleiben erhalten.
 

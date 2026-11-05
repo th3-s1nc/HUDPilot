@@ -37,6 +37,9 @@ import io.github.th3s1nc.osmandhudbridge.pilot.AutoSync
 import io.github.th3s1nc.osmandhudbridge.pilot.Baustellen
 import io.github.th3s1nc.osmandhudbridge.pilot.BaustellenLogic
 import io.github.th3s1nc.osmandhudbridge.pilot.Favs
+import io.github.th3s1nc.osmandhudbridge.pilot.FriendsApi
+import io.github.th3s1nc.osmandhudbridge.pilot.FriendsLogic
+import io.github.th3s1nc.osmandhudbridge.pilot.LiveShare
 import io.github.th3s1nc.osmandhudbridge.pilot.ServerProfile
 import io.github.th3s1nc.osmandhudbridge.pilot.SettingsBackup
 import io.github.th3s1nc.osmandhudbridge.pilot.TourSync
@@ -137,6 +140,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
     private var tvSpeed: TextView? = null
     private var speedBox: View? = null
     private var tvLimit: TextView? = null
+    private var tvAhead: TextView? = null   // Früherkennung: kommendes Tempolimit
     private var barBox: View? = null
     private var tvBar: TextView? = null
     private var pbProgress: ProgressBar? = null
@@ -209,6 +213,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
     private var searchOpen = false
     private var btnSearch: TextView? = null
     private var btnHome: TextView? = null
+    private var btnShare: TextView? = null
     private var favChip: TextView? = null
     private var homePick = false
     private var btnRec: TextView? = null
@@ -417,12 +422,18 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
     private fun setupOverlays(st: Style) {
         // Baustellen und Sperrungen liegen unter der Route
         st.addSource(GeoJsonSource("bs-src"))
-        st.addLayer(LineLayer("bs-line", "bs-src").withProperties(
-            PropertyFactory.lineColor(Expression.match(Expression.get("k"), Expression.color(0xFFFFB300.toInt()),
-                Expression.stop("c", Expression.color(0xFFE53935.toInt())), Expression.stop("r", Expression.color(0xFFFF8F00.toInt())))),
+        val bsColor = Expression.match(Expression.get("k"), Expression.color(0xFFFFB300.toInt()),
+            Expression.stop("c", Expression.color(0xFFE53935.toInt())), Expression.stop("r", Expression.color(0xFFFF8F00.toInt())))
+        st.addLayer(LineLayer("bs-line", "bs-src").withFilter(Expression.eq(Expression.get("z"), Expression.literal(0))).withProperties(
+            PropertyFactory.lineColor(bsColor),
             PropertyFactory.lineWidth(Expression.match(Expression.get("k"), Expression.literal(4f),
                 Expression.stop("c", Expression.literal(8f)), Expression.stop("r", Expression.literal(6f)))),
             PropertyFactory.lineCap("round"), PropertyFactory.lineJoin("round"), PropertyFactory.lineOpacity(0.85f)
+        ).apply { minZoom = 8f })
+        // Keine Straße gefunden: nur die Luftlinie zwischen den zwei Punkten, gestrichelt
+        st.addLayer(LineLayer("bs-dash", "bs-src").withFilter(Expression.eq(Expression.get("z"), Expression.literal(1))).withProperties(
+            PropertyFactory.lineColor(bsColor), PropertyFactory.lineWidth(5f),
+            PropertyFactory.lineDasharray(arrayOf(1.6f, 1.4f)), PropertyFactory.lineCap("butt"), PropertyFactory.lineOpacity(0.85f)
         ).apply { minZoom = 8f })
         st.addSource(GeoJsonSource("route-src"))
         st.addLayer(LineLayer("route-casing", "route-src").withProperties(
@@ -433,7 +444,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
             PropertyFactory.lineColor(routeColorHex()), PropertyFactory.lineWidth(10f),
             PropertyFactory.lineCap("round"), PropertyFactory.lineJoin("round")
         ))
-        for (id in listOf("hits", "pts", "hz", "me")) {
+        for (id in listOf("hits", "pts", "hz", "friends", "me")) {
             st.addSource(GeoJsonSource("$id-src"))
             val layer = SymbolLayer("$id-layer", "$id-src").withProperties(
                 PropertyFactory.iconImage(Expression.get("img")),
@@ -465,7 +476,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         }
 
     private fun pushAll() {
-        pushRoute(); pushPoints(); pushHits(); pushHazards(); pushMe(); pushBaustellen()
+        pushRoute(); pushPoints(); pushHits(); pushHazards(); pushFriends(); pushMe(); pushBaustellen()
     }
 
     private fun pushRoute() {
@@ -484,7 +495,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         for ((i, x) in Baustellen.sites.withIndex()) {
             if (!BaustellenLogic.activeAt(x, t)) continue
             val f = Feature.fromGeometry(LineString.fromLngLats(x.line.map { Point.fromLngLat(it.second, it.first) }))
-            f.addStringProperty("k", x.kind); f.addNumberProperty("n", i)
+            f.addStringProperty("k", x.kind); f.addNumberProperty("n", i); f.addNumberProperty("z", if (x.approx) 1 else 0)
             feats += f
         }
         s.setGeoJson(FeatureCollection.fromFeatures(feats))
@@ -495,7 +506,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         val m = map ?: return false
         if (!Baustellen.enabled(this) || m.cameraPosition.zoom < 8.0 || style?.getLayer("bs-line") == null) return false
         val pt = m.projection.toScreenLocation(ll); val r = dp(22).toFloat()
-        val f = m.queryRenderedFeatures(RectF(pt.x - r, pt.y - r, pt.x + r, pt.y + r), "bs-line").firstOrNull() ?: return false
+        val f = m.queryRenderedFeatures(RectF(pt.x - r, pt.y - r, pt.x + r, pt.y + r), "bs-line", "bs-dash").firstOrNull() ?: return false
         val x = Baustellen.sites.getOrNull(f.getNumberProperty("n")?.toInt() ?: -1) ?: return false
         val until = BaustellenLogic.untilText(x)
         AlertDialog.Builder(this)
@@ -532,9 +543,12 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
             ensureImage(st, "pinS") { pinBitmap("S", 0xFF35C46B.toInt()) }
             feats += feat(it.lat, it.lon, "pinS")
         }
-        for ((i, v) in pl.vias.withIndex()) {
-            ensureImage(st, "pinV${i + 1}") { pinBitmap("${i + 1}", 0xFFFF9F0A.toInt()) }
-            feats += feat(v.lat, v.lon, "pinV${i + 1}")
+        var nv = 0
+        for (v in pl.vias) {
+            if (v.shape) continue
+            nv++
+            ensureImage(st, "pinV$nv") { pinBitmap("$nv", 0xFFFF9F0A.toInt()) }
+            feats += feat(v.lat, v.lon, "pinV$nv")
         }
         pl.dest?.let { d ->
             ensureImage(st, "flag") { flagBitmap() }
@@ -751,6 +765,9 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         btnHome = button("🏠", 18f, Gravity.TOP or Gravity.START, step, 0, panel = false) { goHome() }.also { b ->
             b.setOnLongClickListener { homeMenu(); true }
         }
+        // Standort teilen (nur sichtbar, wenn es schon Freunde gibt): orange = Freunde sehen dich
+        btnShare = button("📍", 18f, Gravity.TOP or Gravity.START, step * 2, 0, panel = false) { toggleShare() }
+        updateShareBtn()
 
         // Oben: dunkle, leicht durchsichtige Karte mit Abbiegepfeil und Entfernung links, Ankunft und Restweg rechts (Tipp wechselt)
         glassViews.clear()
@@ -863,6 +880,10 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         sBox.addView(unit)
         speedBox = sBox
         circles.addView(sBox, LinearLayout.LayoutParams(cs, cs).apply { rightMargin = dp(10) })
+        tvAhead = label("", if (landscape) 13f else 15f, 0xFF000000.toInt(), bold = true).apply {
+            background = box(10, 0xFFFFC107.toInt()); setPadding(dp(9), dp(4), dp(9), dp(4)); visibility = View.GONE
+        }
+        circles.addView(tvAhead, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { rightMargin = dp(10) })
         circles.addView(tvLimit, LinearLayout.LayoutParams(ls, ls))
         info.addView(circles, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, cs, Gravity.END or Gravity.CENTER_VERTICAL))
         infoRow = info
@@ -1159,6 +1180,10 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
             it.setTextColor(if (MapOverlay.over(lastKmh, limit)) 0xFFFF4A4A.toInt() else fg())
         }
         tvLimit?.let { if (limit > 0 && !sheetUp) { it.text = "$limit"; it.visibility = View.VISIBLE } else it.visibility = View.GONE }
+        tvAhead?.let { v ->
+            val a = if (sheetUp || !guiding) null else PilotBus.limitAhead()
+            if (a != null) { v.text = Tx.t("Gleich ", "Soon ") + a.first; v.visibility = View.VISIBLE } else v.visibility = View.GONE
+        }
         // Ankunft und Restweg (oben rechts in der Karte)
         if (guiding) {
             val nowMs = System.currentTimeMillis()
@@ -1209,6 +1234,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
             val side = if (landscape) bannerW() + dp(12) else 0
             val b0 = dp(8)
             placeBtn(btnMain, Gravity.BOTTOM or Gravity.START, 0, b0, 0)
+            placeBtn(btnShare, Gravity.BOTTOM or Gravity.START, 0, b0 + step, 0)   // über dem Menü, nicht unter der Navigationsanzeige
             placeBtn(btnNorth, br, 0, b0, side)
             placeBtn(btnHud, br, 0, b0 + step, side)
             placeBtn(btnStop, br, 0, b0 + step * 2, side)
@@ -1217,6 +1243,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
             placeBtn(btnZoomIn, br, 0, b0 + step * 5, side)
         } else {
             placeBtn(btnMain, tr, 0, 0, 0)
+            placeBtn(btnShare, Gravity.TOP or Gravity.START, step * 2, 0, 0)   // links unter dem Haus-Knopf
             placeBtn(btnHud, tr, step, 0, 0)
             placeBtn(btnNorth, tr, step * 2, 0, 0)
             placeBtn(btnFollow, tr, step * 3, 0, 0)
@@ -1236,7 +1263,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
 
     private class MRow(
         val icon: String, val title: String, val value: String? = null, val chevron: Boolean = true,
-        val sw: Boolean? = null, val onTap: () -> Unit
+        val sw: Boolean? = null, val onSw: (() -> Unit)? = null, val onTap: () -> Unit
     )
 
     private var menuLayer: FrameLayout? = null
@@ -1247,12 +1274,13 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
     private var menuContent: LinearLayout? = null
 
     private fun closeMenu() {
+        menuFriendsOpen = false
         menuLayer?.let { root.removeView(it) }
         menuLayer = null; menuHeader = null; menuContent = null; menuHudDot = null; menuHudSwitch = null
     }
 
     private fun menuIconBox(text: String, size: Int, round: Boolean, color: Int): TextView {
-        val res = when (text) { "@route" -> R.drawable.ic_menu_route; "@map" -> R.drawable.ic_menu_map; else -> 0 }
+        val res = when (text) { "@route" -> R.drawable.ic_menu_route; "@map" -> R.drawable.ic_menu_map; "@friends" -> R.drawable.ic_menu_friends; "@pin" -> R.drawable.ic_menu_pin; "@eye" -> R.drawable.ic_menu_eye; else -> 0 }
         return label(if (res != 0) "" else text, if (size >= 44) 24f else 19f, color).apply {
             val bg = if (round) GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0xFF2C2C2E.toInt()) } else box(12, 0xFF2C2C2E.toInt())
             background = if (res == 0) bg else android.graphics.drawable.LayerDrawable(arrayOf(
@@ -1283,7 +1311,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(14) })
         if (r.value != null) row.addView(label(r.value, 15f, 0xFF9A9AA0.toInt()).apply { gravity = Gravity.END },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8) })
-        if (r.sw != null) row.addView(menuSwitch(r.sw), LinearLayout.LayoutParams(dp(48), dp(28)).apply { leftMargin = dp(10) })
+        if (r.sw != null) row.addView(menuSwitch(r.sw).apply { if (r.onSw != null) { isClickable = true; setOnClickListener { r.onSw.invoke() } } }, LinearLayout.LayoutParams(dp(48), dp(28)).apply { leftMargin = dp(10) })
         else if (r.chevron) row.addView(label("›", 26f, 0xFF7A7A80.toInt()), LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10) })
         col.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         return col
@@ -1377,7 +1405,224 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         menuHudSwitch?.postDelayed({ updateMenuHud() }, 1500)
     }
 
+    // ---------------- Freunde und Live-Standort ----------------
+
+    private val friendHandler = Handler(Looper.getMainLooper())
+    private val friendExec = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private var friendTick = 0
+    private var friendSig = ""
+    private var menuFriendsOpen = false
+    private val friendImgs = HashMap<String, String>()
+
+    /** Alle 5 Sekunden: Positionen der Freunde holen (nur wenn einer teilt), alle 30 Sekunden die Freundesliste. */
+    private val friendRun = object : Runnable {
+        override fun run() {
+            if (isFinishing || isDestroyed) return
+            val app = applicationContext
+            if (ServerProfile.has(app) && RegionSync.serverUrl(app).isNotEmpty()) {
+                val n = friendTick++
+                try {
+                    friendExec.execute {
+                        if (n % 6 == 0 || LiveShare.friends == null) FriendsApi.list(app)?.let { LiveShare.friends = it; onFriendList(it) }
+                        if (n % 6 == 3) {   // Admin-Meldungen (nur wenn der Server dieses Profil dafür vorsieht), alle 30 Sekunden
+                            val adm = try { io.github.th3s1nc.osmandhudbridge.pilot.AdminNotes.checkAndAnnounce(app) } catch (_: Exception) { emptyList() }
+                            if (adm.isNotEmpty()) runOnUiThread { if (!isFinishing && !isDestroyed) android.widget.Toast.makeText(this@PilotMapLibreActivity, io.github.th3s1nc.osmandhudbridge.pilot.AdminNotesLogic.notifyText(adm, Tx.en), android.widget.Toast.LENGTH_LONG).show() }
+                        }
+                        val l = LiveShare.friends
+                        val pos = if (l != null && l.anySharing) FriendsApi.positions(app) else emptyList()
+                        if (pos != null) LiveShare.positions = pos
+                        runOnUiThread {
+                            if (isFinishing || isDestroyed) return@runOnUiThread
+                            pushFriends(); updateShareBtn()
+                            val sig = LiveShare.friends?.let { friendSigOf(it) } ?: ""
+                            if (sig != friendSig) { friendSig = sig; if (menuFriendsOpen && menuLayer != null) menuFriends() }
+                        }
+                    }
+                } catch (_: java.util.concurrent.RejectedExecutionException) { }
+            }
+            friendHandler.postDelayed(this, 5_000L)
+        }
+    }
+
+    private fun friendSigOf(l: FriendsLogic.FriendList): String =
+        l.friends.joinToString("|") { "${it.name}:${it.status}:${it.iAllow}:${it.sharing}:${it.spdKmh.toInt() / 10}" } + "#" + l.pendingIn
+
+    private fun friendRefreshNow() { friendHandler.removeCallbacks(friendRun); friendTick = 0; friendHandler.post(friendRun) }
+
+    /** Neue Anfragen kurz einblenden (im Hintergrund meldet sie FriendsAlarm als Benachrichtigung). */
+    private fun onFriendList(l: FriendsLogic.FriendList) {
+        val app = applicationContext
+        val fresh = FriendsLogic.newIncoming(FriendsAlarm.seen(app), l.friends)
+        FriendsAlarm.markSeen(app, FriendsLogic.incomingNames(l.friends))
+        if (fresh.isNotEmpty()) runOnUiThread {
+            if (!isFinishing && !isDestroyed) Toast.makeText(this, fresh.joinToString(", ") + Tx.t(" möchte dein Freund sein.", " wants to be your friend."), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun toggleShare() {
+        val on = !LiveShare.enabled(this)
+        LiveShare.setEnabled(this, on)
+        updateShareBtn()
+        val n = LiveShare.friends?.friends?.count { it.status == "friend" && it.iAllow } ?: 0
+        Toast.makeText(this, FriendsLogic.visibleText(n, on, Tx.en), Toast.LENGTH_SHORT).show()
+    }
+
+    /** Knopf "Standort teilen": nur sichtbar, wenn es Freunde gibt; orange, solange geteilt wird. */
+    private fun updateShareBtn() {
+        val b = btnShare ?: return
+        val app = applicationContext
+        val show = ServerProfile.has(app) && RegionSync.serverUrl(app).isNotEmpty() && LiveShare.friends?.hasFriends == true
+        b.visibility = if (show) View.VISIBLE else View.GONE
+        val on = LiveShare.enabled(app)
+        b.backgroundTintList = if (on) android.content.res.ColorStateList.valueOf(0xFFFF7A00.toInt()) else null
+        b.alpha = if (on) 1f else 0.8f
+        b.contentDescription = Tx.t("Standort teilen", "Share location")
+    }
+
+    /** Freunde auf der Karte: runder Marker mit Anfangsbuchstabe und Schild "Name · Tempo · vor x s". */
+    private fun pushFriends() {
+        val st = style ?: return
+        val feats = ArrayList<Feature>()
+        val pos = LiveShare.positions
+        for (p in pos) {
+            val label = FriendsLogic.label(p, Tx.en)
+            val key = "fr_${p.name}_${label.hashCode()}"
+            val old = friendImgs[p.name]
+            if (old != null && old != key) { try { st.removeImage("hud-$old") } catch (_: Exception) {}; addedImages.remove(old) }
+            friendImgs[p.name] = key
+            ensureImage(st, key) { friendBitmap(FriendsLogic.initial(p.name), label) }
+            feats += feat(p.lat, p.lon, key)
+        }
+        val names = pos.map { it.name }.toSet()
+        for (n in friendImgs.keys.filter { it !in names }) friendImgs.remove(n)?.let { k -> try { st.removeImage("hud-$k") } catch (_: Exception) {}; addedImages.remove(k) }
+        src("friends-src")?.setGeoJson(FeatureCollection.fromFeatures(feats))
+    }
+
+    private fun friendBitmap(initial: String, label: String): Bitmap {
+        val r = dp(19); val gap = dp(4); val lh = dp(22); val padX = dp(9)
+        val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFFFFFFF.toInt(); textSize = dp(12).toFloat(); typeface = android.graphics.Typeface.DEFAULT_BOLD; textAlign = Paint.Align.CENTER
+        }
+        val tw = tp.measureText(label)
+        val w = maxOf(r * 2 + dp(6), (tw + padX * 2).toInt() + dp(2))
+        val h = (r + gap + lh) * 2
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val c = Canvas(bmp)
+        val cx = w / 2f; val cy = h / 2f
+        c.drawCircle(cx, cy, r.toFloat(), Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() })
+        c.drawCircle(cx, cy, (r - dp(3)).toFloat(), Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF1FB6C9.toInt() })
+        val ip = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFFFFFFF.toInt(); textSize = dp(17).toFloat(); textAlign = Paint.Align.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD
+        }
+        c.drawText(initial, cx, cy + dp(6), ip)
+        val top = cy + r + gap
+        val rect = android.graphics.RectF(cx - tw / 2 - padX, top, cx + tw / 2 + padX, top + lh)
+        c.drawRoundRect(rect, dp(11).toFloat(), dp(11).toFloat(), Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xE61C1C1E.toInt() })
+        c.drawText(label, cx, top + lh / 2f + dp(4), tp)
+        return bmp
+    }
+
+    private fun centerOnFriend(name: String) {
+        val p = LiveShare.positions.firstOrNull { it.name == name }
+        if (p == null) { Toast.makeText(this, Tx.t("$name teilt gerade nicht.", "$name is not sharing right now."), Toast.LENGTH_SHORT).show(); return }
+        follow = false; updateButtons()
+        moveCam(LatLng(p.lat, p.lon), null, 14.0, true)
+    }
+
+    /** Eine Aktion beim Server ausführen, danach die Liste neu holen und das Menü auffrischen. */
+    private fun friendAction(okText: ((String) -> String)? = null, after: (() -> Unit)? = null, act: () -> FriendsApi.Out) {
+        val app = applicationContext
+        friendExec.execute {
+            val o = act()
+            FriendsApi.list(app)?.let { LiveShare.friends = it; friendSig = friendSigOf(it) }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                val msg = if (o.ok) okText?.invoke(o.text) else o.text
+                if (!msg.isNullOrEmpty()) Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                updateShareBtn()
+                if (after != null) after() else if (menuFriendsOpen && menuLayer != null) menuFriends()
+            }
+        }
+    }
+
+    private fun menuFriends() {
+        menuFriendsOpen = true
+        val app = applicationContext
+        val title = Tx.t("Freunde", "Friends")
+        if (!ServerProfile.has(app) || RegionSync.serverUrl(app).isEmpty()) {
+            showMenu(title, listOf(MRow("⇅", Tx.t("Erst beim Server anmelden", "Sign in to the server first")) { closeMenu(); startActivity(Intent(this, ServerActivity::class.java)) }), { chooseMenu() })
+            return
+        }
+        val l = LiveShare.friends
+        val rows = ArrayList<MRow>()
+        if (l == null) {
+            rows += MRow("…", Tx.t("Lade …", "Loading …"), chevron = false) { }
+            friendRefreshNow()
+        } else {
+            for (f in l.friends.filter { it.status == "incoming" })
+                rows += MRow(FriendsLogic.initial(f.name), f.name, value = Tx.t("Anfrage", "Request")) { askFriendRequest(f.name) }
+            for (f in l.friends.filter { it.status == "friend" })
+                rows += MRow(FriendsLogic.initial(f.name), f.name, value = if (f.sharing) "● ${Math.round(f.spdKmh)} km/h" else null, chevron = false, sw = f.iAllow,
+                    onSw = { friendAction { FriendsApi.permit(app, f.name, !f.iAllow) } }) { menuFriend(f.name) }
+            for (f in l.friends.filter { it.status == "outgoing" })
+                rows += MRow(FriendsLogic.initial(f.name), f.name, value = Tx.t("gesendet", "sent")) { askCancelRequest(f.name) }
+        }
+        rows += MRow("＋", Tx.t("Freund hinzufügen", "Add friend")) { askAddFriend() }
+        rows += MRow("@pin", Tx.t("Standort teilen", "Share location"), chevron = false, sw = LiveShare.enabled(this)) { toggleShare(); menuFriends() }
+        showMenu(title, rows, { chooseMenu() })
+    }
+
+    private fun menuFriend(name: String) {
+        menuFriendsOpen = false
+        val f = LiveShare.friends?.friends?.firstOrNull { it.name == name && it.status == "friend" } ?: run { menuFriends(); return }
+        val app = applicationContext
+        val rows = ArrayList<MRow>()
+        if (f.sharing) rows += MRow("◎", Tx.t("Auf der Karte zeigen", "Show on map")) { closeMenu(); centerOnFriend(f.name) }
+        rows += MRow("@eye", Tx.t("Darf mich sehen", "May see me"), chevron = false, sw = f.iAllow) {
+            friendAction(after = { if (menuLayer != null) menuFriend(name) }) { FriendsApi.permit(app, f.name, !f.iAllow) }
+        }
+        rows += MRow("✕", Tx.t("Freund entfernen", "Remove friend")) {
+            AlertDialog.Builder(this).setTitle(f.name)
+                .setMessage(Tx.t("Freundschaft beenden? Ihr seht euch dann nicht mehr.", "End the friendship? You will no longer see each other."))
+                .setPositiveButton(Tx.t("Entfernen", "Remove")) { _, _ -> friendAction(after = { if (menuLayer != null) menuFriends() }) { FriendsApi.remove(app, f.name) } }
+                .setNegativeButton(Tx.t("Abbrechen", "Cancel"), null).show()
+        }
+        showMenu(f.name + (if (f.sharing) "  ·  ${FriendsLogic.statusText(f, Tx.en)}" else ""), rows, { menuFriends() })
+    }
+
+    private fun askFriendRequest(name: String) {
+        val app = applicationContext
+        AlertDialog.Builder(this).setTitle(name)
+            .setMessage(Tx.t("möchte dein Freund sein.", "wants to be your friend."))
+            .setPositiveButton(Tx.t("Annehmen", "Accept")) { _, _ -> friendAction({ Tx.t("Ihr seid jetzt befreundet.", "You are friends now.") }) { FriendsApi.respond(app, name, true) } }
+            .setNegativeButton(Tx.t("Ablehnen", "Decline")) { _, _ -> friendAction { FriendsApi.respond(app, name, false) } }
+            .setNeutralButton(Tx.t("Später", "Later"), null).show()
+    }
+
+    private fun askCancelRequest(name: String) {
+        val app = applicationContext
+        AlertDialog.Builder(this).setTitle(name)
+            .setMessage(Tx.t("Anfrage zurückziehen?", "Withdraw the request?"))
+            .setPositiveButton(Tx.t("Zurückziehen", "Withdraw")) { _, _ -> friendAction { FriendsApi.remove(app, name) } }
+            .setNegativeButton(Tx.t("Abbrechen", "Cancel"), null).show()
+    }
+
+    private fun askAddFriend() {
+        val app = applicationContext
+        val e = android.widget.EditText(this).apply { hint = Tx.t("Profilname", "Profile name"); setSingleLine(true) }
+        AlertDialog.Builder(this).setTitle(Tx.t("Freund hinzufügen", "Add friend"))
+            .setMessage(Tx.t("Profilname deines Freundes auf dem Server eingeben. Er muss die Anfrage annehmen.", "Enter your friend's profile name on the server. They have to accept the request."))
+            .setView(e)
+            .setPositiveButton(Tx.t("Anfragen", "Request")) { _, _ ->
+                val n = FriendsLogic.cleanName(e.text.toString())
+                if (n == null) Toast.makeText(this, Tx.t("Name: 2 bis 24 Zeichen.", "Name: 2 to 24 characters."), Toast.LENGTH_SHORT).show()
+                else friendAction({ st -> if (st == "befreundet") Tx.t("Ihr seid jetzt befreundet.", "You are friends now.") else Tx.t("Anfrage gesendet.", "Request sent.") }) { FriendsApi.request(app, n) }
+            }
+            .setNegativeButton(Tx.t("Abbrechen", "Cancel"), null).show()
+    }
+
     private fun chooseMenu() {
+        menuFriendsOpen = false
         showMenu(Tx.t("Menü", "Menu"), listOf(
             MRow("➤", Tx.t("Navigation", "Navigation")) { menuNav() },
             MRow("▣", Tx.t("Anzeige", "Display")) { menuDisplay() },
@@ -1386,6 +1631,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
                 closeMenu()
                 startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra("open_page", 5))
             },
+            MRow("@friends", Tx.t("Freunde", "Friends"), value = (LiveShare.friends?.pendingIn ?: 0).let { if (it > 0) "● $it" else null }) { menuFriends() },
             MRow("⇅", Tx.t("Server", "Server"), value = ServerProfile.statusLine(this)) { closeMenu(); startActivity(Intent(this, ServerActivity::class.java)) },
             MRow("⚙", Tx.t("App-Einstellungen", "App settings")) { closeMenu(); openAppSettings() },
 
@@ -1448,9 +1694,11 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
 
     /** Vermeiden: Autobahn, Fähren, Maut, unbefestigte Wege (gilt für alle Profile). */
     private fun menuAvoid() {
-        val cur = Avoid.get(this)
+        val cur = PilotSession.avoid(this)
         showMenu(Tx.t("Vermeiden", "Avoid"), Avoid.KEYS.map { k ->
             MRow(if (cur.has(k)) "✓" else "○", Avoid.label(k), chevron = false) {
+                PilotSession.planner.avoid?.let { a -> Avoid.KEYS.forEach { x -> Avoid.set(this, x, x in a) } }
+                PilotSession.planner.dropAvoid()
                 Avoid.set(this, k, !cur.has(k))
                 if (pl.dest != null && !PilotNav.guiding) changed()
                 menuAvoid()
@@ -1760,6 +2008,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
     }
 
     private fun onPosition(lat: Double, lon: Double, hdg: Float?, kmh: Float) {
+        if (!PilotNav.simulated) LiveShare.onFix(this, lat, lon, kmh, hdg)   // Simulationen werden nie geteilt
         if (hdg != null) heading = hdg
         lastKmh = kmh
         val p = LatLng(lat, lon)
@@ -2211,6 +2460,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         sheetLevel = 1
         startAfterPlan = false
         planning = false; planMsg = null
+        PilotSession.profileId = PilotSession.planner.end(PilotSession.profileId)
         PilotSession.route = null
         showRoute(null)
         pushPoints()
@@ -2331,6 +2581,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
                 setOnClickListener {
                     pw?.dismiss()
                     if (p.id != PilotSession.profileId) {
+                        PilotSession.planner.end(PilotSession.profileId)
                         PilotSession.profileId = p.id
                         if (pl.dest != null) changed()
                         profileChips()
@@ -2379,8 +2630,13 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
                 if (pl.start != null && pl.vias.isNotEmpty()) add("▼" to { pl.startDown(); changed() })
                 if (pl.start != null) add("✕" to { pl.start = null; changed() })
             }))
+        var nv = 0
+        val nShape = pl.vias.size - pl.visibleCount()
+        if (nShape > 0) box.addView(label(Tx.t("Route folgt der gefahrenen Spur ($nShape Formpunkte)", "Route follows the recorded track ($nShape shape points)"), 13f, 0xFF9AA0A6.toInt()))
         for ((i, v) in pl.vias.withIndex()) {
-            box.addView(pointRow("${i + 1}", v.name, null, listOf(
+            if (v.shape) continue
+            nv++
+            box.addView(pointRow("$nv", v.name, null, listOf(
                 "▲" to { pl.moveViaUp(i); changed() },
                 "▼" to { pl.moveViaDown(i); changed() },
                 "✕" to { pl.removeVia(i); changed() }
@@ -2389,13 +2645,13 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         box.addView(pointRow(Tx.t("Ziel", "End"), pl.dest!!.name, null,
             if (pl.vias.isNotEmpty()) listOf("▲" to { pl.destUp(); changed() }) else emptyList()))
         val add = label(
-            if (pl.vias.size >= Plan.MAX_VIAS) Tx.t("Maximum erreicht (${Plan.MAX_VIAS})", "Maximum reached (${Plan.MAX_VIAS})")
-            else Tx.t("＋ Zwischenziel (${pl.vias.size}/${Plan.MAX_VIAS})", "＋ Waypoint (${pl.vias.size}/${Plan.MAX_VIAS})"),
+            if (pl.visibleCount() >= Plan.MAX_VIAS) Tx.t("Maximum erreicht (${Plan.MAX_VIAS})", "Maximum reached (${Plan.MAX_VIAS})")
+            else Tx.t("＋ Zwischenziel (${pl.visibleCount()}/${Plan.MAX_VIAS})", "＋ Waypoint (${pl.visibleCount()}/${Plan.MAX_VIAS})"),
             15f, 0xFFFF9F0A.toInt(), bold = true
         ).apply {
             gravity = Gravity.START or Gravity.CENTER_VERTICAL; isClickable = true
             setOnClickListener {
-                if (pl.vias.size < Plan.MAX_VIAS) {
+                if (pl.visibleCount() < Plan.MAX_VIAS) {
                     addMode = 1
                     sheetLevel = 0
                     refreshSheet()
@@ -2730,7 +2986,9 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         val name = i.getStringExtra("tour_name") ?: "Tour"
         val prof = i.getStringExtra("tour_profile") ?: ""
         i.removeExtra("tour_pts")
-        pendingTour = RegionSync.Outbox(0L, name, prof, (0 until arr.size / 2).map { Pair(arr[it * 2], arr[it * 2 + 1]) })
+        val av = i.getStringArrayExtra("tour_avoid")?.toList()
+        i.removeExtra("tour_avoid")
+        pendingTour = RegionSync.Outbox(0L, name, prof, (0 until arr.size / 2).map { Pair(arr[it * 2], arr[it * 2 + 1]) }, av)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -2738,6 +2996,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         setIntent(intent)
         handleTourIntent(intent)
         handleGpxIntent(intent)
+        if (intent.getBooleanExtra("open_friends", false)) { intent.removeExtra("open_friends"); chooseMenu(); menuFriends() }
     }
 
     /** GPX von außen (Teilen / Öffnen mit): Route in die Planung legen. */
@@ -2810,12 +3069,21 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         clearAll()
         val p = o.points
         pl.start = PlanPoint(p.first().first, p.first().second, Tx.t("Start (Planer)", "Start (planner)"))
-        for (i in 1 until p.size - 1) pl.addVia(PlanPoint(p[i].first, p[i].second, Tx.t("Zwischenziel ", "Waypoint ") + i))
+        val dense = p.size > 27   // genau übernommene Fahrt: viele Punkte nur als Form der Strecke, nicht als Zwischenziele
+        for (i in 1 until p.size - 1) pl.addVia(PlanPoint(p[i].first, p[i].second, Tx.t("Zwischenziel ", "Waypoint ") + i, dense))
         pl.dest = PlanPoint(p.last().first, p.last().second, o.name)
-        if (PilotStore.profiles.any { it.id == o.profile }) PilotSession.profileId = o.profile
+        if (o.profile.isNotEmpty() || o.avoid != null)   // GPX-Dateien haben beides nicht
+            PilotSession.profileId = PilotSession.planner.begin(PilotSession.profileId, o.profile, o.avoid, PilotStore.profiles.map { it.id })
         moveCam(LatLng(p.first().first, p.first().second), null, 10.0, false)
         changed()
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, if (PilotSession.planner.active) msg + "\n" + plannerHint() else msg, Toast.LENGTH_LONG).show()
+    }
+
+    /** Kurzer Hinweis, mit welchem Profil und welchen Vermeiden-Schaltern eine Planer-Route gerechnet wird. */
+    private fun plannerHint(): String {
+        val av = PilotSession.avoid(this).on
+        val avTxt = if (av.isEmpty()) Tx.t("nichts vermeiden", "avoiding nothing") else Tx.t("ohne ", "without ") + Avoid.KEYS.filter { it in av }.joinToString(", ") { Avoid.label(it) }
+        return Tx.t("Profil ", "Profile ") + profileName(PilotSession.profileId) + ", " + avTxt
     }
 
     private fun hasPoiFiles(): Boolean = RegionSync.installedIds(this).any { RegionSync.poiFileOf(this, it).isFile }
@@ -3018,6 +3286,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
             prefs.edit().putLong("rec_nav_start", System.currentTimeMillis()).apply()
         }
         showResults(null, null)
+        if (PilotSession.planner.active) Toast.makeText(this, Tx.t("Route aus dem Planer: ", "Planner route: ") + plannerHint(), Toast.LENGTH_LONG).show()
         pl.dest?.let { addHistory(HistEntry(null, it.name, it.lat, it.lon, System.currentTimeMillis())) }
         PilotNav.start(this, r, PilotSession.routeWaypoints.ifEmpty { PilotSession.waypoints }, PilotSession.profileId, false)
         BridgeService.userStopped = false
@@ -3238,6 +3507,8 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         if (pt != null) { pendingTour = null; loadPlannerTour(pt) } 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         ticker.post(tick)
+        friendHandler.removeCallbacks(friendRun); friendTick = 0; friendHandler.post(friendRun); FriendsAlarm.schedule(this)
+        if (intent?.getBooleanExtra("open_friends", false) == true) { intent.removeExtra("open_friends"); chooseMenu(); menuFriends() }
         PilotNav.addListener(this)
         PilotNav.lastState?.let { lastState = it }
         refreshOverlay()
@@ -3249,6 +3520,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
 
     override fun onPause() {
         PilotNav.removeListener(this)
+        friendHandler.removeCallbacks(friendRun)
         ticker.removeCallbacks(tick)
         ticker.removeCallbacks(simTick)
         try { locMgr?.removeUpdates(locListener) } catch (_: Exception) {}
@@ -3263,6 +3535,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
     override fun onSaveInstanceState(outState: Bundle) { super.onSaveInstanceState(outState); mapView.onSaveInstanceState(outState) }
 
     override fun onDestroy() {
+        friendExec.shutdownNow()
         planExec.shutdownNow()
         searchExec.shutdownNow()
         fileExec.shutdownNow()

@@ -126,16 +126,17 @@ class TourenView(private val act: AppCompatActivity) {
             main.post {
                 if (act.isFinishing || act.isDestroyed) return@post
                 if (t == null || t.points.size < 2) { Toast.makeText(act, Tx.t("Tour nicht ladbar (Server erreichbar?).", "Tour not loadable (server reachable?)."), Toast.LENGTH_LONG).show(); return@post }
-                openOnMap(t.name, t.profile, t.points)
+                openOnMap(t.name, t.profile, t.points, t.avoid)
             }
         }
     }
 
-    private fun openOnMap(name: String, profile: String, pts: List<Pair<Double, Double>>) {
+    private fun openOnMap(name: String, profile: String, pts: List<Pair<Double, Double>>, avoid: List<String>? = null) {
         val arr = DoubleArray(pts.size * 2) { if (it % 2 == 0) pts[it / 2].first else pts[it / 2].second }
         act.startActivity(Intent(act, PilotMapLibreActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            .putExtra("tour_name", name).putExtra("tour_profile", profile).putExtra("tour_pts", arr))
+            .putExtra("tour_name", name).putExtra("tour_profile", profile).putExtra("tour_pts", arr)
+            .apply { if (avoid != null) putExtra("tour_avoid", avoid.toTypedArray()) })
     }
 
     private fun renderRides(l: List<Ride>) {

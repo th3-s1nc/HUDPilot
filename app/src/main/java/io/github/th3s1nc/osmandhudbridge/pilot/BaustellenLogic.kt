@@ -11,7 +11,9 @@ class Site(
     val id: String, val road: String, val text: String, val kind: String,
     val startSec: Long, val endSec: Long,
     /** Linie der Baustelle als (lat, lon); mindestens zwei Punkte (echte Straße oder gerade Linie von Anfang bis Ende). */
-    val line: List<Pair<Double, Double>>
+    val line: List<Pair<Double, Double>>,
+    /** true = der Server hat keine Straße gefunden: die Linie ist nur die Luftlinie zwischen Anfang und Ende (wird gestrichelt gezeichnet). */
+    val approx: Boolean = false
 ) {
     val minLat = line.minOf { it.first }; val maxLat = line.maxOf { it.first }
     val minLon = line.minOf { it.second }; val maxLon = line.maxOf { it.second }

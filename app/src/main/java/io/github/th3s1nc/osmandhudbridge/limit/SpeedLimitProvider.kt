@@ -109,6 +109,8 @@ class SpeedLimitProvider(
     private val pointWarn = PointWarn()
 
     /** Warnung vor sehr scharfen Kurven: -1 = aus, sonst 0 = wenig, 1 = normal, 2 = viel (siehe [CurveLevel]). */
+    /** Früherkennung des kommenden Tempolimits auf der Route (nur mit Navigation). */
+    @Volatile var limitAhead = false
     @Volatile var curveLevel = -1
         set(v) { if (v != field) { field = v; curveWarn.reset() } }
     private val curveWarn = CurveWarn()
@@ -232,14 +234,23 @@ class SpeedLimitProvider(
             BridgeBus.limit = if (haveData) "Limit: unbekannt"
                 else if (failures > 0) "Limit: Abfrage fehlgeschlagen, neuer Versuch" else "Limit: Karte wird geladen"
         }
+        if (limitAhead && ways.isNotEmpty()) publishLimitAhead(ways, speed, limit)
         if (curveLevel >= 0 && ways.isNotEmpty()) {
             val k = keys to tilesVersion
             if (curveIndexKey != k) { curveIndex = CurveIndex(ways); curveIndexKey = k }
-            if (curveWarn.update(ways, curveIndex!!, loc.latitude, loc.longitude, heading, speed, curveLevel, limit, zone == Zone.INNER)) {
+            val rl = io.github.th3s1nc.osmandhudbridge.pilot.PilotNav.routeForWarnings()
+            if (curveWarn.update(ways, curveIndex!!, loc.latitude, loc.longitude, heading, speed, curveLevel, limit, zone == Zone.INNER, rl?.first, rl?.second ?: 0.0)) {
                 BridgeBus.log(Tx.t("Scharfe Kurve voraus (Radius ${curveWarn.lastBend?.radiusM?.toInt()} m)", "Sharp bend ahead (radius ${curveWarn.lastBend?.radiusM?.toInt()} m)"))
                 onPoint(PointKind.CURVE)
             }
         }
+    }
+
+    /** Früherkennung: kommendes Limit auf der geplanten Route an die Karte weitergeben. */
+    private fun publishLimitAhead(ways: List<Way>, speedMs: Float, current: Int) {
+        val rl = io.github.th3s1nc.osmandhudbridge.pilot.PilotNav.routeForWarnings() ?: return
+        val a = LimitAhead.find(rl.first, rl.second, speedMs.toDouble(), current, ways) ?: return
+        io.github.th3s1nc.osmandhudbridge.pilot.PilotBus.setLimitAhead(a.kmh, a.distM)
     }
 
     private var hazardAt = 0L

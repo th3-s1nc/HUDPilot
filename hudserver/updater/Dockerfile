@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
  && unzip -q /tmp/b.zip -d /tmp/bx && cp /tmp/bx/brouter-${BROUTER_VERSION}/brouter-${BROUTER_VERSION}-all.jar /opt/brouter/brouter.jar && rm -rf /tmp/b.zip /tmp/bx \
  && apt-get purge -y --auto-remove && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY regions.json update.py baustellen.py ./
+COPY regions.json update.py baustellen.py friends.py notify.py ./
 COPY limits ./limits
 COPY static ./static
 COPY brouter-profiles /opt/brouter/profiles2

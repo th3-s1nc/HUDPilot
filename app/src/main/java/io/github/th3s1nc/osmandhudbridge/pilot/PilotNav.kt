@@ -58,6 +58,31 @@ object PilotNav {
 
     val guiding: Boolean get() = guide != null
 
+    private var lineFor: PilotRoute? = null
+    private var line: io.github.th3s1nc.osmandhudbridge.limit.RouteLine? = null
+
+    /**
+     * Für die Warnungen (Kurven, Früherkennung): die geplante Route und die Strecke bis zu deiner Position.
+     * null: keine Navigation, noch keine Position oder abseits der Route.
+     */
+    fun routeForWarnings(): Pair<io.github.th3s1nc.osmandhudbridge.limit.RouteLine, Double>? {
+        val g = guide ?: return null
+        val st = lastState ?: return null
+        if (st.offRoute || st.finished) return null
+        val r = g.route
+        if (lineFor !== r) {
+            val turns = r.instructions.filter { it.brCmd in TURNS }.map { it.atM }.toIntArray()
+            line = io.github.th3s1nc.osmandhudbridge.limit.RouteLine(
+                DoubleArray(r.points.size) { r.points[it].lat }, DoubleArray(r.points.size) { r.points[it].lon }, r.cumM, turns
+            )
+            lineFor = r
+        }
+        return Pair(line!!, st.progressM.toDouble())
+    }
+
+    private val TURNS = setOf(BrouterCmd.TL, BrouterCmd.TSHL, BrouterCmd.TR, BrouterCmd.TSHR, BrouterCmd.KL, BrouterCmd.KR,
+        BrouterCmd.TLU, BrouterCmd.TRU, BrouterCmd.RNDB, BrouterCmd.RNLB, BrouterCmd.TU)
+
     /** Echte Fahrt (nicht Simulation): der HUD-Dienst hält dafür das GPS auf jede Sekunde. */
     val driving: Boolean get() = guide != null && !simulated
 

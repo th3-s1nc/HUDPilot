@@ -15,7 +15,8 @@ object PilotStore {
         PilotProfile("motorrad_landstrasse", "Landstraße (Motorrad)", "Country roads (motorcycle)"),
         PilotProfile("motorrad_kurvig", "Kurvig (Motorrad)", "Twisty (motorcycle)"),
         PilotProfile("motorrad_schnell", "Schnell (Motorrad)", "Fast (motorcycle)"),
-        PilotProfile("motorrad_schnellste", "Schnellste (mit Autobahn)", "Fastest (with motorway)")
+        PilotProfile("motorrad_schnellste", "Schnellste (mit Autobahn)", "Fastest (with motorway)"),
+        PilotProfile("auto", "Auto", "Car")
     )
 
     fun baseDir(ctx: Context) = File(ctx.filesDir, "brouter")

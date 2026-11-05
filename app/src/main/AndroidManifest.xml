@@ -56,6 +56,7 @@
 
         <activity android:name=".RegionsActivity" android:exported="false" />
         <activity android:name=".ServerActivity" android:exported="false" />
+        <activity android:name=".AdminMessagesActivity" android:exported="false" />
         <!-- HUDPilot Karte. Nimmt auch GPX-Dateien an (Teilen/Öffnen mit aus Kurviger usw.): die Route landet in der Planung -->
         <activity android:name=".PilotMapLibreActivity" android:exported="true" android:launchMode="singleTop" android:configChanges="orientation|screenSize|keyboardHidden">
             <intent-filter>
@@ -76,6 +77,8 @@
         <activity
             android:name=".RideMapActivity"
             android:exported="false" />
+
+        <receiver android:name=".FriendsAlarm" android:exported="false" />
 
         <service
             android:name=".BridgeService"

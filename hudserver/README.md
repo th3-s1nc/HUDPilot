@@ -7,7 +7,8 @@ Self-hosted server for the Android app **HUDPilot** (motorcycle navigation with 
 - **Europe list** (optional, one button): offers all EU countries, Switzerland, Norway, Great Britain, Greece and Turkey as selectable regions. Nothing is downloaded or built until you tick it.
 - **Profiles** (name + code): own tours, rides, favourites and app settings per person
 - **Housekeeping**: built regions can be deleted from the server again; phones not seen for 90 days (`DEV_KEEP_DAYS`) are forgotten automatically, single phones can be removed by hand
-- **Trip planner** in the browser (routes calculated by BRouter in the container, with avoidance of road closures)
+- **Trip planner** in the browser (routes calculated by BRouter in the container, with avoidance of road closures; motorcycle profiles and a car profile; distance and time shown large; round-trip planner (50 to 500 km, direction or random or your own destination, optionally staying within one country; the way back is always a different road), address search via Nominatim and fuel/food/hotel/parking search from your own built regions)
+- **Friends and live location**: profiles can add each other as friends (by exact profile name, the other side has to accept); per friend you allow "may see me", and the app sends your position only while "Share location" is on. Positions are kept in memory only and expire after 2 minutes; the admin page shows counts and statistics, never positions
 - **Road works and closures** (optional, Bavaria, from the Mobilithek)
 
 > A private hobby project, not tested in every environment. Errors show up in the admin log.

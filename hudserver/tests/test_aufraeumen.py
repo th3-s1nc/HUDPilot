@@ -81,3 +81,34 @@ class RegionLoeschenTest(unittest.TestCase):
 
 
 if __name__ == "__main__": unittest.main()
+
+
+class PoiSucheTest(unittest.TestCase):
+    def setUp(self):
+        import gzip
+        self.r = U.REGIONS[0]; b = self.r["bbox"]
+        self.la = (b[1] + b[3]) / 2; self.lo = (b[0] + b[2]) / 2
+        os.makedirs(f"{U.PUB}/pois", exist_ok=True)
+        rows = [("fuel", "Aral", self.la + 0.01, self.lo, "Hauptstr 1", "Ort"), ("fuel", "Shell", self.la + 0.05, self.lo, "", ""),
+                ("restaurant", "Zur Post", self.la, self.lo + 0.01, "", ""), ("fuel", "Weit weg", self.la + 2, self.lo, "", ""),
+                ("fuel", "Aral", self.la + 0.01, self.lo, "Hauptstr 1", "Ort")]   # doppelt
+        with gzip.open(f"{U.PUB}/pois/{self.r['id']}.tsv.gz", "wt", encoding="utf-8") as f:
+            f.write("# art\tname\tlat\tlon\tstrasse\tort\n")
+            for k, n, la, lo, st, ort in rows: f.write(f"{k}\t{n}\t{la}\t{lo}\t{st}\t{ort}\n")
+
+    def tearDown(self): os.remove(f"{U.PUB}/pois/{self.r['id']}.tsv.gz")
+
+    def test_naechste_zuerst_ohne_doppelte(self):
+        h, n = U.poi_search("fuel", self.la, self.lo, 15)
+        self.assertEqual([x["name"] for x in h], ["Aral", "Shell"]); self.assertEqual(n, 1)
+        self.assertAlmostEqual(h[0]["km"], 1.1, delta=0.2)
+
+    def test_kategorie_und_umkreis(self):
+        self.assertEqual([x["name"] for x in U.poi_search("food", self.la, self.lo, 15)[0]], ["Zur Post"])
+        self.assertEqual(len(U.poi_search("fuel", self.la, self.lo, 3)[0]), 1)
+
+    def test_ohne_daten_leer(self):
+        self.assertEqual(U.poi_search("fuel", 0.0, 0.0, 10), ([], 0))
+
+    def test_unbekannte_kategorie(self):
+        with self.assertRaises(ValueError): U.poi_search("xyz", 1, 1)

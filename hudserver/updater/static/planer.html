@@ -5,7 +5,9 @@
 :root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mu:#667;--ac:#ff7a00;--ok:#1a8f3c;--er:#c62828;--bd:#dde1e6}
 @media(prefers-color-scheme:dark){:root{--bg:#14171a;--card:#1d2125;--tx:#e8eaed;--mu:#9aa;--bd:#2d3339}}
 html,body{height:100%;margin:0}body{background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,sans-serif;display:flex}
-#side{width:340px;max-width:44vw;overflow:auto;padding:12px;box-sizing:border-box;border-right:1px solid var(--bd)}#map{flex:1}
+#side{width:340px;max-width:44vw;overflow:auto;padding:12px;box-sizing:border-box;border-right:1px solid var(--bd)}#mapw{flex:1;position:relative;min-width:0}#map{position:absolute;inset:0}
+#big{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:5;display:none;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:14px;box-shadow:0 4px 18px rgba(0,0,0,.25);padding:8px 20px;text-align:center;pointer-events:none;white-space:nowrap}
+#big b{font-size:30px;line-height:1.15;font-weight:700}#big .u{font-size:16px;color:var(--mu);margin:0 8px 0 3px}#big .s{display:block;font-size:12.5px;color:var(--mu)}
 h1{font-size:18px;margin:0 0 8px}h2{font-size:13px;margin:14px 0 6px;color:var(--ac);letter-spacing:.06em;text-transform:uppercase}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:10px}
 button{background:var(--ac);color:#fff;border:0;border-radius:7px;padding:7px 11px;font-size:14px;cursor:pointer;margin:2px 2px 2px 0}button.g{background:transparent;color:var(--tx);border:1px solid var(--bd)}button:disabled{opacity:.5}
@@ -15,29 +17,58 @@ input,select{padding:6px;border:1px solid var(--bd);border-radius:6px;background
 .maplibregl-popup-content{background:var(--card);color:var(--tx);border-radius:10px;padding:12px 10px 8px}.maplibregl-popup-tip{display:none}
 .pin{width:26px;height:26px;border-radius:50%;background:#ff7a00;color:#fff;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.5);font:700 12px/22px system-ui;text-align:center;cursor:grab}
 .pin.s{background:#1a8f3c}.pin.z{background:#c62828}.pop button{display:block;width:100%;margin:3px 0;text-align:left}
+#rtDlg{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center}
+.rt{width:min(400px,94vw);background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:16px;padding:18px 22px 20px;box-shadow:0 10px 36px rgba(0,0,0,.35)}
+.rt h2{margin:0 0 2px;font-size:18px;color:var(--tx);text-transform:none;letter-spacing:0}.rt .x{float:right;color:var(--mu);font-size:20px;cursor:pointer;line-height:1}
+.rt .km{font-size:40px;font-weight:700;text-align:center;margin:6px 0 0}.rt .km span{font-size:18px;color:var(--mu);font-weight:500}.rt .km #rtKmv{font-size:40px;font-weight:700;color:var(--tx)}
+.rt input[type=range]{width:100%;accent-color:var(--ac);margin:8px 0 0;padding:0}.rt .sc{display:flex;justify-content:space-between;font-size:12px;color:var(--mu);margin:0 2px 10px}
+.rose{position:relative;width:200px;height:200px;margin:6px auto 8px;border-radius:50%;background:var(--bg);border:1px solid var(--bd)}
+.rose .d{position:absolute;width:42px;height:42px;margin:-21px;border-radius:50%;background:var(--card);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--mu);cursor:pointer;user-select:none}
+.rose .d.on{background:var(--ac);border-color:var(--ac);color:#fff}.rose .c{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px;border-radius:50%;background:var(--card);border:2px dashed var(--bd);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer}.rose .c.on{border-color:var(--ac)}
+.rb{display:flex;gap:8px;margin-top:10px}.rb button{flex:1;padding:11px;font-size:15px;font-weight:600}.rb .g{flex:0 0 auto;padding:11px 16px}
+.acc{background:var(--card);border:1px solid var(--bd);border-radius:10px;margin-bottom:10px}.acc summary{cursor:pointer;padding:10px 12px;font-weight:600;list-style:none}.acc summary::-webkit-details-marker{display:none}.acc[open] summary{border-bottom:1px solid var(--bd)}.acc .b{padding:4px 12px 12px}
+.sub{font-size:12px;color:var(--ac);letter-spacing:.06em;text-transform:uppercase;margin:10px 0 4px}.chips{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 2px}
+.res{padding:6px 4px;border-bottom:1px solid var(--bd);cursor:pointer}.res:hover{background:var(--bg)}.res span{display:block;font-size:12px}.fav.q i{border-color:var(--ac)}
 li span.m{cursor:pointer;margin-left:6px;color:var(--mu)}
-@media(max-width:700px){body{flex-direction:column}#side{width:auto;max-width:none;height:46%;border-right:0}#map{height:54%}}
+.fav{display:flex;align-items:center;gap:5px;cursor:pointer;transform:translateY(-2px)}.fav i{font-style:normal;width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid #7a4cff;box-shadow:0 1px 4px rgba(0,0,0,.45);text-align:center;font:14px/20px system-ui;flex:none}.fav.h i{border-color:#1a8f3c}
+.fav b{font:600 12px system-ui;color:#222;background:rgba(255,255,255,.88);border-radius:5px;padding:1px 5px;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}.nolab .fav b{display:none}
+@media(max-width:700px){body{flex-direction:column}#side{width:auto;max-width:none;height:46%;border-right:0}#mapw{height:54%;flex:none}#big b{font-size:24px}}
 </style></head><body><!--AUTH--><!--NAV-->
 <div id="side">
 <h1>Tourenplaner</h1>
-<div class="mu">Klick auf die Karte: Zwischenpunkt, Ziel oder Start setzen. Marker ziehen oder anklicken (löschen, zu Start/Ziel machen). Reihenfolge in der Liste mit ▲ ▼.</div>
-<h2>Karte</h2><div class="card"><select id="sty"></select><div class="mu" id="styhint"></div></div>
-<h2>Route</h2><div class="card">
-<select id="prof"><option value="motorrad_landstrasse">Landstraße (Motorrad)</option><option value="motorrad_kurvig">Kurvig (Motorrad)</option><option value="motorrad_schnell">Schnell (Motorrad)</option><option value="motorrad_schnellste">Schnellste (mit Autobahn)</option></select>
-<div class="mu" style="margin:8px 0 2px">Vermeiden:</div>
-<div id="avoid" style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-bottom:8px"><label><input type="checkbox" value="motorway"> Autobahn</label><label><input type="checkbox" value="ferry"> Fähren</label><label><input type="checkbox" value="toll"> Maut</label><label><input type="checkbox" value="unpaved"> Unbefestigt</label></div>
-<label style="display:block;margin-bottom:4px"><input type="checkbox" id="sperr" checked> Sperrungen umfahren</label>
-<label style="display:block;margin-bottom:8px"><input type="checkbox" id="bszeig" checked> Baustellen zeigen <span class="mu" id="bsinfo"></span></label>
-
+<div class="card">
+<div class="row" style="gap:6px"><input type="text" id="q" placeholder="🔍 Adresse oder Ort suchen …" style="flex:1;margin:0"><button id="bQ">Suchen</button></div>
+<div id="qres"></div>
+<div class="chips"><button class="g" data-poi="fuel">⛽ Tanken</button><button class="g" data-poi="food">🍴 Essen</button><button class="g" data-poi="hotel">🏨 Hotel</button><button class="g" data-poi="parking">🅿 Parken</button></div>
+<div id="poires"></div>
+<div class="mu" style="margin:8px 0 2px">Klick auf die Karte: Start, Zwischenpunkt oder Ziel setzen. Marker ziehen oder anklicken. Reihenfolge mit ▲ ▼.</div>
 <ol id="pts"></ol><div id="info" class="mu">Noch keine Punkte.</div><div id="err" class="er"></div>
-<button class="g" id="bRev">Route umkehren</button><button class="g" id="bUndo">Letzten Punkt entfernen</button><button class="g" id="bClear">Alles löschen</button></div>
-<h2>Tour</h2><div class="card">
+<button class="g" id="bRev">⇄ Umkehren</button><button class="g" id="bUndo">Letzten Punkt entfernen</button><button class="g" id="bClear">Alles löschen</button></div>
+<div class="card">
 <input type="text" id="name" placeholder="Name der Tour">
-<button id="bSave">Speichern</button><button class="g" id="bGpx">GPX laden</button>
+<button id="bSave">Speichern</button><button class="g" id="bGpx">GPX speichern</button>
 <div id="msg" class="mu"></div></div>
-<h2>Favoriten</h2><div class="card" id="favs"><span class="mu">…</span></div>
-<h2>Gespeicherte Touren</h2><div class="card" id="tours"><span class="mu">…</span></div>
-</div><div id="map"></div>
+<button id="bRt" style="width:100%;padding:10px;font-weight:600;margin:0 0 10px">⟳ Rundtour erstellen …</button><button class="g" id="bRtAgain" style="display:none;width:100%;margin:-4px 0 10px">🎲 Andere Variante</button>
+<details class="acc" id="accFav" open><summary>★ Favoriten</summary><div class="b"><label style="display:block;margin-bottom:6px"><input type="checkbox" id="favShow" checked> Auf der Karte zeigen</label><div id="favs"><span class="mu">…</span></div></div></details>
+<details class="acc" id="accSet"><summary>⚙ Einstellungen <span class="mu" id="setSum"></span></summary><div class="b">
+<div class="sub">Profil</div>
+<select id="prof"><option value="motorrad_landstrasse">Landstraße (Motorrad)</option><option value="motorrad_kurvig">Kurvig (Motorrad)</option><option value="motorrad_schnell">Schnell (Motorrad)</option><option value="motorrad_schnellste">Schnellste (mit Autobahn)</option><option value="auto">Auto</option></select>
+<div class="sub">Vermeiden</div>
+<div id="avoid" style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-bottom:4px"><label><input type="checkbox" value="motorway"> Autobahn</label><label><input type="checkbox" value="ferry"> Fähren</label><label><input type="checkbox" value="toll"> Maut</label><label><input type="checkbox" value="unpaved"> Unbefestigt</label></div>
+<div class="sub">Sperrungen</div>
+<label style="display:block;margin-bottom:4px"><input type="checkbox" id="sperr" checked> Sperrungen umfahren</label>
+<label style="display:block"><input type="checkbox" id="bszeig" checked> Baustellen zeigen <span class="mu" id="bsinfo"></span></label>
+<div class="sub">Karte</div><select id="sty"></select><div class="mu" id="styhint"></div>
+</div></details>
+
+</div><div id="mapw"><div id="map"></div><div id="big"></div></div>
+<div id="rtDlg"><div class="rt"><span class="x" id="rtX">✕</span><h2>Rundtour</h2><div class="mu" id="rtStart"></div>
+<div class="km"><span id="rtKmv"></span> <span>km</span></div><input type="range" id="rtKm" min="50" max="500" step="10"><div class="sc"><span>50</span><span>500 km</span></div>
+<div style="font-weight:600;text-align:center">Richtung <span class="mu" style="font-weight:400" id="rtDirTxt"></span></div>
+<div class="rose" id="rtRose"></div><div class="mu" id="rtHint" style="text-align:center"></div>
+<label class="mu" style="display:block;text-align:center;margin-top:8px"><input type="checkbox" id="rtLand"> Länderübergreifend erlauben</label>
+<div id="rtMsg" class="mu" style="text-align:center;margin-top:8px;min-height:18px"></div>
+<div class="rb"><button class="g" id="rtCancel">Abbrechen</button><button id="rtGo">Rundtour erstellen</button></div></div></div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -70,7 +101,7 @@ const setAvoid=a=>avoidBoxes().forEach(c=>c.checked=(a||[]).includes(c.value));
 try{setAvoid(JSON.parse(localStorage.getItem("hudavoid")||"[]"))}catch(e){}
 try{if(localStorage.getItem("hudsperr")==="0")$("sperr").checked=false}catch(e){}
 $("sperr").onchange=()=>{try{localStorage.setItem("hudsperr",$("sperr").checked?"1":"0")}catch(e){}route()};
-avoidBoxes().forEach(c=>c.onchange=()=>{try{localStorage.setItem("hudavoid",JSON.stringify(getAvoid()))}catch(e){}route()});
+avoidBoxes().forEach(c=>c.onchange=()=>{try{localStorage.setItem("hudavoid",JSON.stringify(getAvoid()))}catch(e){}sumUpdate();route()});
 $("styhint").textContent=STYLES[sty].hint||"";
 $("sty").onchange=()=>{sty=$("sty").value;try{localStorage.setItem("hudstyle",sty)}catch(e){}
  $("styhint").textContent=STYLES[sty].hint||"";map.setStyle(STYLES[sty].s());map.easeTo({pitch:STYLES[sty].p,duration:800})};
@@ -137,7 +168,8 @@ function insertIndex(p){
   for(let i=0;i<pts.length-1;i++)if(ci>=at[i]&&ci<=at[i+1])return i+1;
  }
  let bi=1,bc=1e18;for(let i=0;i<pts.length-1;i++){const c=hav(pts[i],p)+hav(p,pts[i+1])-hav(pts[i],pts[i+1]);if(c<bc){bc=c;bi=i+1}}return bi}
-function full(){if(pts.length>=27){say("Höchstens 27 Punkte (Start, 25 Zwischenpunkte, Ziel).","er");return true}return false}
+const PT_MAX=300;
+function full(){if(pts.length>=PT_MAX){say("Höchstens "+PT_MAX+" Punkte.","er");return true}return false}
 map.on("click",e=>{const p=[e.lngLat.lat,e.lngLat.lng];if(full())return;closePopups();
  if($("bszeig").checked&&map.getLayer("bs-line")){const f=map.queryRenderedFeatures([[e.point.x-8,e.point.y-8],[e.point.x+8,e.point.y+8]],{layers:["bs-line"]});if(f.length){bsPopup(f[0].properties.n,e.lngLat);return}}
  const d=document.createElement("div");d.className="pop";
@@ -146,27 +178,78 @@ map.on("click",e=>{const p=[e.lngLat.lat,e.lngLat.lng];if(full())return;closePop
  else{add("Zwischenpunkt (passend in die Route)",()=>pts.splice(insertIndex(p),0,p));add("Neues Ziel (ans Ende)",()=>pts.push(p));add("Neuer Start (an den Anfang)",()=>pts.unshift(p))}
  popup(e.lngLat,d)});
 
+sumUpdate();
+let homeZoomed=false,MOVED=false;map.on("dragstart",()=>{MOVED=true});map.on("zoomstart",e=>{if(e.originalEvent)MOVED=true});
+let FAVS=[],favMarkers=[];
+function favPlace(x,m){if(full())return;const p=[x.lat,x.lon];
+ if(m==0)pts.unshift(p);else if(m==2||pts.length<2)pts.push(p);else pts.splice(insertIndex(p),0,p);redraw();route()}
+function favMenu(x){return placeMenu(x,x.id=="home"?"🏠":"★")}
+function drawFavMarkers(){favMarkers.forEach(m=>m.remove());favMarkers=[];let on=true;try{on=localStorage.getItem("hudfavshow")!=="0"}catch(e){}
+ $("favShow").checked=on;if(!on)return;
+ FAVS.forEach(x=>{const el=document.createElement("div");el.className="fav"+(x.id=="home"?" h":"");el.innerHTML="<i>"+(x.id=="home"?"🏠":"★")+"</i><b></b>";el.querySelector("b").textContent=x.name;
+  el.addEventListener("click",e=>{e.stopPropagation();closePopups();popup([x.lon,x.lat],favMenu(x))});
+  favMarkers.push(new maplibregl.Marker({element:el,anchor:"left"}).setLngLat([x.lon,x.lat]).addTo(map))})}
+$("favShow").onchange=()=>{try{localStorage.setItem("hudfavshow",$("favShow").checked?"1":"0")}catch(e){}drawFavMarkers()};
+function favLabels(){$("map").classList.toggle("nolab",map.getZoom()<8.5)}map.on("zoom",favLabels);favLabels();
+function placeMenu(x,icon){const d=document.createElement("div");d.className="pop";const h=document.createElement("b");h.textContent=icon+" "+x.name;d.appendChild(h);
+ [["Als Start",0],["Als Zwischenpunkt",1],["Als Ziel",2]].forEach(([t,m])=>{const b=document.createElement("button");b.className="g";b.textContent=t;b.onclick=()=>{closePopups();favPlace(x,m)};d.appendChild(b)});return d}
+/* Suche: Adresse (Nominatim, OpenStreetMap) und Orte (Tanken, Essen, ... aus den gebauten Regionen des Servers) */
+let qMark=null;
+function showResults(el,list,empty){el.innerHTML="";if(!list.length){el.innerHTML='<div class="mu" style="margin-top:6px">'+empty+'</div>';return}
+ list.forEach(x=>{const a=document.createElement("div");a.className="res";a.innerHTML="<b></b><span class='mu'></span>";a.firstChild.textContent=x.name;a.lastChild.textContent=x.sub;a.onclick=()=>pickResult(x);el.appendChild(a)})}
+function pickResult(x){closePopups();if(qMark)qMark.remove();const el=document.createElement("div");el.className="fav q";el.innerHTML="<i>📍</i><b></b>";el.querySelector("b").textContent=x.name;
+ el.addEventListener("click",e=>{e.stopPropagation();closePopups();popup([x.lon,x.lat],placeMenu(x,"📍"))});
+ qMark=new maplibregl.Marker({element:el,anchor:"left"}).setLngLat([x.lon,x.lat]).addTo(map);map.flyTo({center:[x.lon,x.lat],zoom:Math.max(map.getZoom(),14)});popup([x.lon,x.lat],placeMenu(x,"📍"))}
+async function doSearch(){const q=$("q").value.trim();if(!q)return;$("poires").innerHTML="";$("qres").innerHTML='<div class="mu" style="margin-top:6px">Suche …</div>';
+ try{const c=map.getCenter();const vb=[c.lng-0.6,c.lat+0.4,c.lng+0.6,c.lat-0.4].map(v=>v.toFixed(4)).join(",");
+  const r=await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&accept-language=de&viewbox="+vb+"&q="+encodeURIComponent(q));const j=await r.json();
+  showResults($("qres"),j.map(x=>({name:x.name||String(x.display_name).split(",")[0],sub:x.display_name,lat:+x.lat,lon:+x.lon})),"Nichts gefunden.")}
+ catch(e){$("qres").innerHTML='<div class="er" style="margin-top:6px">Die Adresssuche ist gerade nicht erreichbar.</div>'}}
+$("bQ").onclick=doSearch;$("q").onkeydown=e=>{if(e.key==="Enter")doSearch()};
+const POIN={fuel:"Tankstelle",food:"Lokal",hotel:"Unterkunft",parking:"Parkplatz"};
+async function doPoi(cat){$("qres").innerHTML="";$("poires").innerHTML='<div class="mu" style="margin-top:6px">Suche …</div>';
+ try{const c=map.getCenter();const r=await fetch("/api/poi?cat="+cat+"&lat="+c.lat.toFixed(5)+"&lon="+c.lng.toFixed(5)+"&km=15");const j=await r.json();
+  if(!r.ok){$("poires").innerHTML='<div class="er" style="margin-top:6px">'+(j.fehler||"Fehler")+'</div>';return}
+  showResults($("poires"),j.orte.map(x=>({name:x.name||POIN[cat],sub:[x.km.toString().replace(".",",")+" km",[x.strasse,x.ort].filter(Boolean).join(", ")].filter(Boolean).join(" · "),lat:x.lat,lon:x.lon})),
+   j.regionen?"Im Umkreis von 15 km um die Kartenmitte nichts gefunden.":"Für diesen Kartenausschnitt gibt es keine Orte-Daten (Region auf dem Server nicht gebaut).")}
+ catch(e){$("poires").innerHTML='<div class="er" style="margin-top:6px">Server nicht erreichbar.</div>'}}
+document.querySelectorAll("[data-poi]").forEach(b=>b.onclick=()=>doPoi(b.dataset.poi));
 async function loadFavs(){try{const j=await(await fetch("/api/favs")).json();const l=(j.favs||[]).filter(x=>!x.del).sort((a,b)=>(b.id=="home")-(a.id=="home")||a.name.localeCompare(b.name));const el=$("favs");
  if(!l.length){el.innerHTML='<span class="mu">Noch keine Favoriten. In der App Adressen mit ☆ speichern oder 🏠 festlegen.</span>';return}
+ FAVS=l;drawFavMarkers();
+ const hm=l.find(x=>x.id=="home");if(hm&&!homeZoomed&&!pts.length&&!tid&&!MOVED){homeZoomed=true;map.jumpTo({center:[hm.lon,hm.lat],zoom:10.5})}
  el.innerHTML="";l.forEach(x=>{const row=document.createElement("div");row.className="row";const n=document.createElement("a");n.textContent=(x.id=="home"?"🏠 ":"★ ")+x.name;n.onclick=()=>map.flyTo({center:[x.lon,x.lat],zoom:13});row.appendChild(n);
-  const sp=document.createElement("span");[["Start",0],["Via",1],["Ziel",2]].forEach(([t,m])=>{const b=document.createElement("button");b.className="g";b.textContent=t;b.onclick=()=>{if(full())return;const p=[x.lat,x.lon];
-   if(m==0)pts.unshift(p);else if(m==2||pts.length<2)pts.push(p);else pts.splice(insertIndex(p),0,p);redraw();route()};sp.appendChild(b)});row.appendChild(sp);el.appendChild(row)})}catch(e){}}
+  const sp=document.createElement("span");[["Start",0],["Via",1],["Ziel",2]].forEach(([t,m])=>{const b=document.createElement("button");b.className="g";b.textContent=t;b.onclick=()=>{favPlace(x,m)};sp.appendChild(b)});row.appendChild(sp);el.appendChild(row)})}catch(e){}}
 loadFavs();
 $("bRev").onclick=()=>{pts.reverse();redraw();route()};
 $("bUndo").onclick=()=>{pts.pop();redraw();route()};
 $("bClear").onclick=()=>{pts=[];tid=null;$("name").value="";redraw();route()};
-$("prof").onchange=()=>{try{localStorage.setItem("hudprof",$("prof").value)}catch(e){}route()};
+function sumUpdate(){const o=$("prof").options[$("prof").selectedIndex];const a=getAvoid();$("setSum").textContent="· "+(o?o.textContent.replace(/ \(.*\)/,""):"")+(a.length?", ohne "+a.map(k=>({motorway:"Autobahn",ferry:"Fähren",toll:"Maut",unpaved:"Unbefestigt"})[k]).join("/"):"")}
+$("prof").onchange=()=>{try{localStorage.setItem("hudprof",$("prof").value)}catch(e){}sumUpdate();route()};
 function route(){clearTimeout(timer);timer=setTimeout(doRoute,300)}
-async function doRoute(){
- drawRoute(null);last=null;$("err").textContent="";
+function bigTime(min){const h=Math.floor(min/60),m=String(min%60).padStart(2,"0");
+ return h?"<b>"+h+"</b><span class='u'>h</span><b>"+m+"</b><span class='u' style='margin-right:0'>min</span>":"<b>"+min+"</b><span class='u' style='margin-right:0'>min</span>"}
+function bigInfo(km,min,up){const b=$("big");if(km==null){b.style.display="none";return}
+ const k=km>=100?String(Math.round(km)):km.toFixed(1).replace(".",",");
+ b.innerHTML="<b>"+k+"</b><span class='u'>km</span>"+bigTime(min)+"<span class='s'>"+(up?"Anstieg "+up+" m · ":"")+"ungefähre Fahrzeit</span>";b.style.display="block"}
+function mergeRoutes(js){if(js.length==1)return js[0];
+ let co=[],tl=0,tt=0,asc=0,sp=null;
+ js.forEach((j,i)=>{const f=j.features[0],c=f.geometry.coordinates;co=co.concat(i?c.slice(1):c);tl+=+f.properties["track-length"]||0;tt+=+f.properties["total-time"]||0;asc+=+f.properties["filtered ascend"]||0;
+  if(j.sperrung){sp=sp||{n:0,umfahren:0,bleibt:[]};sp.n+=j.sperrung.n||0;sp.umfahren=(sp.umfahren<0||j.sperrung.umfahren<0)?-1:sp.umfahren+(j.sperrung.umfahren||0);(j.sperrung.bleibt||[]).forEach(t=>{if(!sp.bleibt.includes(t))sp.bleibt.push(t)})}});
+ return{features:[{geometry:{coordinates:co},properties:{"track-length":tl,"total-time":tt,"filtered ascend":asc}}],sperrung:sp||undefined}}
+async function doRoute(keep){
+ if(!keep){drawRoute(null);last=null;bigInfo(null)}$("err").textContent="";
  if(pts.length<2){$("info").textContent=pts.length?"Noch ein Punkt für das Ziel setzen.":"Noch keine Punkte.";return}
- const my=++seq;$("info").textContent="Berechne …";
- const ll=pts.map(p=>p[1].toFixed(6)+","+p[0].toFixed(6)).join("|");
- try{const r=await fetch("/api/route?lonlats="+encodeURIComponent(ll)+"&profile="+$("prof").value+"&avoid="+getAvoid().join(",")+($("sperr").checked?"&sperr=1":""));const j=await r.json();if(my!=seq)return;
+ const my=++seq;if(!keep)$("info").textContent="Berechne …";
+ const one=async ps=>{const ll=ps.map(p=>p[1].toFixed(6)+","+p[0].toFixed(6)).join("|");
+  const r=await fetch("/api/route?lonlats="+encodeURIComponent(ll)+"&profile="+$("prof").value+"&avoid="+getAvoid().join(",")+($("sperr").checked?"&sperr=1":""));return{ok:r.ok,j:await r.json()}};
+ try{const rs=await poolMap(chunkPts(pts),q=>one(q.p),6);if(my!=seq)return;
+  const bad=rs.find(x=>!x.ok),r={ok:!bad},j=bad?bad.j:mergeRoutes(rs.map(x=>x.j));
   if(!r.ok){$("info").textContent="";$("err").textContent=(j.fehler||"Fehler")+(/datafile .* not found/.test(j.fehler||"")?" – für diesen Bereich fehlen Routendaten auf dem Server (Region dort bauen lassen).":"");return}
   const f=j.features[0],c=f.geometry.coordinates;last=c;drawRoute(c);
   const km=(+f.properties["track-length"]/1000),min=Math.round(+f.properties["total-time"]/60);
   $("info").textContent=km.toFixed(1)+" km · "+Math.floor(min/60)+" h "+String(min%60).padStart(2,"0")+" min · Anstieg "+(f.properties["filtered ascend"]||"?")+" m";
+  bigInfo(km,min,f.properties["filtered ascend"]);
   const sp=j.sperrung;if(sp){if(sp.umfahren>0)$("info").textContent+=" · ✓ "+sp.umfahren+(sp.umfahren==1?" Sperrung umfahren":" Sperrungen umfahren");
    if(sp.n)$("err").textContent=(sp.umfahren<0?"Keine Umfahrung gefunden. ":"")+"Sperrung auf der Route: "+sp.bleibt.join("; ")}}
  catch(e){if(my==seq){$("info").textContent="";$("err").textContent="Server nicht erreichbar."}}}
@@ -174,18 +257,214 @@ async function post(p,b){
  const r=await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});
  const j=await r.json().catch(()=>({}));if(!r.ok)say(j.fehler||"Fehler","er");return r.ok?j:null}
 const body=()=>({id:tid,name:$("name").value||"Tour",profile:$("prof").value,avoid:getAvoid(),points:pts});
-$("bSave").onclick=async()=>{if(pts.length<2)return say("Erst Start und Ziel setzen.","er");const j=await post("/api/tour/save",body());if(j){tid=j.id;say("Gespeichert.","ok");tours()}};
+$("bSave").onclick=async()=>{if(pts.length<2)return say("Erst Start und Ziel setzen.","er");const j=await post("/api/tour/save",body());if(j){tid=j.id;say("Gespeichert.","ok")}};
 $("bGpx").onclick=()=>{if(!last)return say("Erst eine Route berechnen.","er");
  const n=($("name").value||"Tour").replace(/[<>&]/g,"");let x='<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="HUDPilot Planer" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>'+n+'</name><trkseg>\n';
  last.forEach(q=>{x+='<trkpt lat="'+q[1]+'" lon="'+q[0]+'">'+(q[2]!=null?'<ele>'+q[2]+'</ele>':'')+'</trkpt>\n'});x+='</trkseg></trk></gpx>';
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([x],{type:"application/gpx+xml"}));a.download=n.replace(/[^\w\- äöüÄÖÜß]/g,"_")+".gpx";a.click()};
-async function tours(){try{const j=await(await fetch("/api/tours")).json();const el=$("tours");el.innerHTML="";
- if(!j.touren.length){el.innerHTML='<span class="mu">Noch keine Tour gespeichert.</span>';return}
- j.touren.forEach(t=>{const row=document.createElement("div");row.className="row";const a=document.createElement("a");a.textContent=t.name+" ("+t.points+" Punkte)";a.onclick=()=>openTour(t.id);
-  const d=document.createElement("button");d.className="g";d.textContent="Löschen";d.onclick=async()=>{if(confirm("Tour löschen?")){await post("/api/tour/delete",{id:t.id});tours()}};row.appendChild(a);row.appendChild(d);el.appendChild(row)})}catch(e){}}
 async function openTour(id){const t=await(await fetch("/api/tour?id="+id)).json();if(!t.points)return;
- tid=t.id;pts=t.points;$("name").value=t.name;$("prof").value=t.profile||"motorrad_landstrasse";setAvoid(t.avoid);redraw();
+ tid=t.id;pts=t.points;$("name").value=t.name;$("prof").value=t.profile||"motorrad_landstrasse";setAvoid(t.avoid);sumUpdate();redraw();
  const b=new maplibregl.LngLatBounds();pts.forEach(p=>b.extend([p[1],p[0]]));map.fitBounds(b,{padding:60,maxZoom:14});route()}
-tours();
-{const q=new URLSearchParams(location.search).get("tour");if(q)map.on("load",()=>openTour(q))}
+/* Gefahrene Fahrt als Route übernehmen: Punkte alle paar Kilometer, dazu überall dort Punkte, wo die berechnete Route von der Spur abweicht (bis 300 Punkte) */
+const TRK_TOL_M=70, TRK_STEP_M=3000;
+function devM(track,coords){ // Abstand jedes Spurpunkts zur berechneten Route in Metern
+ const la0=track[0][0],kx=111320*Math.cos(la0*Math.PI/180),ky=110540;
+ const R=coords.map(c=>[(c[0]-track[0][1])*kx,(c[1]-la0)*ky]);
+ return track.map(t=>{const x=(t[1]-track[0][1])*kx,y=(t[0]-la0)*ky;let best=1e18;
+  for(let i=0;i<R.length-1;i++){const ax=R[i][0],ay=R[i][1],dx=R[i+1][0]-ax,dy=R[i+1][1]-ay,l2=dx*dx+dy*dy;
+   let u=l2?((x-ax)*dx+(y-ay)*dy)/l2:0;u=Math.max(0,Math.min(1,u));const d=Math.hypot(x-ax-u*dx,y-ay-u*dy);if(d<best)best=d}
+  return best})}
+let routeErr="";
+async function routeOf(points,nogos){routeErr="";try{const ll=points.map(p=>p[1].toFixed(6)+","+p[0].toFixed(6)).join("|");
+ const r=await fetch("/api/route?lonlats="+encodeURIComponent(ll)+"&profile="+$("prof").value+"&avoid="+getAvoid().join(",")+(nogos?"&nogos="+encodeURIComponent(nogos):""));const j=await r.json();
+ if(r.ok)return j.features[0].geometry.coordinates;routeErr=String(j.fehler||"");return null}catch(e){routeErr="Server nicht erreichbar.";return null}}
+/* Lange Punktlisten in Stücke zu höchstens 25 Punkten teilen (Nachbarstücke teilen sich den Randpunkt); s = Index des ersten Punkts */
+function chunkPts(points,n){n=n||25;const out=[];let i=0;while(i<points.length-1){const j=Math.min(points.length-1,i+n-1);out.push({s:i,p:points.slice(i,j+1)});i=j}return out}
+async function poolMap(items,fn,limit){const res=new Array(items.length);let next=0;
+ await Promise.all(Array.from({length:Math.min(limit||3,items.length)},async()=>{while(next<items.length){const i=next++;res[i]=await fn(items[i])}}));return res}
+/* Route durch viele Punkte. Stücke werden parallel gerechnet (höchstens 6 gleichzeitig). Punkte, die BRouter keiner Straße zuordnen kann, wandern in Ringen
+   (120 / 250 / 500 m) zur nächsten Straße; Zwischenpunkte ohne Weg dorthin werden weggelassen. list = [{i,p}] mit den endgültigen Punkten, drop = weggelassene i */
+const SNAP_R=[120,250,500];
+function snapPos(o){const n=o.n++;if(n>=9)return false;o.p=rtMove(o.o,SNAP_R[Math.floor(n/3)],(n%3)*120+Math.floor(n/3)*40);return true}
+function routeErrText(e){const m=/datafile/i.test(e)&&/not found/i.test(e)?e.match(/[EW]\d+_[NS]\d+/i):null;
+ return m?"Routendaten fehlen ("+m[0]+") – Region auf dem Server bauen.":(e||"Berechnung fehlgeschlagen.")}
+async function routeOfBig(items){
+ const objs=items.map(x=>({i:x.i,p:x.p,o:x.p,n:0})),drop=[],cache=new Map();let lastErr="";
+ for(let pass=0;pass<14;pass++){
+  const chunks=[];{let i=0;while(i<objs.length-1){const j=Math.min(objs.length-1,i+24);chunks.push(objs.slice(i,j+1));i=j}}
+  const res=await poolMap(chunks,async ch=>{const key=ch.map(x=>x.p.join(",")).join(";");if(cache.has(key))return{ch,key,c:cache.get(key)};
+   const c=await routeOf(ch.map(x=>x.p));if(c){cache.set(key,c);return{ch,key,c}}return{ch,key,err:routeErr}},6);
+  const bad=res.filter(x=>!x.c);
+  if(!bad.length){let out=[];res.forEach((x,k)=>{out=out.concat(k?x.c.slice(1):x.c)});return{c:out,list:objs.map(x=>({i:x.i,p:x.p})),drop}}
+  const rm=new Set();
+  for(const b of bad){lastErr=b.err;const last=objs[objs.length-1],first=objs[0];
+   if(/datafile/i.test(b.err)&&/not found/i.test(b.err))return{err:routeErrText(b.err)};
+   const m=b.err.match(/(from|to|via(\d+))-position not mapped/i);
+   if(m){const o=b.ch[/^from/i.test(m[1])?0:/^to/i.test(m[1])?b.ch.length-1:+m[2]];
+    if(!snapPos(o)){if(o===first||o===last)return{err:"Start oder Ziel liegt nicht an einer befahrbaren Straße."};rm.add(o)}}
+   else{ // kein Weg zwischen zwei Punkten: das fehlerhafte Stück suchen, den Zwischenpunkt weglassen
+    let found=false;const legs=[];
+    for(let k=0;k<b.ch.length-1&&!found;k++){const c=await routeOf([b.ch[k].p,b.ch[k+1].p]);if(c){legs.push(c);continue}
+     const a=b.ch[k],z=b.ch[k+1];found=true;
+     if(z!==last)rm.add(z);else if(a!==first)rm.add(a);else return{err:routeErrText(routeErr)}}
+    if(!found){let st=[];legs.forEach((c,k)=>{st=st.concat(k?c.slice(1):c)});cache.set(b.key,st)}}}   // alle Teilstücke gehen einzeln: Stück aus den Einzelteilen zusammensetzen
+  rm.forEach(o=>{const k=objs.indexOf(o);if(k>0&&k<objs.length-1){objs.splice(k,1);drop.push(o.i)}})}
+ return{err:routeErrText(lastErr)}}
+async function openRide(id){
+ $("info").textContent="Fahrt wird übernommen …";
+ let d;try{d=await(await fetch("/api/ride?id="+encodeURIComponent(id))).json()}catch(e){}
+ if(!d||!d.lat||d.lat.length<2){$("info").textContent="";$("err").textContent="Fahrt nicht ladbar.";return}
+ const step=Math.max(1,Math.floor(d.lat.length/900));let tr=[];for(let i=0;i<d.lat.length;i+=step)tr.push([d.lat[i],d.lon[i]]);
+ const e=[d.lat[d.lat.length-1],d.lon[d.lon.length-1]];if(tr[tr.length-1][0]!==e[0]||tr[tr.length-1][1]!==e[1])tr.push(e);
+ const cum=[0];for(let i=1;i<tr.length;i++)cum.push(cum[i-1]+hav(tr[i-1],tr[i]));
+ const gap=Math.max(TRK_STEP_M,cum[cum.length-1]/(PT_MAX-60));let idx=[0],nx=gap;
+ for(let i=1;i<tr.length-1;i++)if(cum[i]>=nx){idx.push(i);nx=cum[i]+gap}idx.push(tr.length-1);
+ let near=false,ok=true,c=null,failTxt="";const banned=new Set(),snapped={};let nDrop=0;
+ for(let it=0;it<6;it++){
+  $("info").textContent="Fahrt wird übernommen … ("+idx.length+" Punkte)";
+  const res=await routeOfBig(idx.map(i=>({i,p:snapped[i]||tr[i]})));
+  if(!res.c){ok=false;failTxt=res.err||"";break}
+  res.drop.forEach(i=>banned.add(i));idx=res.list.map(x=>x.i);res.list.forEach(x=>{snapped[x.i]=x.p});nDrop+=res.drop.length;
+  c=res.c;const dv=devM(tr,c);
+  // je Abschnitt zwischen den gesetzten Punkten die größte Abweichung, größte zuerst
+  const cand=[];for(let k=0;k<idx.length-1;k++){let bi=-1,bd=0;for(let i=idx[k]+1;i<idx[k+1];i++)if(dv[i]>bd){bd=dv[i];bi=i}if(bi>=0&&bd>TRK_TOL_M&&!banned.has(bi))cand.push([bd,bi])}
+  if(!cand.length){near=true;break}
+  if(it==5)break;   // letzte Runde: nur noch prüfen, nichts Ungeprüftes hinzufügen
+  cand.sort((a,b)=>b[0]-a[0]);const room=PT_MAX-idx.length;if(room<=0)break;
+  cand.slice(0,Math.min(room,60)).forEach(x=>idx.push(x[1]));idx.sort((a,b)=>a-b)}
+ if(!ok)idx=[0,tr.length-1];
+ pts=idx.map(i=>{const q=snapped[i]||tr[i];return[+q[0].toFixed(6),+q[1].toFixed(6)]});tid=null;$("name").value=(d.name||"Fahrt")+" (geplant)";redraw();
+ const b=new maplibregl.LngLatBounds();pts.forEach(p=>b.extend([p[1],p[0]]));map.fitBounds(b,{padding:60,maxZoom:14});
+ if(ok&&c){drawRoute(c);last=c;$("info").textContent=rtLen(c).toFixed(1)+" km · Fahrzeit wird berechnet …"}
+ doRoute(ok);
+ say(ok?(near?"Fahrt genau als Route übernommen ("+pts.length+" Punkte). Profil: "+$("prof").selectedOptions[0].textContent+"."+(nDrop?" "+nDrop+" Stelle(n) ohne befahrbaren Weg wurden übersprungen.":""):"Fahrt als Näherung übernommen ("+pts.length+" Punkte). An einzelnen Stellen kann die Route abweichen."):"Berechnung nicht möglich: "+(failTxt||"unbekannter Fehler")+" Es wurden nur Start und Ziel übernommen.",ok?"ok":"er")}
+
+/* ---------- Rundtour: Hinweg und ANDERER Rückweg (Rückweg wird um den Hinweg herum gerechnet) ---------- */
+const RT={km:250,dir:null},RTD=["N","NO","O","SO","S","SW","W","NW"],RTL={N:"Norden",NO:"Nordosten",O:"Osten",SO:"Südosten",S:"Süden",SW:"Südwesten",W:"Westen",NW:"Nordwesten"};
+let rtBusy=false,rtCancel=false,rtLast=null;
+try{const o=JSON.parse(localStorage.getItem("hudrt")||"{}");if(o.km>=50&&o.km<=500)RT.km=o.km;if(o.dir===null||(o.dir>=0&&o.dir<360))RT.dir=o.dir===undefined?null:o.dir;RT.cross=!!o.cross}catch(e){}
+function rtLen(c){let s=0;for(let i=1;i<c.length;i++)s+=hav([c[i-1][1],c[i-1][0]],[c[i][1],c[i][0]]);return s/1000}
+/* Anteil der Strecke, der nahe an früher schon befahrener Strecke liegt (mehr als 3 km davor): Hin- und Rückweg auf derselben Straße */
+function rtDup(c){const cell=new Map();let d=0,dup=0,n=0;for(let i=0;i<c.length;i++){if(i)d+=hav([c[i-1][1],c[i-1][0]],[c[i][1],c[i][0]]);
+ const key=Math.round(c[i][1]*700)+","+Math.round(c[i][0]*1000);const f=cell.get(key);if(f!==undefined&&d-f>3000)dup++;else if(f===undefined)cell.set(key,d);n++}return dup/Math.max(1,n)}
+function rtMove(p,m,deg){const rad=Math.PI/180;return[+(p[0]+m*Math.cos(deg*rad)/110540).toFixed(6),+(p[1]+m*Math.sin(deg*rad)/(111320*Math.cos(p[0]*rad))).toFixed(6)]}
+function rtBear(a,b){const rad=Math.PI/180,dy=(b[0]-a[0])*110540,dx=(b[1]-a[1])*111320*Math.cos(a[0]*rad);return Math.atan2(dx,dy)/rad}
+/* Sperrkreise entlang der Hinfahrt (ohne Bereich um Start und Wendepunkt), damit der Rückweg woanders langführt */
+function rtNogos(c,lvl){if(!lvl)return"";const d=[0];let tot=0;for(let i=1;i<c.length;i++){tot+=hav([c[i-1][1],c[i-1][0]],[c[i][1],c[i][0]]);d.push(tot)}
+ const skip=Math.min(3000,tot*.1),step=Math.max(lvl.step,tot/70),out=[];let nx=skip;
+ for(let i=0;i<c.length;i++)if(d[i]>=nx&&d[i]<=tot-skip){out.push(c[i][0].toFixed(5)+","+c[i][1].toFixed(5)+","+lvl.r);nx=d[i]+step}
+ return out.join("|")}
+/* n Punkte gleichmäßig auf einer Strecke (ohne Anfang und Ende), als [lat,lon] */
+function rtSample(c,n){const d=[0];for(let i=1;i<c.length;i++)d.push(d[i-1]+hav([c[i-1][1],c[i-1][0]],[c[i][1],c[i][0]]));const tot=d[d.length-1],out=[];let j=0;
+ for(let q=1;q<=n;q++){const t=tot*q/(n+1);while(j<d.length-1&&d[j]<t)j++;out.push([+c[j][1].toFixed(6),+c[j][0].toFixed(6)])}return out}
+/* Route mit Wiederholung: Punkte, die BRouter keiner Straße zuordnen kann ("not mapped"), werden 1-3 km verschoben. fixed[i]=true: Punkt darf nicht verschoben werden */
+async function rtRoute(wps,fixed,nogos){
+ wps=wps.map(p=>p.slice());let e="";
+ for(let t=0;t<9;t++){
+  if(rtCancel)return{err:"cancel",fatal:true};
+  const c=await routeOf(wps,nogos);if(c)return{c,wps};
+  e=routeErr;
+  if(/datafile/i.test(e)&&/not found/i.test(e)){const m=e.match(/[EW]\d+_[NS]\d+/i);return{err:"Routendaten fehlen"+(m?" ("+m[0]+")":"")+" – Region auf dem Server bauen.",fatal:true}}
+  const m=e.match(/(from|to|via(\d+))-position not mapped/i);
+  if(!m)return{err:e||"Berechnung fehlgeschlagen."};
+  const i=/^from/i.test(m[1])?0:/^to/i.test(m[1])?wps.length-1:+m[2];
+  if(fixed[i])return{err:i===0||i===wps.length-1?"Start oder Ziel liegt nicht an einer befahrbaren Straße.":"Ein gesetzter Punkt liegt nicht an einer befahrbaren Straße.",fatal:true};
+  wps[i]=rtMove(wps[i],1000+Math.random()*2000,Math.random()*360)}
+ return{err:e||"Berechnung fehlgeschlagen."}}
+/* Länder (Rahmen der gebauten Regionen) – für "nicht über die Grenze". Unsicher bei überlappenden Rahmen: dort zählt der Punkt nicht. */
+let LANDS=null;
+async function rtLandsLoad(){if(LANDS)return;try{const j=await(await fetch("/api/laender")).json();LANDS=j.regionen||[]}catch(e){LANDS=[]}}
+function rtLandAt(lat,lon){let l=null;for(const r of LANDS||[]){const b=r.bbox;if(lon>=b[0]&&lon<=b[2]&&lat>=b[1]&&lat<=b[3]){if(l&&l!==r.land)return null;l=r.land}}return l}
+function rtCrosses(c){if(!LANDS||!LANDS.length)return false;const cnt={};let d=0,nx=0;
+ for(let i=0;i<c.length;i++){if(i)d+=hav([c[i-1][1],c[i-1][0]],[c[i][1],c[i][0]]);if(d>=nx){nx=d+2000;const l=rtLandAt(c[i][1],c[i][0]);if(l)cnt[l]=(cnt[l]||0)+1}}
+ const v=Object.values(cnt).sort((a,b)=>b-a);return v.length>1&&v[1]>=3}
+/* Ein Versuch. Form A (ohne Ziel): Start -> seitlicher Punkt W -> Wendepunkt T -> seitlicher Punkt V (andere Seite) -> Start, Rückweg mit gesperrter Hinfahrt.
+   f = wie weit der Wendepunkt liegt (klein = breite Schleife), k = Gesamtgröße. Form B (eigenes Ziel): Hinweg zum Ziel, Rückweg über seitlichen Punkt V. */
+async function rtAttempt(x,k,f,side){
+ if(x.run.stop)return{err:"stop",fatal:true};
+ let T,outV=[],fixed,h;
+ if(x.mode==="A"){const D0=x.km*1000/2.6*f,H0=Math.max(.2*D0,Math.sqrt(Math.max(0,Math.pow(x.km*1000/5.2,2)-D0*D0/4)));
+  T=rtMove(x.st,D0*k*(.95+Math.random()*.1),x.dir+(Math.random()-.5)*20);h=Math.min(H0*k,120000);
+  const mid=[(x.st[0]+T[0])/2,(x.st[1]+T[1])/2];outV=[rtMove(mid,h,rtBear(x.st,T)-side*90)];fixed=[true,false,false]}
+ else{T=x.dest;outV=x.vias;fixed=[true,...outV.map(()=>true),true]}
+ const o=await rtRoute([x.st,...outV,T],fixed);if(o.err)return o;
+ T=o.wps[o.wps.length-1];outV=o.wps.slice(1,-1);
+ const outLen=rtLen(o.c),dST=Math.max(2000,hav(x.st,T));
+ if(x.mode==="B"){const R=(x.km*k-outLen)*1000/2.6,base=R>dST/2?Math.sqrt(R*R-dST*dST/4):0;h=Math.max(.25*dST,base)}
+ h=Math.min(Math.max(h,.2*dST),150000);
+ const mid=[(x.st[0]+T[0])/2,(x.st[1]+T[1])/2],V=rtMove(mid,h,rtBear(x.st,T)+side*90);
+ let r=null;
+ for(const l of [{r:350,step:1500},{r:200,step:2500},null]){
+  if(x.run.stop)return{err:"stop",fatal:true};
+  r=await rtRoute([T,V,x.st],[true,false,true],rtNogos(o.c,l));
+  if(r.c||r.fatal)break}
+ if(!r.c)return r;
+ const c=o.c.concat(r.c);
+ return{c,len:rtLen(c),dup:rtDup(c),st:x.st,T,outV,back:r.c,backLen:rtLen(r.c)}}
+/* Ein Arbeiter: erster Versuch, bei zu falscher Länge ein Korrekturversuch mit gemessenem Verhältnis */
+async function rtWorker(x,f,side){
+ let cur=null,k=1;
+ for(let it=0;it<2;it++){
+  const r=await rtAttempt(x,k,f,side);if(r.err)return cur?{ok:cur}:{err:r};
+  cur=r;const ratio=r.len/x.km;
+  if(x.mode==="A"?Math.abs(ratio-1)<=.1:ratio>=.9)break;
+  k*=x.mode==="A"?Math.max(.5,Math.min(2,x.km/r.len)):Math.max(1.1,Math.min(2,x.km/r.len))}
+ return{ok:cur}}
+function rtCtx(){const n=pts.length;
+ if(n>=2&&hav(pts[0],pts[n-1])>1500)return{mode:"B",st:pts[0],dest:pts[n-1],vias:pts.slice(1,n-1),km:RT.km,dir:null};
+ return{mode:"A",st:rtStartPoint().p,km:RT.km,dir:RT.dir}}
+function rtStartPoint(){if(pts.length)return{p:pts[0],t:"erster Punkt der Route"};const h=FAVS.find(x=>x.id=="home");if(h)return{p:[h.lat,h.lon],t:h.name};const c=map.getCenter();return{p:[c.lat,c.lng],t:"Kartenmitte"}}
+function rtShow(){const x=rtCtx();$("rtKmv").textContent=RT.km;$("rtKm").value=RT.km;$("rtLand").checked=!!RT.cross;
+ $("rtStart").textContent=x.mode==="B"?"Start: erster Punkt · Ziel: letzter Punkt der Route":"Start: "+rtStartPoint().t;
+ $("rtHint").textContent=x.mode==="B"?"Ziel ist gesetzt: Hinweg dorthin, anderer Rückweg. Die Länge gilt als „mindestens“, die Richtung ergibt sich aus dem Ziel.":"🎲 Mitte = Richtung zufällig · Hin- und Rückweg sind verschiedene Straßen · Profil und Vermeiden wie im Planer";
+ $("rtRose").style.opacity=x.mode==="B"?".3":"1";$("rtRose").style.pointerEvents=x.mode==="B"?"none":"";
+ $("rtDirTxt").textContent=x.mode==="B"?"· aus dem Ziel":RT.dir===null?"· zufällig":"· "+RTL[RTD[Math.round(RT.dir/45)%8]];
+ document.querySelectorAll("#rtRose .d").forEach(e=>e.classList.toggle("on",RT.dir!==null&&+e.dataset.a===RT.dir));$("rtRose").querySelector(".c").classList.toggle("on",RT.dir===null)}
+{const ro=$("rtRose");RTD.forEach((n,i)=>{const a=i*45*Math.PI/180,e=document.createElement("div");e.className="d";e.dataset.a=i*45;e.textContent=n;e.style.left=(100+78*Math.sin(a))+"px";e.style.top=(100-78*Math.cos(a))+"px";e.onclick=()=>{RT.dir=i*45;rtShow()};ro.appendChild(e)});
+ const c=document.createElement("div");c.className="c";c.textContent="🎲";c.onclick=()=>{RT.dir=null;rtShow()};ro.appendChild(c)}
+$("rtKm").oninput=()=>{RT.km=+$("rtKm").value;rtShow()};
+$("rtLand").onchange=()=>{RT.cross=$("rtLand").checked};
+function rtOpen(){if(rtBusy)return;$("rtMsg").textContent="";$("rtMsg").className="mu";rtShow();$("rtDlg").style.display="flex"}
+function rtClose(){$("rtDlg").style.display="none"}
+$("bRt").onclick=rtOpen;$("rtX").onclick=$("rtCancel").onclick=()=>{if(rtBusy){rtCancel=true;$("rtMsg").textContent="Wird abgebrochen …"}else rtClose()};
+$("bRtAgain").onclick=()=>rtRun(true);$("rtGo").onclick=()=>rtRun(false);
+const rtSay=(t,c)=>{$("rtMsg").className=c||"mu";$("rtMsg").textContent=t};
+async function rtRun(again){
+ if(rtBusy)return;try{localStorage.setItem("hudrt",JSON.stringify({km:RT.km,dir:RT.dir,cross:!!RT.cross}))}catch(e){}
+ const x=again&&rtLast?{...rtLast}:rtCtx(),km=x.km,run={stop:false};x.run=run;
+ rtBusy=true;rtCancel=false;$("rtGo").disabled=true;if(again){$("rtDlg").style.display="flex";$("rtMsg").textContent=""}
+ rtSay("Berechne Rundtour …");
+ const okLen=l=>x.mode==="A"?Math.abs(l/km-1)<=.15:l/km>=.9;
+ let best=null,fb=null,fatal="",lastErr="",nCross=0;
+ try{
+  await rtLandsLoad();
+  const check=!RT.cross&&(x.mode==="A"||(()=>{const a=rtLandAt(x.st[0],x.st[1]);return a&&a===rtLandAt(x.dest[0],x.dest[1])})());
+  for(let round=0;round<2&&!run.stop&&!rtCancel&&!fatal;round++){
+   let pending=3;
+   for(let i=0;i<3;i++){
+    const f=.35+.55*((i+Math.random())/3),side=Math.random()>.5?1:-1,xx={...x,dir:x.dir===null?Math.random()*360:x.dir};
+    rtWorker(xx,f,side).then(r=>{
+     pending--;
+     if(r.err){if(r.err.fatal&&r.err.err!=="cancel"&&r.err.err!=="stop")fatal=r.err.err;else if(!r.err.fatal)lastErr=r.err.err;return}
+     const cur=r.ok;if(!cur||run.stop)return;
+     if(check&&rtCrosses(cur.c)){nCross++;return}
+     if(okLen(cur.len)){if(!best||cur.dup<best.dup)best=cur;if(cur.dup<.15)run.stop=true}
+     else if(!fb||Math.abs(cur.len/km-1)<Math.abs(fb.len/km-1))fb=cur}).catch(e=>{pending--;lastErr=String(e)});
+   }
+   await new Promise(res=>{const iv=setInterval(()=>{if(run.stop||rtCancel||pending<=0||fatal){clearInterval(iv);res()}},120)});
+   if(best&&!rtCancel)break}
+  run.stop=true;
+  if(rtCancel){rtSay("Abgebrochen.");return}
+  if(fatal&&!best&&!fb){rtSay("Rundtour nicht möglich: "+fatal,"er");return}
+  const off=!best;if(off)best=fb;
+  if(!best){rtSay(nCross?"Alle Vorschläge führten über eine Landesgrenze. „Länderübergreifend erlauben“ ankreuzen oder anderen Start, andere Richtung bzw. Länge versuchen.":"Rundtour nicht möglich: "+(lastErr||"keine passende Strecke gefunden")+". Anderen Start, andere Richtung oder andere Länge probieren.","er");return}
+  const nb=Math.max(1,Math.min(Math.ceil(best.backLen/15)-1,24-best.outV.length));
+  pts=[best.st,...best.outV,best.T,...rtSample(best.back,nb),best.st];tid=null;{const y={...x};delete y.run;rtLast=y}
+  $("name").value="Rundtour "+Math.round(best.len)+" km";redraw();
+  const b=new maplibregl.LngLatBounds();pts.forEach(p=>b.extend([p[1],p[0]]));map.fitBounds(b,{padding:60,maxZoom:12});
+  drawRoute(best.c);last=best.c;$("err").textContent="";$("info").textContent=best.len.toFixed(1)+" km · Fahrzeit wird berechnet …";bigInfo(best.len,Math.round(best.len/50*60),null);
+  doRoute(true);$("bRtAgain").style.display="block";rtClose();
+  say("Rundtour: etwa "+Math.round(best.len)+" km"+(off?" (gewünscht "+(x.mode==="B"?"mindestens ":"")+Math.round(km)+" km, mit den Straßen hier nicht genauer möglich)":"")+(best.dup>=.15?". Ein Stück führt zwangsläufig auf derselben Straße, mit „Andere Variante“ gibt es eine neue.":". Hin- und Rückweg sind verschiedene Strecken."),"ok")
+ }finally{run.stop=true;rtBusy=false;$("rtGo").disabled=false;$("rtCancel").textContent="Abbrechen"}}
+{const u=new URLSearchParams(location.search),q=u.get("tour"),rd=u.get("ride");if(q)map.on("load",()=>openTour(q));else if(rd)map.on("load",()=>openRide(rd))}
 </script></body></html>

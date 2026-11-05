@@ -97,11 +97,12 @@ function colorExpr(prop,lo,hi,cols){const n=cols.length;const e=["interpolate",[
 const METRICS={"Tempo":{k:"speed",cols:["#2e9e5b","#ffd000","#ff3b30"],u:"km/h"},"Schräglage":{k:"lean",abs:1,cols:["#2e9e5b","#ffd000","#ff3b30"],u:"°"},"Höhe":{k:"ele",cols:["#2b6cff","#2e9e5b","#d9a441","#8b5a2b"],u:"m"},"Einfarbig":{k:null}};
 async function showRide(id){charts=[];const d=await api("/api/ride?id="+id);if(!d.stats)return;cur=d;const s=d.stats;
  const k=(b,l)=>'<div class="k"><b>'+b+"</b><span>"+l+"</span></div>";
- $("det").innerHTML='<h2>'+esc(d.name)+'</h2><div class="sub">'+fmtD(s.start)+' · '+((d.kind||"free")=="nav"?"Navigationsfahrt":"freie Aufzeichnung")+'</div><div class="bar"><button class="p" onclick="location.href=\'/api/ride/gpx?id='+id+'\'">GPX</button><button onclick="location.href=\'/api/ride/csv?id='+id+'\'">CSV</button><button id="rn">Umbenennen</button><button id="dl">Löschen</button></div>'+
+ $("det").innerHTML='<h2>'+esc(d.name)+'</h2><div class="sub">'+fmtD(s.start)+' · '+((d.kind||"free")=="nav"?"Navigationsfahrt":"freie Aufzeichnung")+'</div><div class="bar"><button class="p" onclick="location.href=\'/api/ride/gpx?id='+id+'\'">GPX</button><button onclick="location.href=\'/api/ride/csv?id='+id+'\'">CSV</button><button id="opr">Im Planer öffnen</button><button id="rn">Umbenennen</button><button id="dl">Löschen</button></div>'+
  '<div class="kpi">'+k(fmtKm(s.dist_m),"Strecke")+k(fmtT(s.total_ms),"Gesamtzeit")+k(fmtT(s.moving_ms),"in Bewegung")+k(s.avg_kmh+" km/h","Schnitt")+k(s.max_kmh+" km/h","Höchstgeschwindigkeit")+
  (s.has_ele?k("↑ "+s.asc_m+" m  ↓ "+s.desc_m+" m","Höhenmeter"):"")+(s.has_limit?k(s.over,"Tempolimit überschritten"):"")+(s.has_lean?k("◀ "+s.lean_left+"°  ▶ "+s.lean_right+"°","größte Schräglage links / rechts"):"")+
  k(s.max_acc.toFixed(1).replace(".",",")+" m/s²","stärkstes Beschleunigen")+k(s.max_brake.toFixed(1).replace(".",",")+" m/s²","stärkstes Bremsen")+'</div>'+
  '<div class="bar"><b>Linie einfärben nach:</b><select id="met">'+Object.keys(METRICS).filter(m=>m=="Einfarbig"||(m=="Höhe"?s.has_ele:m=="Schräglage"?s.has_lean:true)).map(m=>"<option>"+m+"</option>").join("")+"</select></div>"+mapBar()+'<div id="chs"></div>';
+ $("opr").onclick=()=>location.href="/planer?ride="+encodeURIComponent(id);
  $("rn").onclick=async()=>{const n=prompt("Neuer Name:",d.name);if(n){await api("/api/ride/rename",{id,name:n});await load();showRide(id)}};
  $("dl").onclick=async()=>{if(confirm("Fahrt löschen?")){await api("/api/ride/delete",{id});sel=null;$("det").innerHTML='<div class="empty">Gelöscht.</div>';load()}};
  map=null;layerData=null;startMap();clearMarkers();

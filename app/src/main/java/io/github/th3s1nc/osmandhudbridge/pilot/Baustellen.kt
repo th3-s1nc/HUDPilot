@@ -48,7 +48,7 @@ object Baustellen {
                 val g = o.optJSONArray("g")
                 val line: List<Pair<Double, Double>> = if (g != null && g.length() >= 2) (0 until g.length()).map { k -> val c = g.getJSONArray(k); Pair(c.getDouble(0), c.getDouble(1)) }
                     else listOf(Pair(p.getDouble(0), p.getDouble(1)), Pair(q.getDouble(0), q.getDouble(1)))
-                out += Site(o.optString("i"), o.optString("r"), o.optString("t"), o.optString("k", "w"), o.optLong("s", 0L), o.optLong("e", 0L), line)
+                out += Site(o.optString("i"), o.optString("r"), o.optString("t"), o.optString("k", "w"), o.optLong("s", 0L), o.optLong("e", 0L), line, approx = !(g != null && g.length() >= 2))
             } catch (_: Exception) { }
         }
         return out
@@ -69,7 +69,10 @@ object Baustellen {
                 if (base.isEmpty()) { lastError = Tx.t("Keine Server-Adresse", "No server address"); onDone(false); return@execute }
                 if (!ServerProfile.has(app)) { lastError = Tx.t("Kein Profil gewählt", "No profile chosen"); onDone(false); return@execute }
                 val last = prefs(app).getLong("bs_fetch", 0L)
-                if (!force && sites.isNotEmpty() && file(app).isFile && System.currentTimeMillis() - last < 6 * 3600_000L) { onDone(false); return@execute }
+                // Nach einem App-Update die Liste einmal neu holen (Darstellung und Server können sich geändert haben)
+                val appVer = try { app.packageManager.getPackageInfo(app.packageName, 0).versionName ?: "" } catch (_: Exception) { "" }
+                val newVer = prefs(app).getString("bs_app", "") != appVer
+                if (!force && !newVer && sites.isNotEmpty() && file(app).isFile && System.currentTimeMillis() - last < 6 * 3600_000L) { onDone(false); return@execute }
                 val c = URL(base.trimEnd('/') + "/api/baustellen").openConnection() as HttpURLConnection
                 try {
                     c.connectTimeout = 4_000; c.readTimeout = 30_000; c.setRequestProperty("User-Agent", "HUDPilot")
@@ -79,7 +82,7 @@ object Baustellen {
                     if (code == 200) {
                         val txt = c.inputStream.bufferedReader().use { it.readText() }
                         val list = parse(txt)   // prüft zugleich, ob die Antwort gültig ist
-                        if (list.isNotEmpty()) { file(app).writeText(txt); prefs(app).edit().putLong("bs_fetch", System.currentTimeMillis()).apply() }   // leere Liste nicht merken
+                        if (list.isNotEmpty()) { file(app).writeText(txt); prefs(app).edit().putLong("bs_fetch", System.currentTimeMillis()).putString("bs_app", appVer).apply() }   // leere Liste nicht merken
                         sites = list; changed = true
                         lastError = if (list.isEmpty()) Tx.t("Server hat noch keine Baustellen", "Server has no roadworks yet") else null
                     }

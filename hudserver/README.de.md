@@ -7,7 +7,8 @@ Selbst gehosteter Server für die Android-App **HUDPilot** (Motorrad-Navigation 
 - **Europa-Liste** (optional, ein Knopf): bietet alle EU-Länder, die Schweiz, Norwegen, Großbritannien, Griechenland und die Türkei als wählbare Regionen an. Es wird nichts geladen oder gebaut, bevor du es ankreuzt.
 - **Profile** (Name + Code): eigene Touren, Fahrten, Favoriten und App-Einstellungen pro Person
 - **Aufräumen**: Gebaute Regionen lassen sich wieder vom Server löschen; Handys, die 90 Tage (`DEV_KEEP_DAYS`) nicht da waren, werden automatisch vergessen, einzelne Handys kann man von Hand entfernen
-- **Tourenplaner** im Browser (Routen rechnet BRouter im Container, mit Umfahrung von Sperrungen)
+- **Tourenplaner** im Browser (Routen rechnet BRouter im Container, mit Umfahrung von Sperrungen; Motorrad-Profile und ein Auto-Profil; Strecke und Zeit groß angezeigt; Rundtour-Planer (50 bis 500 km, Richtung, Zufall oder eigenes Ziel, wahlweise im Land bleibend; der Rückweg ist immer eine andere Strecke), Adresssuche über Nominatim, Tanken/Essen/Hotel/Parken aus den eigenen gebauten Regionen)
+- **Freunde und Live-Standort**: Profile können sich über den genauen Profilnamen als Freunde hinzufügen (die andere Seite muss annehmen); pro Freund erlaubst du „darf mich sehen“, und die App sendet deine Position nur bei eingeschaltetem „Standort teilen“. Positionen liegen nur im Arbeitsspeicher und verfallen nach 2 Minuten; die Verwaltung zeigt Zähler und Statistik, nie Positionen
 - **Baustellen und Sperrungen** (optional, Bayern, aus der Mobilithek)
 
 > Privates Hobbyprojekt, nicht gegen alle Umgebungen getestet. Fehler stehen im Protokoll der Verwaltung.

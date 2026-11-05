@@ -359,6 +359,21 @@ class PlanTest {
         assertEquals(25, pl.vias.size)
     }
 
+    @Test fun formpunkteSindKeineZwischenzieleUndZaehlenNicht() {
+        val pl = io.github.th3s1nc.osmandhudbridge.pilot.Plan()
+        pl.start = p("Start"); pl.dest = p("Ziel")
+        for (i in 1..100) assertTrue(pl.addVia(io.github.th3s1nc.osmandhudbridge.pilot.PlanPoint(49.0 + i * 0.001, 12.0, "f$i", true)))
+        assertEquals(0, pl.visibleCount())
+        for (i in 1..25) assertTrue(pl.addVia(p("v$i")))
+        assertFalse(pl.addVia(p("zu viel")))
+        assertEquals(25, pl.visibleCount())
+        val w = pl.waypoints(null)!!
+        assertEquals(127, w.size)
+        assertEquals(25, w.count { it.visit })
+        assertEquals("f1", w[1].name)
+        assertFalse(w[1].visit)
+    }
+
     @Test fun moveAndRemoveVias() {
         val pl = io.github.th3s1nc.osmandhudbridge.pilot.Plan()
         pl.addVia(p("A")); pl.addVia(p("B")); pl.addVia(p("C"))

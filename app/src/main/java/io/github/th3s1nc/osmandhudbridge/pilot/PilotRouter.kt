@@ -24,7 +24,7 @@ object PilotRouter {
             return Outcome.Failed(Tx.t("Routendaten fehlen: ${missing.joinToString(", ")}", "Route data missing: ${missing.joinToString(", ")}"), missing)
         }
         if (!File(PilotStore.profilePath(ctx, profileId)).isFile) return Outcome.Failed(Tx.t("Profil nicht gefunden.", "Profile not found."))
-        val profile = File(PilotStore.variantPath(ctx, profileId, Avoid.get(ctx)))
+        val profile = File(PilotStore.variantPath(ctx, profileId, PilotSession.avoid(ctx)))
         val lats = DoubleArray(wps.size) { wps[it].lat }
         val lons = DoubleArray(wps.size) { wps[it].lon }
         val visit = BooleanArray(wps.size) { wps[it].visit }

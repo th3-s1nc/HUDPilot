@@ -6,8 +6,8 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** Ein Punkt der Planung mit Anzeigename. */
-class PlanPoint(val lat: Double, val lon: Double, val name: String)
+/** Ein Punkt der Planung mit Anzeigename. shape = reiner Formpunkt (wird nicht angefahren, nicht gezählt, nicht aufgelistet), z. B. bei einer genau übernommenen Fahrt. */
+class PlanPoint(val lat: Double, val lon: Double, val name: String, val shape: Boolean = false)
 
 /**
  * Die geplante Fahrt: Start (null = aktuelle Position), Zwischenziele (höchstens [MAX_VIAS]) und Ziel.
@@ -20,10 +20,13 @@ class Plan {
 
     /** Zwischenziel anhängen; false, wenn schon [MAX_VIAS] da sind. */
     fun addVia(p: PlanPoint): Boolean {
-        if (vias.size >= MAX_VIAS) return false
+        if (!p.shape && visibleCount() >= MAX_VIAS) return false
         vias += p
         return true
     }
+
+    /** Anzahl der echten Zwischenziele (ohne Formpunkte). */
+    fun visibleCount(): Int = vias.count { !it.shape }
 
     fun removeVia(i: Int) { if (i in vias.indices) vias.removeAt(i) }
 
@@ -81,7 +84,7 @@ class Plan {
         val d = dest ?: return null
         val out = ArrayList<Waypoint>()
         out += Waypoint(s.lat, s.lon, false, s.name)
-        for (v in vias) out += Waypoint(v.lat, v.lon, true, v.name)
+        for (v in vias) out += Waypoint(v.lat, v.lon, !v.shape, v.name)
         out += Waypoint(d.lat, d.lon, false, d.name)
         return out
     }

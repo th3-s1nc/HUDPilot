@@ -45,6 +45,15 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
     <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardAdminMsg"
+        style="@style/Widget.HudBridge.Card"
+        android:visibility="gone"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp">
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnAdminMsg" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Admin-Meldungen" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    <com.google.android.material.card.MaterialCardView
         style="@style/Widget.HudBridge.Card"
         android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
         <LinearLayout android:id="@+id/boxStatusRows" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
@@ -421,13 +430,6 @@
                 </LinearLayout>
             </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-            <com.google.android.material.card.MaterialCardView
-        style="@style/Widget.HudBridge.Card"
-        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-            <TextView style="@style/TextAppearance.Material3.BodyMedium" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/ui_strassendaten_diese_app_zeigt" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:layout_marginBottom="10dp" android:orientation="horizontal" android:gravity="center_vertical">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/ui_warnung" android:textColor="@color/accent" android:textSize="12sp" android:textStyle="bold" android:letterSpacing="0.08" />
                 <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" android:layout_marginStart="10dp" android:background="?attr/colorOutlineVariant" />
@@ -462,6 +464,15 @@
                     <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/chkWarnSound" android:checked="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/ui_ton_bei_ueberschreitung" />
                 </LinearLayout>
                     <TextView android:id="@+id/tvInfoSound" android:visibility="gone" style="@style/TextAppearance.Material3.BodySmall" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="2dp" android:text="@string/ui_due_due_due_einmal" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:orientation="horizontal" android:gravity="center_vertical">
+                    <TextView style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/ui_fruehererkennung" />
+                    <FrameLayout android:id="@+id/btnInfoAhead" android:layout_width="44dp" android:layout_height="44dp" android:clickable="true" android:focusable="true" android:contentDescription="@string/ui_erklaerung">
+                        <TextView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:background="@drawable/bg_info_btn" android:gravity="center" android:includeFontPadding="false" android:text="i" android:textColor="#D7D7DC" android:textSize="13sp" android:textStyle="bold" />
+                    </FrameLayout>
+                    <Space android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/swLimitAhead" android:checked="false" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/ui_fruehererkennung" />
+                </LinearLayout>
+                    <TextView android:id="@+id/tvInfoAhead" android:visibility="gone" style="@style/TextAppearance.Material3.BodySmall" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="2dp" android:text="@string/ui_fruehererkennung_info" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
             <com.google.android.material.card.MaterialCardView

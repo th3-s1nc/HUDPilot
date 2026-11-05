@@ -12,7 +12,7 @@ An unofficial hobby app for private use.
 
 **Navigation and map**
 - Offline vector map (MapLibre, Protomaps) with 3D buildings, day and night style, search for places and addresses, place search (fuel, food, hotels, parking) from the downloaded data
-- Routing with BRouter (offline), several motorcycle profiles (country roads, twisty, fast, fastest with motorway), "avoid" for motorways, ferries, tolls and unpaved roads, waypoints, route preview, re-routing when you leave the route
+- Routing with BRouter (offline), several motorcycle profiles (country roads, twisty, fast, fastest with motorway) and a car profile, "avoid" for motorways, ferries, tolls and unpaved roads, waypoints, route preview, re-routing when you leave the route
 - Voice guidance with the phone's installed voice, lane hints, info card with turn arrow, arrival and remaining distance, arrival flag
 - Portrait and landscape, north up / heading up / 3D, zoom follows speed, simulated rides for testing
 - **Road works and closures** (Bavaria, from the Mobilithek, via your own server): shown on the map, with a note along the route and, if you like, **avoidance of closed roads**
@@ -24,7 +24,7 @@ An unofficial hobby app for private use.
 - Runs as a foreground service, reconnects by itself and shows nothing rather than something wrong
 
 **Warnings**
-- Speed limit from OpenStreetMap (imported or online), overspeed tone (with HUD, navigation or a running recording)
+- Speed limit from OpenStreetMap (imported or online), overspeed tone (with HUD, navigation or a running recording), optional early detection of the next limit on the route ("Soon 50"), sharp-bend tone that follows the planned route
 - Speed camera warning (off; a note appears when switching on: not allowed for drivers in Germany and some other countries), hint tones for level crossings, pedestrian crossings, traffic calming and sharp bends
 
 **Rides and tours**

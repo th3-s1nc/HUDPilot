@@ -54,23 +54,29 @@ details.menu .dd{position:absolute;right:0;top:34px;z-index:10;background:var(--
 details.menu .dd button{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--tx);padding:9px 10px;border-radius:8px;font:inherit;font-size:13.5px;cursor:pointer}details.menu .dd button:hover{background:var(--soft)}
 pre,.logbox{margin:0;max-height:560px;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap}
 #scpop{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.5);align-items:center;justify-content:center;padding:16px}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:10px;margin-bottom:16px}
+.pill{display:block;text-align:left;background:var(--card);border:1px solid var(--bd);border-left:5px solid var(--okbd);border-radius:14px;padding:10px 13px;color:var(--tx);cursor:pointer;font:inherit;min-width:0}
+.pill span{display:block;color:var(--mu);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase}.pill b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill.ok{border-left-color:var(--ok)}.pill.run{border-left-color:var(--ac);background:var(--ac2)}.pill.bad{border-left-color:var(--er);background:var(--erbg)}.pill.off{border-left-color:var(--bd)}
+.pill .bar{margin-top:6px;height:4px}
 </style></head><body>
 <header><div class="top"><img src="/logo.png" alt=""><b>HUDPilot Updater</b><span class="mu" id="ver" style="font-size:12.5px"></span><span class="sp"></span><a href="/">Startseite</a><a href="#" id="logout">Abmelden</a></div>
 <nav class="tabs" id="tabs"><a data-t="t1">Übersicht</a><a data-t="t2">Regionen</a><a data-t="t3">Blitzer</a><a data-t="t4">Profile</a><a data-t="t5">Einstellungen</a><a data-t="t6">Protokoll</a></nav>
 <div class="tp" id="tp" style="display:none"><span id="tpt"></span><div class="bar"><i id="tpi" style="width:0"></i></div></div></header>
 <main><input type="hidden" id="pw">
 <section class="pane" id="t1">
+ <div class="strip" id="strip"></div>
+ <div class="card" id="akc"><h2>Aktive Clients</h2><div id="ak"></div></div>
  <div class="kpis" id="gl"></div>
- <div class="card" id="akc"><h2>Gerade aktiv</h2><div id="ak"></div></div>
- <div class="card"><h2>Aktualisieren</h2><div id="res"></div><div class="scope" id="scope"></div>
+ <div class="card" id="rdc"><h2>Road Data</h2><div class="stats" id="sum"></div><div class="note" id="sumnote"></div></div>
+ <div class="card" id="upc"><h2>Update</h2><div id="res"></div><div class="scope" id="scope"></div>
   <div class="btns"><button class="btn p" id="bAll"><b>Markierte neu erstellen</b><span>Karte, Routen, Orte, Straßendaten. Dauert Stunden.</span></button>
   <button class="btn" id="bPoi"><b>Nur Straßen und Orte</b><span>Schnell, Karte bleibt.</span></button></div><div id="msg" class="er" style="margin-top:8px"></div></div>
- <div class="card"><h2>Straßendaten auf dem Server</h2><div class="stats" id="sum"></div><div class="note" id="sumnote"></div></div>
- <div class="card"><h2>Baustellen und Sperrungen</h2><div id="bsx"></div>
+ <div class="card" id="bsc"><h2>Roadworks</h2><div id="bsx"></div>
   <div class="bar" id="bsbar" style="display:none;margin-top:8px"><i id="bsi" style="width:0"></i></div>
   <div class="row" style="margin-top:10px"><button class="sm p" id="bsGo">Jetzt abrufen</button><button class="sm" id="bsStop" style="display:none">Abbrechen</button><span id="bsm" class="er"></span></div>
   <div class="note">Quelle: Mobilithek Bayern, täglich. Ohne Abo: Testdatei <b>test.xml</b>.</div></div>
- <div class="card"><h2>Speicher</h2><div class="bar"><i id="dkb" style="width:0"></i></div><div class="note" id="dk" style="margin-top:8px"></div></div>
+ <div class="card" id="dkc"><h2>Storage</h2><div class="bar"><i id="dkb" style="width:0"></i></div><div class="note" id="dk" style="margin-top:8px"></div></div>
 </section>
 <section class="pane" id="t2"><div class="card"><h2>Regionen</h2><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0"><input type="text" id="rq" placeholder="Land oder Region suchen …" style="flex:1;min-width:180px"><button class="sm" id="bGf">Europa-Liste holen</button></div><div class="note" id="gfi" style="margin:0 0 4px"></div><div class="note" id="gfm" style="margin:0 0 8px"></div><div class="tw"><table><thead><tr><th></th><th>Region</th><th class="r">Karte</th><th class="r">Straßen</th><th class="r">Orte</th><th>Stand</th><th>Status</th><th></th></tr></thead><tbody id="rg"></tbody></table></div>
  <div class="note">Haken = wird automatisch aktuell gehalten und bei „Markierte neu erstellen“ mitgebaut. Regionen, die ein Handy meldet (90 Tage), auch. Routen-Kacheln teilen sich mehrere Regionen, die Größen überschneiden sich.</div></div></section>
@@ -80,8 +86,12 @@ pre,.logbox{margin:0;max-height:560px;overflow:auto;font:12px/1.5 ui-monospace,C
  <div class="note">In der SCDB: Download → Format <b>GPX</b> → <b>Trennung nach einzelnen Kategorien</b>. Dateien oder ZIP hochladen. Der Server führt sie zusammen und verteilt sie an alle Handys. Erinnerung alle 30 Tage.</div></div></section>
 <section class="pane" id="t4"><div class="card"><h2>Profile</h2><div class="note" style="margin:-4px 0 10px">Jedes Profil hat eigene Touren und Fahrten, nur für sich sichtbar. Neue Profile entstehen in der App oder im Planer mit dem Einladungscode.</div>
  <div class="row">Einladungscode: <input type="text" id="inv" size="10"> <button class="sm" id="bInv">Speichern</button></div>
- <div class="tw"><table><thead><tr><th>Name</th><th>Code</th><th class="r">Handys</th><th class="r">Größe</th><th>Zuletzt</th><th></th></tr></thead><tbody id="pf"></tbody></table></div>
- <div class="row"><input type="text" id="pn" placeholder="Neuer Name"> <button class="sm" id="bNew">Profil anlegen</button><span id="pm"></span></div></div></section>
+ <div class="tw"><table><thead><tr><th>Name</th><th>Code</th><th class="r">Handys</th><th class="r">Größe</th><th>Zuletzt</th><th title="Dieses Profil bekommt die Admin-Meldungen in der App">Admin-Meldungen</th><th></th></tr></thead><tbody id="pf"></tbody></table></div>
+ <div class="row"><input type="text" id="pn" placeholder="Neuer Name"> <button class="sm" id="bNew">Profil anlegen</button><span id="pm"></span></div></div>
+ <div class="card" id="frc"><h2>Friends &amp; Live</h2><div class="kpis" id="frk" style="margin-bottom:10px"></div><div id="frn"></div>
+  <div class="note" style="margin:10px 0 6px"><b>Geteilte Zeit</b></div><div class="kpis" id="frg" style="margin-bottom:4px"></div>
+  <div class="note" style="margin:12px 0 4px"><b>Verbindungen</b> (Positionen sieht die Verwaltung nie)</div><div class="tw"><table><tbody id="frt"></tbody></table></div></div>
+</section>
 <section class="pane" id="t5"><div class="card"><h2>Einstellungen</h2>
  <div class="row">Download-Tempo im Zeitfenster: <input type="number" id="li" min="0" step="1"> Mbit/s <span class="mu">(0 = unbegrenzt)</span></div>
  <div class="row">Download-Tempo außerhalb: <input type="number" id="lo" min="0" step="1"> Mbit/s</div>
@@ -93,8 +103,19 @@ pre,.logbox{margin:0;max-height:560px;overflow:auto;font:12px/1.5 ui-monospace,C
   <div class="row"><label style="display:flex;gap:9px;align-items:center;cursor:pointer"><input type="checkbox" id="xk"><b>Karten von außen laden</b></label><span id="xkt" class="tag w"></span></div>
   <div class="note" style="margin-top:2px">Aus (empfohlen): Von außen nur Anmeldung, Planer, Touren, Fahrten und Sync. Karten sind groß und belasten den Upload. An: Die App lädt sie auch unterwegs.</div>
   <div class="note" id="xn"></div>
-  <div class="note">Verwaltung, Passwort und neue Profile gibt es von außen nie. Nach 5 falschen Anmeldungen: 15 Minuten gesperrt.</div></div></section>
-<section class="pane" id="t6"><div class="card"><h2>Protokoll</h2>
+  <div class="note">Verwaltung, Passwort und neue Profile gibt es von außen nie. Nach 5 falschen Anmeldungen: 15 Minuten gesperrt.</div></div> <div class="card" id="nfc"><h2>Admin-Meldungen</h2><div class="note" style="margin:-4px 0 10px">Diese Ereignisse landen in der App bei Profilen mit gesetztem Haken (Tab „Profile“). Hier schaltest du einzelne Arten aus.</div>
+  <div class="note" style="margin:0 0 4px"><b>Diese Ereignisse melden</b></div><div id="nft" class="chk"></div>
+  <div class="note" style="margin:12px 0 4px"><b>Diese Status-Infos in der App zeigen</b> (über den Meldungen)</div><div id="nfi" class="chk"></div><div class="row"><button class="sm" id="nfTest">Testmeldung senden</button><button class="sm" id="nfClear">Liste leeren</button><span id="nfm" class="mu"></span></div>
+  <div class="note" style="margin:12px 0 4px"><b>Letzte Meldungen</b></div><div id="nfe" style="font-size:13.5px"></div></div>
+</section>
+<section class="pane" id="t6"><div class="card" id="rlc"><h2>Routing-Leistung</h2>
+ <div class="kpis" id="rlk" style="margin-bottom:10px"></div><div id="rlb" class="note" style="margin:0 0 10px"></div>
+ <div class="row"><span class="mu">Rechenleistung für BRouter:</span><label>Arbeitsspeicher <select id="rlm"><option value="1024">1 GB</option><option value="2048">2 GB</option><option value="3072">3 GB</option><option value="4096">4 GB</option><option value="6144">6 GB</option><option value="8192">8 GB</option></select></label>
+  <label>Gleichzeitige Berechnungen <select id="rlt"><option>2</option><option>4</option><option>6</option><option>8</option><option>12</option><option>16</option></select></label>
+  <button class="sm p" id="rlGo">Übernehmen</button><span id="rlx" class="mu"></span></div>
+ <div class="note" style="margin:12px 0 4px"><b>Letzte Berechnungen</b> (langsame ab 5 Sekunden sind orange)</div>
+ <div class="tw"><table><thead><tr><th>Zeit</th><th>Profil</th><th class="r">Punkte</th><th class="r">Strecke</th><th class="r">Dauer</th></tr></thead><tbody id="rlt2"></tbody></table></div></div>
+<div class="card"><h2>Protokoll</h2>
  <div class="row"><span class="mu">Ausführlichkeit:</span><span class="lv" id="lv"><button data-l="kurz">Kurz</button><button data-l="normal">Normal</button><button data-l="ausfuehrlich">Ausführlich</button></span><span id="lvx" class="mu"></span></div>
  <div class="chk" id="lc"></div>
  <div class="note" style="margin:0 0 12px">Start, Ende, Abbruch, Warnungen und Fehler stehen immer drin. Das Protokoll bleibt nach einem Neustart erhalten (etwa 1 MB, die ältesten Zeilen fallen weg).</div>
@@ -160,7 +181,7 @@ function render(){const s=S,c=s.cfg;
  const xk=$("xk");xk.checked=!!c.extern_karten;$("xkt").textContent=c.extern_karten?"AN":"aus";$("xkt").className="tag "+(c.extern_karten?"b":"w");
  $("xn").textContent="Als „extern“ gilt alles, was über den Proxy (z. B. Nginx Proxy Manager) oder mit einem Weiterleitungs-Kopf ankommt.";
  if(s.version){$("ver").textContent="v"+s.version;$("verx").textContent="Server v"+s.version+" · zuletzt gestartet "+fd(s.gestartet)}
- scRender()}
+ strip();scRender()}
 let RGS=null,landOpen={},phOpen={};
 function gfInfo(s){const i=s.regionsliste||{};$("gfi").textContent=i.extra?"Liste: "+i.gesamt+" Regionen ("+i.extra+" aus Geofabrik, Stand "+fday(i.stand)+")":"Liste: "+(i.gesamt||0)+" Regionen (mitgeliefert). „Europa-Liste holen“ ergänzt weitere Länder; es wird nichts geladen oder gebaut."}
 function drawRg(){const s=RGS;if(!s)return;const q=($("rq").value||"").trim().toLowerCase();
@@ -201,7 +222,8 @@ $("logout").onclick=async e=>{e.preventDefault();await fetch("/api/logout",{meth
 // ---- Profile ----
 async function papi(body,url){const[ok,j]=await post(url||"/api/admin/profile",body);$("pm").innerHTML=ok?'<span class="ok">OK'+(j.code?" · Code: <b>"+esc(j.code)+"</b>":"")+'</span>':'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";loadP();return ok}
 async function loadP(){try{const r=await fetch("/api/admin/profiles");if(!r.ok)return;const j=await r.json();if(document.activeElement!==$("inv"))$("inv").value=j.invite;
- $("pf").innerHTML=j.profile.map(p=>'<tr><td><b>'+esc(p.name)+"</b>"+(p.disabled?' <span class="tag e">gesperrt</span>':"")+'</td><td><code>'+esc(p.code)+'</code></td><td class="r"><a href="#" class="phl" data-n="'+encodeURIComponent(p.name)+'" title="Handys anzeigen">'+p.handys+(p.geraete&&p.geraete.length?(phOpen[p.name]?" ▴":" ▾"):"")+'</a></td><td class="r">'+fb(p.bytes)+'</td><td>'+fd(p.seen)+'</td><td class="r"><button class="sm" data-a="resetcode" data-n="'+encodeURIComponent(p.name)+'">Code neu</button> <button class="sm" data-a="'+(p.disabled?"enable":"disable")+'" data-n="'+encodeURIComponent(p.name)+'">'+(p.disabled?"Entsperren":"Sperren")+'</button> <button class="sm" data-a="delete" data-n="'+encodeURIComponent(p.name)+'">Löschen</button></td></tr>'+(phOpen[p.name]?'<tr class="phrow"><td colspan="6">'+(p.geraete||[]).map(g=>'<div style="display:flex;gap:10px;align-items:center;padding:4px 0"><span style="flex:1"><b>'+esc(g.name)+'</b> <span class="mu">· zuletzt '+fd(g.seen)+' · Kennung '+esc(g.id.slice(0,6))+'…</span></span><button class="sm" data-dev="'+esc(g.id)+'">Entfernen</button></div>').join("")+"</td></tr>":"")).join("")||'<tr><td colspan="6" class="mu">Noch keine Profile.</td></tr>';
+ $("pf").innerHTML=j.profile.map(p=>'<tr><td><b>'+esc(p.name)+"</b>"+(p.disabled?' <span class="tag e">gesperrt</span>':"")+'</td><td><code>'+esc(p.code)+'</code></td><td class="r"><a href="#" class="phl" data-n="'+encodeURIComponent(p.name)+'" title="Handys anzeigen">'+p.handys+(p.geraete&&p.geraete.length?(phOpen[p.name]?" ▴":" ▾"):"")+'</a></td><td class="r">'+fb(p.bytes)+'</td><td>'+fd(p.seen)+'</td><td><input type="checkbox" class="nrc" data-n="'+encodeURIComponent(p.name)+'"'+(p.meldungen?" checked":"")+'></td><td class="r"><button class="sm" data-a="resetcode" data-n="'+encodeURIComponent(p.name)+'">Code neu</button> <button class="sm" data-a="'+(p.disabled?"enable":"disable")+'" data-n="'+encodeURIComponent(p.name)+'">'+(p.disabled?"Entsperren":"Sperren")+'</button> <button class="sm" data-a="delete" data-n="'+encodeURIComponent(p.name)+'">Löschen</button></td></tr>'+(phOpen[p.name]?'<tr class="phrow"><td colspan="7">'+(p.geraete||[]).map(g=>'<div style="display:flex;gap:10px;align-items:center;padding:4px 0"><span style="flex:1"><b>'+esc(g.name)+'</b> <span class="mu">· zuletzt '+fd(g.seen)+' · Kennung '+esc(g.id.slice(0,6))+'…</span></span><button class="sm" data-dev="'+esc(g.id)+'">Entfernen</button></div>').join("")+"</td></tr>":"")).join("")||'<tr><td colspan="6" class="mu">Noch keine Profile.</td></tr>';
+ document.querySelectorAll("#pf .nrc").forEach(c=>c.onchange=async()=>{await post("/api/admin/notify",{profil:decodeURIComponent(c.dataset.n),an:c.checked});loadP();loadN()});
  document.querySelectorAll("#pf a.phl").forEach(a=>a.onclick=ev=>{ev.preventDefault();const n=decodeURIComponent(a.dataset.n);phOpen[n]=!phOpen[n];loadP()});
  document.querySelectorAll("#pf button[data-dev]").forEach(b=>b.onclick=async()=>{if(!confirm("Dieses Handy aus der Liste entfernen? Meldet es sich wieder, taucht es neu auf."))return;await post("/api/admin/handy/entfernen",{id:b.dataset.dev});loadP()});
  document.querySelectorAll("#pf button[data-a]").forEach(b=>b.onclick=()=>{const n=decodeURIComponent(b.dataset.n),a=b.dataset.a;
@@ -211,14 +233,65 @@ $("bInv").onclick=()=>papi({invite:$("inv").value},"/api/admin/invite");$("bNew"
 const fsp=b=>b>=1e6?(b/1e6).toFixed(1)+" MB/s":b>0?Math.round(b/1e3)+" kB/s":"";
 const fago=s=>s<60?"vor "+s+" Sek":"vor "+Math.round(s/60)+" Min";
 async function aktiv(){if(document.hidden||!$("t1").classList.contains("on"))return;
- try{const r=await fetch("/api/admin/aktiv");if(!r.ok)return;const j=await r.json();
+ try{const r=await fetch("/api/admin/aktiv");if(!r.ok)return;const j=await r.json();AKJ=j;strip();
   const who=x=>esc(x.name||"Handy")+(x.profil?" · "+esc(x.profil):"")+(x.extern?" · von außen":"");
   const dl=j.downloads.map(x=>'<div style="margin:8px 0"><div class="bl" style="margin:0"><span><b>'+esc(x.datei)+'</b> · '+who(x)+(x.dev?"":" ("+esc(x.ip)+")")+'</span><b>'+(x.laeuft?x.pct+" % · "+fsp(x.speed):(x.pct>=100?"fertig ":"unterbrochen ")+fago(x.vor))+'</b></div><div class="bar sl"><i style="width:'+x.pct+'%"></i></div></div>').join("");
   const gs=j.geraete.map(x=>who(x)+' <span class="mu">('+fago(Math.round(Date.now()/1000-x.seen))+')</span>').join("<br>");
   $("ak").innerHTML=(dl||'<div class="note">Gerade lädt niemand etwas herunter.</div>')+'<div class="note" style="margin-top:12px"><b>Handys, die sich in den letzten 10 Minuten gemeldet haben:</b> '+(j.geraete.length?"<br>"+gs:"keine")+"</div>"}catch(e){}}
 setInterval(aktiv,3000);aktiv();
+// ---- Freunde und Live-Standort ----
+async function freunde(){if(document.hidden)return;
+ try{const r=await fetch("/api/admin/friends");if(!r.ok)return;const j=await r.json();FRJ=j;strip();const t=j.tage.length?j.tage[j.tage.length-1]:null,tag=new Date().toISOString().slice(0,10),h=t&&t.tag===tag?t:{sekunden:0,spitze:0,meldungen:0,anfragen:0};
+  $("frk").innerHTML=[[j.freundschaften,"Freundschaften"],[j.offen,"Offene Anfragen"],[j.teilen_jetzt.length,"Teilen gerade"],[h.spitze,"Spitze heute"],[Math.round(h.sekunden/60),"Min. geteilt heute"],[nf(h.meldungen),"Meldungen heute"]].map(x=>'<div class="kpi"><b>'+x[0]+"</b><span>"+x[1]+"</span></div>").join("");
+  $("frn").innerHTML=(j.teilen_jetzt.length?"<b>Teilt gerade:</b> "+j.teilen_jetzt.map(esc).join(", "):'<span class="mu">Gerade teilt niemand.</span>')+(j.sieht_gerade.length?"<br><b>Schaut gerade zu:</b> "+j.sieht_gerade.map(x=>esc(x.von)+" → "+esc(x.ziel)).join(", "):"");
+  const w=new Date(Date.now()-6*864e5).toISOString().slice(0,10),d7=j.tage.filter(x=>x.tag>=w),m7=Math.round(d7.reduce((a,x)=>a+x.sekunden,0)/60),sp7=Math.max(0,...d7.map(x=>x.spitze));
+  $("frg").innerHTML=[[Math.round(h.sekunden/60)+" Min.","Heute geteilt"],[m7+" Min.","Letzte 7 Tage"],[sp7,"Spitze gleichzeitig (7 Tage)"]].map(x=>'<div class="kpi"><b>'+x[0]+"</b><span>"+x[1]+"</span></div>").join("");
+  $("frt").innerHTML=j.links.length?j.links.map(l=>'<tr><td>'+esc(l.a)+" – "+esc(l.b)+'</td><td>'+(l.state=="ok"?"befreundet":"Anfrage offen")+'</td><td class="r"><a href="#" data-a="'+esc(l.a)+'" data-b="'+esc(l.b)+'" class="frx">entfernen</a></td></tr>').join(""):'<tr><td class="mu">Noch keine Freundschaften.</td></tr>';
+  document.querySelectorAll("#frt .frx").forEach(a=>a.onclick=async e=>{e.preventDefault();if(!confirm(a.dataset.a+" – "+a.dataset.b+" trennen?"))return;await post("/api/admin/friends/entfernen",{a:a.dataset.a,b:a.dataset.b});freunde()})}catch(e){}}
+setInterval(freunde,5000);freunde();
+// ---- Routing-Leistung ----
+const fms=v=>v>=10000?Math.round(v/1000)+" s":(v/1000).toFixed(1).replace(".",",")+" s";
+async function loadR(){if(!$("t6").classList.contains("on")||document.hidden)return;
+ try{const r=await fetch("/api/admin/routing");if(!r.ok)return;const j=await r.json(),h=j.heute;
+  $("rlk").innerHTML=[[h.n,"Berechnungen heute"],[h.n?fms(h.avg_ms):"–","Ø Dauer"],[h.n?fms(h.max_ms):"–","Langsamste"],[j.aktiv,"Laufen gerade"],[h.langsam,"Langsam (ab "+(j.langsam_ab_ms/1000)+" s)"],[h.fehler,"Fehler"]].map(x=>'<div class="kpi"><b>'+x[0]+"</b><span>"+x[1]+"</span></div>").join("");
+  $("rlb").innerHTML="BRouter: "+(j.br.laeuft?'<span class="ok"><b>läuft</b></span> seit '+fd(j.br.seit)+" · "+j.br.mem_mb+" MB · "+j.br.threads+" gleichzeitig":'<span class="er"><b>aus</b></span> (startet bei der nächsten Anfrage)')+". Die Zähler gelten für heute und beginnen nach jedem Server-Neustart bei null.";
+  if(document.activeElement!==$("rlm")&&document.activeElement!==$("rlt")){$("rlm").value=String(j.cfg.mem_mb);$("rlt").value=String(j.cfg.threads)}
+  $("rlt2").innerHTML=j.letzte.length?j.letzte.map(x=>'<tr'+(x.code!=200?' class="er"':"")+'><td>'+new Date(x.ts*1000).toLocaleTimeString("de-DE")+"</td><td>"+esc(x.prof)+'</td><td class="r">'+x.punkte+'</td><td class="r">'+(x.km!=null?x.km.toString().replace(".",",")+" km":(x.code!=200?"Fehler "+x.code:"–"))+'</td><td class="r" style="'+(x.ms>=j.langsam_ab_ms?"color:#b85c00;font-weight:700":"")+'">'+fms(x.ms)+"</td></tr>").join(""):'<tr><td class="mu" colspan="5">Noch keine Berechnung seit dem Start.</td></tr>'}catch(e){}}
+$("rlGo").onclick=async()=>{$("rlx").textContent="";const[ok,j]=await post("/api/admin/routing/leistung",{mem_mb:+$("rlm").value,threads:+$("rlt").value});$("rlx").textContent=ok?"Gespeichert, BRouter startet neu.":(j.fehler||"Nicht möglich.");setTimeout(loadR,1500)};
+setInterval(loadR,3000);setTimeout(loadR,500);
+// ---- Admin-Meldungen ----
+async function loadN(){try{const r=await fetch("/api/admin/notify");if(!r.ok)return;const j=await r.json();
+ const box=$("nft");if(!box.contains(document.activeElement)){box.innerHTML=j.typen.map(t=>'<label><input type="checkbox" class="nty" data-k="'+esc(t.key)+'"'+(t.on?" checked":"")+"> "+esc(t.label)+"</label>").join("");
+  box.querySelectorAll(".nty").forEach(c=>c.onchange=async()=>{await post("/api/admin/notify",{typ:c.dataset.k,an:c.checked})})}
+ const bi=$("nfi");if(!bi.contains(document.activeElement)){bi.innerHTML=(j.infos||[]).map(t=>'<label><input type="checkbox" class="nif" data-k="'+esc(t.key)+'"'+(t.on?" checked":"")+"> "+esc(t.label)+"</label>").join("");
+  bi.querySelectorAll(".nif").forEach(c=>c.onchange=async()=>{await post("/api/admin/notify",{info:c.dataset.k,an:c.checked})})}
+ $("nfe").innerHTML=j.events.length?j.events.map(e=>'<div style="padding:3px 0;border-bottom:1px solid var(--bd2)"><span class="mu">'+fd(e.ts)+"</span> "+esc(e.text)+"</div>").join(""):'<span class="mu">Noch keine Meldungen.</span>';
+ $("nfm").textContent=j.recip.length?"Empfänger: "+j.recip.join(", "):"Noch kein Empfänger gewählt (Tab Profile)."}catch(e){}}
+$("nfTest").onclick=async()=>{await post("/api/admin/notify",{test:true});loadN()};
+$("nfClear").onclick=async()=>{if(confirm("Alle Meldungen aus der Liste löschen?")){await post("/api/admin/notify",{leeren:true});loadN()}};
+loadN();setInterval(loadN,10000);
+// ---- Status-Leiste ----
+const fsh=t=>{const d=new Date(t*1000),n=new Date();return d.toLocaleString("de-DE",d.toDateString()==n.toDateString()?{timeStyle:"short"}:{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})};
+let AKJ=null,FRJ=null,BSJ=null,GLS=null;
+function strip(){const e=$("strip");if(!e||!S)return;const s=S,P=[];
+ const pill=(id,lab,val,cls,bar)=>'<button class="pill '+cls+'" data-go="'+id+'"><span>'+lab+'</span><b title="'+esc(val)+'">'+esc(val)+'</b>'+(bar==null?"":'<div class="bar"><i style="width:'+bar+'%"></i></div>')+'</button>';
+ const errs=s.ergebnis&&!s.ergebnis.abgebrochen?Object.keys(s.ergebnis.fehler||{}).length:0;
+ if(s.state=="running")P.push(pill("upc","Maps",(s.stop?"stopping …":"syncing "+s.gesamt_pct+" %"),"run",s.gesamt_pct));
+ else P.push(pill("upc","Maps",errs?"error ("+errs+")":"idle",errs?"bad":"ok"));
+ if(BSJ){const b=BSJ;
+  if(b.state=="running")P.push(pill("bsc","Baustellen","fetching "+b.pct+" %","run",b.pct));
+  else if(b.fehler)P.push(pill("bsc","Baustellen","error","bad"));
+  else if(b.quelle=="none")P.push(pill("bsc","Baustellen","no source","off"));
+  else P.push(pill("bsc","Baustellen",b.stand?"synced "+fsh(b.stand):"never synced",b.stand?"ok":"off"))}
+ if(GLS)P.push(pill("rdc","Routing",GLS.routing?"online":"starting …",GLS.routing?"ok":"run"));
+ if(AKJ){const dl=AKJ.downloads.filter(x=>x.laeuft).length,n=AKJ.geraete.length;
+  P.push(pill("akc","Clients",n+" online"+(dl?" · "+dl+" loading":""),dl?"run":(n?"ok":"off")))}
+ if(FRJ){const n=FRJ.teilen_jetzt.length;P.push(pill("frc","Live",n?n+" sharing":"idle",n?"run":"ok"))}
+ const d=s.disk||{};if(d.gesamt){const u=Math.round(100*(d.gesamt-d.frei)/d.gesamt);P.push(pill("dkc","Storage",u+" % used",u>=90?"bad":"ok",u))}
+ const h=P.join("");if(e.dataset.h!==h){e.dataset.h=h;e.innerHTML=h}}
+document.addEventListener("click",ev=>{const b=ev.target.closest&&ev.target.closest(".pill");if(!b)return;const id=b.dataset.go;if(id=="frc")tab("t4");else tab("t1");setTimeout(()=>{const x=$(id);if(x)x.scrollIntoView({behavior:"smooth",block:"start"})},50)});
 // ---- Kennzahlen oben ----
-async function glance(){try{const s=await(await fetch("/api/stats")).json();if(s.fehler)return;const g=[[s.regionen_bereit+" / "+s.regionen_gesamt,"Regionen bereit"],[s.laender,"Länder"],[fb(s.bytes),"Daten auf dem Server"],[s.profile,"Profile (User)"],[s.routing?"online":"startet …","Routenberechnung"]];
+async function glance(){try{const s=await(await fetch("/api/stats")).json();if(s.fehler)return;GLS=s;strip();const g=[[s.regionen_bereit+" / "+s.regionen_gesamt,"Regionen bereit"],[s.laender,"Länder"],[fb(s.bytes),"Daten auf dem Server"],[s.profile,"Profile (User)"],[s.routing?"online":"startet …","Routenberechnung"]];
  $("gl").innerHTML=g.map(x=>'<div class="kpi"><b>'+x[0]+"</b><span>"+x[1]+"</span></div>").join("")}catch(e){}}
 // ---- Blitzer (SCDB) ----
 const fsz=n=>n>=1e6?(n/1e6).toFixed(1)+" MB":(n/1e3).toFixed(0)+" kB";
@@ -255,7 +328,7 @@ $("lClr").onclick=async()=>{if(!confirm("Das ganze Protokoll löschen?"))return;
 document.querySelectorAll("#tabs a").forEach(a=>a.addEventListener("click",()=>setTimeout(loadLog,50)));
 
 // ---- Baustellen ----
-async function bsLoad(){try{const r=await fetch("/api/admin/baustellen",{headers:{"X-Admin-Password":$("pw").value}});if(!r.ok)return;const j=await r.json();
+async function bsLoad(){try{const r=await fetch("/api/admin/baustellen",{headers:{"X-Admin-Password":$("pw").value}});if(!r.ok)return;const j=await r.json();BSJ=j;strip();
  const run=j.state=="running";$("bsbar").style.display=run?"block":"none";$("bsi").style.width=j.pct+"%";$("bsStop").style.display=run?"inline-block":"none";$("bsGo").disabled=run;
  const q={live:"Mobilithek (Abo)",test:"Testdatei",none:"keine"}[j.quelle]||j.quelle;
  let h='<div class="stats"><div><b>'+nf(j.n)+'</b><span>Meldungen</span></div><div><b>'+nf(j.n_gesperrt)+'</b><span>davon Sperrungen</span></div><div><b>'+nf(j.geom)+'</b><span>mit echter Straße</span></div></div>';

@@ -11,7 +11,6 @@
     <string name="ui_tempo">Speed: –</string>
     <string name="ui_strasse">Street: –</string>
     <string name="ui_erklaerung">Explanation</string>
-    <string name="ui_strassendaten_diese_app_zeigt">Road data: this app does not show a map. It loads road data for the speed limit and street names.</string>
     <string name="ui_warnung">WARNING</string>
     <string name="ui_tempowarnung">Speed warning</string>
     <string name="ui_bei_ueberschreitung_warnen">Warn when speeding</string>
@@ -69,6 +68,8 @@
     <string name="ui_warnt_vor_festen_blitzern">Warns about fixed speed cameras ahead on your road, with a message on the HUD and, if \"Sound for cameras\" is on, with a sound. The data comes from OpenStreetMap and from your own camera list (see below). OpenStreetMap has gaps: mobile cameras and section controls are missing. In Germany and some other countries such a warning is not allowed for drivers.</string>
     <string name="ui_warnabstand_normal_ca_10">Warning distance: Normal (approx. 10 s)</string>
     <string name="ui_kurz_normal_oder_lang">Short, Normal or Long. The faster you drive, the earlier the warning comes: at 100 km/h about 280 m before the camera, at 50 km/h about 140 m.</string>
+    <string name="ui_fruehererkennung">Early detection</string>
+    <string name="ui_fruehererkennung_info">While navigating, shows the next speed limit shortly before it changes (about 4 seconds ahead, 40 to 150 m), for example "Soon 50". Only when the limit is explicitly mapped. No sound.</string>
     <string name="ui_ton_bei_blitzern">Sound for cameras</string>
     <string name="ui_due_due_due_einmal_2">Beep-beep-beep, once per camera, as soon as the warning comes. Independent of the sound when speeding. With HUD, navigation or recording.</string>
     <string name="ui_eigene_blitzer_liste">Camera list (SCDB)</string>

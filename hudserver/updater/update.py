@@ -15,8 +15,10 @@ PORT = int(os.environ.get("PORT", "8085")); PROXY_PORT = int(os.environ.get("PRO
 ADMIN_PW = os.environ.get("ADMIN_PASSWORD", "")
 import hashlib, re, secrets, shutil
 import baustellen as BSM
+import friends as FR
+import notify as NT
 SESS_TOKEN = hmac.new(ADMIN_PW.encode(), b"hudsess", hashlib.sha256).hexdigest() if ADMIN_PW else ""
-VERSION = "1.22.2"; STARTED = int(time.time())
+VERSION = "1.34.0"; STARTED = int(time.time())
 UA = f"hudpilot-server/{VERSION} (private use)"
 LIMITS_DIR = os.environ.get("LIMITS_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "limits"))   # Import-Code der App (Klassen-Ordner, gebaut mit limits-tool/build.sh)
 LIMITS_MAIN = "io.github.th3s1nc.osmandhudbridge.limit.LimitsCliKt"
@@ -62,14 +64,15 @@ reload_regions()
 # Protokoll-Kategorien (im Admin einzeln abhakbar). Start, Ende, Abbruch, Warnungen und Fehler werden immer protokolliert.
 LOG_CATS = [("download", "Downloads (Größe, Dauer, Tempo)"), ("karte", "Karte und Routen"), ("orte", "Orte"),
             ("strassen", "Straßendaten (Mengen)"), ("blitzer", "Blitzer und SCDB-Liste"), ("handy", "Handy-Anfragen"),
-            ("anmeldung", "Anmeldungen und Sync"), ("aufraeumen", "Aufräumen")]
-LOG_PRESETS = {"kurz": [], "normal": ["download", "karte", "orte", "strassen", "blitzer"], "ausfuehrlich": [k for k, _ in LOG_CATS]}
+            ("anmeldung", "Anmeldungen und Sync"), ("aufraeumen", "Aufräumen"), ("freunde", "Freunde und Live-Standort")]
+LOG_PRESETS = {"kurz": [], "normal": ["download", "karte", "orte", "strassen", "blitzer", "freunde"], "ausfuehrlich": [k for k, _ in LOG_CATS]}
 
 # ---------- Einstellungen (werden in /data/config.json gespeichert) ----------
 CFG_LOCK = threading.Lock()
 CFG = {"limit_in_mbit": 0.0, "limit_out_mbit": 0.0, "win_start": 1, "win_end": 6,
        "every_days": int(os.environ.get("UPDATE_EVERY_DAYS", "30")),
        "log_level": "normal", "log_cats": list(LOG_PRESETS["normal"]), "extern_karten": False,
+       "br_mem_mb": 4096, "br_threads": 8,   # Rechenleistung für BRouter (Routenberechnung)
        "regions": list(BASE_IDS)}   # erzeugte Europa-Regionen sind nie von selbst angehakt
 if os.environ.get("REGIONS", "ALL") != "ALL":
     CFG["regions"] = [x.strip() for x in os.environ["REGIONS"].split(",") if x.strip() in BYID]
@@ -374,6 +377,45 @@ def poi_rows(lines):
         name = p.get("name") or p.get("brand") or p.get("operator") or ""
         street = (str(p.get("addr:street", "")) + " " + str(p.get("addr:housenumber", ""))).strip()
         yield (kind, _clean(name), round(lat, 5), round(lon, 5), _clean(street), _clean(p.get("addr:city", "")))
+
+POI_CATS = {"fuel": {"fuel"}, "food": {"restaurant", "cafe", "pub", "biergarten", "fast_food", "bar", "ice_cream"},
+            "hotel": {"hotel", "guest_house", "hostel", "motel"}, "parking": {"parking", "motorcycle_parking"}}
+
+def laender_boxen():
+    """Gebaute Regionen mit Land und Rahmen (für den Planer: Rundtour im Land bleiben)."""
+    return [{"land": r["land"], "bbox": r["bbox"]} for r in REGIONS if os.path.exists(f"{PUB}/maps/{r['id']}.pmtiles")]
+
+def poi_search(cat, lat, lon, km=15.0, limit=40):
+    """Orte einer Kategorie im Umkreis aus den gebauten POI-Dateien (pois/<id>.tsv.gz). Sortiert nach Entfernung.
+    Gibt (Treffer, Zahl durchsuchter Regionen) zurück; Treffer: {name, art, lat, lon, strasse, ort, km}."""
+    kinds = POI_CATS.get(cat)
+    if not kinds: raise ValueError("Unbekannte Kategorie.")
+    km = max(1.0, min(60.0, float(km)))
+    dlat = km / 110.54; dlon = km / (111.32 * max(0.05, math.cos(math.radians(lat))))
+    w, s, e, n = lon - dlon, lat - dlat, lon + dlon, lat + dlat
+    hits = []; seen = set(); searched = 0
+    for r in REGIONS:
+        f = f"{PUB}/pois/{r['id']}.tsv.gz"; b = r["bbox"]
+        if not os.path.exists(f) or b[2] < w or b[0] > e or b[3] < s or b[1] > n: continue
+        searched += 1
+        try:
+            with gzip.open(f, "rt", encoding="utf-8", errors="replace") as fh:
+                for ln in fh:
+                    if ln.startswith("#"): continue
+                    q = ln.rstrip("\n").split("\t")
+                    if len(q) < 6 or q[0] not in kinds: continue
+                    try: la = float(q[2]); lo = float(q[3])
+                    except ValueError: continue
+                    if not (s <= la <= n and w <= lo <= e): continue
+                    key = (q[0], round(la, 4), round(lo, 4))
+                    if key in seen: continue
+                    seen.add(key)
+                    d = math.hypot((lo - lon) * 111.32 * math.cos(math.radians(lat)), (la - lat) * 110.54)
+                    if d > km: continue
+                    hits.append({"name": q[1], "art": q[0], "lat": la, "lon": lo, "strasse": q[4], "ort": q[5], "km": round(d, 1)})
+        except OSError: pass
+    hits.sort(key=lambda x: x["km"])
+    return hits[:max(1, min(100, limit))], searched
 
 def build_limits(r, pbf):
     """Straßendaten der Region (Tempolimits, Ortsschilder, Blitzer, Bahnübergänge, Zebrastreifen, Verkehrsberuhigung) mit dem Import-Code
@@ -773,6 +815,12 @@ def run_once(ids, only=None):
             save_state(last_result={"ende": int(time.time()), "dauer": int(time.time() - (S["started"] or time.time())), "fertig": S["done"], "gesamt": S["total"],
                                     "nur": only or "", "abgebrochen": bool(S["stop"]), "fehler": dict(S["errors"])})
         except Exception as ex: log("Ergebnis speichern:", ex)
+        try:
+            dur = fmt_dur(time.time() - (S["started"] or time.time()))
+            if S["stop"]: NOTES.add("lauf_fehler", f"Update abgebrochen ({S['done']} von {S['total']} Regionen fertig).")
+            elif S["errors"]: NOTES.add("lauf_fehler", f"Update fertig mit Fehlern: {len(S['errors'])} von {S['total']} Regionen ({dur}).")
+            else: NOTES.add("lauf_ok", f"Update fertig: {S['done']} von {S['total']} Regionen in {dur}.")
+        except Exception as ex: log("Meldung Update:", ex)
         S.update(state="idle", current=None, detail="", pct=None, frac=0.0, step=None); RUN_LOCK.release()
         try: kick_pending()
         except Exception as ex: log("Warteschlange-Fehler:", ex)
@@ -789,13 +837,14 @@ def scheduler():
             due = time.time() - last >= int(CFG["every_days"]) * 86400
             if S["state"] == "idle" and due and in_window(datetime.datetime.now().hour): start_run(scheduled_ids())
             bs_daily()
+            notify_tick()
             if time.time() - DEV_CLEAN_AT[0] > 86400: dev_cleanup()
         except Exception as ex: log("Zeitplan-Fehler:", ex)
 
 # ---------- Routenberechnung (BRouter) + Touren + Planer ----------
 BR_JAR = os.environ.get("BROUTER_JAR", "/opt/brouter/brouter.jar"); BR_PORT = int(os.environ.get("BROUTER_PORT", "17777"))
 BR_PROF = f"{DATA}/brouter/profiles2"; BR_PROC = {"p": None}
-PROFILES = ["motorrad_landstrasse", "motorrad_kurvig", "motorrad_schnell", "motorrad_schnellste"]
+PROFILES = ["motorrad_landstrasse", "motorrad_kurvig", "motorrad_schnell", "motorrad_schnellste", "auto"]
 AVOID_KEYS = ["motorway", "ferry", "toll", "unpaved"]   # "Vermeiden"-Schalter, wie in der App
 
 def avoid_clean(v):
@@ -843,9 +892,33 @@ def start_brouter():
     if p and p.poll() is None: return
     if not os.path.exists(BR_JAR): return
     os.makedirs(f"{PUB}/rd5", exist_ok=True)
-    BR_PROC["p"] = subprocess.Popen(["java", "-Xmx384M", "-DmaxRunningTime=180", "-cp", BR_JAR, "btools.server.RouteServer",
-        f"{PUB}/rd5", BR_PROF, f"{DATA}/brouter/custom", str(BR_PORT), "3", "127.0.0.1"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    log("BRouter gestartet (Port", BR_PORT, ")")
+    mem = max(512, min(16384, int(CFG.get("br_mem_mb", 4096)))); thr = max(1, min(32, int(CFG.get("br_threads", 8))))
+    BR_PROC["p"] = subprocess.Popen(["java", f"-Xmx{mem}M", "-DmaxRunningTime=180", "-cp", BR_JAR, "btools.server.RouteServer",
+        f"{PUB}/rd5", BR_PROF, f"{DATA}/brouter/custom", str(BR_PORT), str(thr), "127.0.0.1"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    BR_PROC.update(since=int(time.time()), mem=mem, threads=thr)
+    log(f"BRouter gestartet (Port {BR_PORT}, {mem} MB, {thr} Berechnungen gleichzeitig)", cat="karte")
+    threading.Thread(target=warm_brouter, daemon=True).start()
+
+def stop_brouter():
+    p = BR_PROC["p"]
+    if p and p.poll() is None:
+        p.terminate()
+        try: p.wait(10)
+        except Exception: p.kill()
+
+def warm_brouter():
+    """Nach dem Start einmal eine kurze Probestrecke rechnen, damit die erste echte Anfrage nicht auf das Laden der Routendaten wartet."""
+    try:
+        time.sleep(3)
+        names = sorted(n for n in os.listdir(f"{PUB}/rd5") if n.endswith(".rd5")) if os.path.isdir(f"{PUB}/rd5") else []
+        if not names: return
+        m = re.match(r"E(\d+)_N(\d+)\.rd5$", names[0])
+        if not m: return
+        lon, lat = int(m.group(1)) + 2.5, int(m.group(2)) + 2.5
+        url = f"http://127.0.0.1:{BR_PORT}/brouter?" + urllib.parse.urlencode({"lonlats": f"{lon},{lat}|{lon + 0.02},{lat + 0.02}", "profile": PROFILES[0], "alternativeidx": "0", "format": "geojson"})
+        try: urllib.request.urlopen(url, timeout=120).read()
+        except Exception: pass
+    except Exception: pass
 
 def bs_avoid(body, ll, prof):
     """Liegt eine gültige Sperrung auf der Route, mit Sperrzonen neu rechnen. Fügt dem Ergebnis "sperrung" hinzu:
@@ -875,7 +948,66 @@ def bs_avoid(body, ll, prof):
         log("Webplaner: Sperrungs-Prüfung fehlgeschlagen:", str(e)[:100])
         return body
 
+def clean_nogos(v, limit=80):
+    """Sperrkreise für BRouter ("lon,lat,radius|..."): nur gültige Zahlen, Radius 50 bis 5000 m, höchstens [limit] Kreise. Leer, wenn nichts Brauchbares."""
+    out = []
+    for part in str(v or "").split("|"):
+        q = part.split(",")
+        if len(q) != 3: continue
+        try: lo, la, r = float(q[0]), float(q[1]), float(q[2])
+        except ValueError: continue
+        if not (-180 <= lo <= 180 and -90 <= la <= 90 and 50 <= r <= 5000): continue
+        out.append(f"{lo:.6f},{la:.6f},{r:.0f}")
+        if len(out) >= limit: break
+    return "|".join(out)
+
+RT_LOG = collections.deque(maxlen=200)   # letzte Routenberechnungen (nur im Arbeitsspeicher)
+RT_STAT = {"tag": "", "n": 0, "ms": 0, "max": 0, "langsam": 0, "aktiv": 0, "fehler": 0}
+RT_LOCK = threading.Lock()
+RT_SLOW_MS = 5000
+
+def rt_start():
+    with RT_LOCK:
+        RT_STAT["aktiv"] += 1
+
+def rt_done(prof, pts, code, ms, body):
+    km = None
+    if code == 200 and body:
+        m = re.search(rb'"track-length"\s*:\s*"?(\d+)', body[:6000])
+        if m: km = round(int(m.group(1)) / 1000.0, 1)
+    with RT_LOCK:
+        RT_STAT["aktiv"] = max(0, RT_STAT["aktiv"] - 1)
+        day = datetime.date.today().isoformat()
+        if RT_STAT["tag"] != day: RT_STAT.update(tag=day, n=0, ms=0, max=0, langsam=0, fehler=0)
+        RT_STAT["n"] += 1; RT_STAT["ms"] += ms; RT_STAT["max"] = max(RT_STAT["max"], ms)
+        if ms >= RT_SLOW_MS: RT_STAT["langsam"] += 1
+        if code != 200: RT_STAT["fehler"] += 1
+        RT_LOG.append({"ts": int(time.time()), "prof": prof.split("__")[0], "punkte": pts, "km": km, "ms": ms, "code": code})
+
+def routing_info():
+    with RT_LOCK:
+        day = RT_STAT["tag"] == datetime.date.today().isoformat(); n = RT_STAT["n"] if day else 0
+        heute = {"n": n, "avg_ms": round(RT_STAT["ms"] / n) if n else 0, "max_ms": RT_STAT["max"] if day else 0,
+                 "langsam": RT_STAT["langsam"] if day else 0, "fehler": RT_STAT["fehler"] if day else 0}
+        last = list(RT_LOG)[-20:][::-1]; aktiv = RT_STAT["aktiv"]
+    p = BR_PROC["p"]
+    return {"aktiv": aktiv, "heute": heute, "langsam_ab_ms": RT_SLOW_MS, "letzte": last,
+            "br": {"laeuft": bool(p and p.poll() is None), "seit": BR_PROC.get("since", 0), "mem_mb": BR_PROC.get("mem", 0), "threads": BR_PROC.get("threads", 0)},
+            "cfg": {"mem_mb": int(CFG.get("br_mem_mb", 4096)), "threads": int(CFG.get("br_threads", 8))}}
+
 def route_proxy(query):
+    """Reicht /api/route an BRouter weiter und misst die Dauer. Gibt (Statuscode, Bytes) zurück."""
+    t0 = time.time(); q = urllib.parse.parse_qs(query)
+    prof = q.get("profile", [PROFILES[0]])[0]; pts = q.get("lonlats", [""])[0].count("|") + 1
+    rt_start()
+    code, body = 500, b""
+    try:
+        code, body = route_proxy_raw(query)
+        return code, body
+    finally:
+        rt_done(prof if prof in PROFILES else PROFILES[0], pts, code, int((time.time() - t0) * 1000), body)
+
+def route_proxy_raw(query):
     """Reicht /api/route an BRouter weiter. Gibt (Statuscode, Bytes) zurück."""
     q = urllib.parse.parse_qs(query)
     ll = q.get("lonlats", [""])[0]; prof = q.get("profile", [PROFILES[0]])[0]
@@ -883,7 +1015,10 @@ def route_proxy(query):
     prof = variant_profile(prof, q.get("avoid", [""])[0])
     if not ll or ll.count("|") < 1: return 400, json.dumps({"fehler": "Mindestens Start und Ziel nötig."}).encode()
     start_brouter()
-    url = f"http://127.0.0.1:{BR_PORT}/brouter?" + urllib.parse.urlencode({"lonlats": ll, "profile": prof, "alternativeidx": "0", "format": "geojson"})
+    par = {"lonlats": ll, "profile": prof, "alternativeidx": "0", "format": "geojson"}
+    ng = clean_nogos(q.get("nogos", [""])[0])
+    if ng: par["nogos"] = ng   # Rundtour: Hinweg sperren, damit der Rückweg eine andere Strecke nimmt
+    url = f"http://127.0.0.1:{BR_PORT}/brouter?" + urllib.parse.urlencode(par)
     try:
         with urllib.request.urlopen(url, timeout=200) as r: body = r.read()
         if q.get("sperr", [""])[0] == "1": body = bs_avoid(body, ll, prof)
@@ -925,7 +1060,7 @@ def bs_route(a, b):
     """Echte Straße zwischen zwei Punkten über BRouter (None, wenn nicht möglich, zum Beispiel ohne Routendaten für die Gegend)."""
     start_brouter()
     ll = f"{a[1]},{a[0]}|{b[1]},{b[0]}"
-    url = f"http://127.0.0.1:{BR_PORT}/brouter?" + urllib.parse.urlencode({"lonlats": ll, "profile": PROFILES[0], "alternativeidx": "0", "format": "geojson"})
+    url = f"http://127.0.0.1:{BR_PORT}/brouter?" + urllib.parse.urlencode({"lonlats": ll, "profile": "kuerzeste", "alternativeidx": "0", "format": "geojson"})
     try:
         with urllib.request.urlopen(url, timeout=20) as r: j = json.loads(r.read())
         return [[c[1], c[0]] for c in j["features"][0]["geometry"]["coordinates"]]
@@ -979,9 +1114,42 @@ def bs_run(force=False):
             try: json.dump(m, open(BS_META, "w", encoding="utf-8"))
             except Exception: pass
             log("Baustellen FEHLER:", ex); bs_set(0, "Fehler: " + str(ex)[:200])
+            if str(ex) != "Abgebrochen.": NOTES.add("baustellen", "Baustellen-Abruf fehlgeschlagen: " + str(ex)[:160], cool=6 * 3600)
         finally:
             BSS["state"] = "idle"; BS_LOCK.release()
     threading.Thread(target=work, daemon=True).start(); return True
+
+CERT_AT = [0.0]
+
+def cert_days_left():
+    """Tage bis zum Ablauf des Mobilithek-Zertifikats (None, wenn nicht lesbar). Nutzt keytool aus dem Java des Containers."""
+    q, cfg = bs_source()
+    if q != "live": return None
+    try:
+        r = subprocess.run(["keytool", "-list", "-v", "-keystore", cfg["p12"], "-storetype", "PKCS12", "-storepass", cfg["pass"]],
+                           capture_output=True, text=True, timeout=30)
+    except Exception: return None
+    months = {m: i + 1 for i, m in enumerate("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split())}
+    best = None
+    for m in re.finditer(r"until:\s+\w{3}\s+(\w{3})\s+(\d{1,2})\s+[\d:]+\s+\S+\s+(\d{4})", r.stdout or ""):
+        try: t = datetime.date(int(m.group(3)), months[m.group(1)], int(m.group(2)))
+        except Exception: continue
+        d = (t - datetime.date.today()).days
+        best = d if best is None else min(best, d)
+    return best
+
+def notify_tick():
+    """Jede Minute: Zustände prüfen, die eine Meldung wert sind (jede Art meldet sich nur alle paar Stunden oder Tage)."""
+    try:
+        if scdb_info().get("faellig"): NOTES.add("scdb", "Die SCDB-Blitzerliste ist älter als %d Tage. Bitte neu holen: scdb.info/my" % SCDB_REMIND_DAYS, cool=7 * 86400)
+        if S["state"] == "running" and not S["stop"] and time.time() - (S["beat"] or S["started"] or time.time()) > 900:
+            NOTES.add("haengt", "Der Server hängt vermutlich: seit über 15 Minuten keine Bewegung beim Update.", cool=6 * 3600)
+        d = disk()
+        if d["gesamt"] and 1 - d["frei"] / d["gesamt"] >= 0.9: NOTES.add("platte", "Die Festplatte des Servers ist zu über 90 %% voll (%d %% belegt)." % round(100 * (1 - d["frei"] / d["gesamt"])), cool=86400)
+        if time.time() - CERT_AT[0] > 86400:
+            CERT_AT[0] = time.time(); n = cert_days_left()
+            if n is not None and n <= 30: NOTES.add("zertifikat", ("Das Mobilithek-Zertifikat läuft in %d Tagen ab. Bitte ein neues anfordern." % n) if n >= 0 else "Das Mobilithek-Zertifikat ist abgelaufen.", cool=7 * 86400)
+    except Exception as ex: log("Meldungs-Prüfung:", ex)
 
 def bs_daily():
     """Einmal pro Tag, nur mit echter Quelle (die Testdatei ändert sich nicht)."""
@@ -997,6 +1165,68 @@ PST = {"invite": "", "profiles": {}}
 NAME_RE = re.compile(r"^[\w\- ]{2,24}$", re.UNICODE)
 FAILS = {}   # IP -> [Fehlversuche, Zeit des ersten]
 CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+FRI = FR.Friends(f"{DATA}/friends.json")   # Freunde und Live-Standort
+NOTES = NT.Notes(f"{DATA}/notify.json")   # Admin-Meldungen
+
+def _ago(ts):
+    if not ts: return "noch nie"
+    d = max(0, int(time.time() - ts))
+    if d < 90: return "gerade eben"
+    if d < 3600: return "vor %d Min." % (d // 60)
+    if d < 86400: return "vor %d Std." % (d // 3600)
+    n = d // 86400
+    return "vor 1 Tag" if n == 1 else "vor %d Tagen" % n
+
+def _dauer(sec):
+    sec = int(sec)
+    if sec < 3600: return "%d Min." % max(1, sec // 60)
+    if sec < 86400: return "%d Std." % (sec // 3600)
+    n = sec // 86400
+    return "1 Tag" if n == 1 else "%d Tagen" % n
+
+def build_status():
+    """Status-Kacheln für die Admin-Meldungen in der App. stufe: ok, warn, bad oder run. Nie Passwörter, Adressen oder Namen."""
+    out = []; now = time.time()
+    def add(key, label, wert, info="", stufe="ok", pct=None):
+        x = {"key": key, "label": label, "wert": wert, "info": info, "stufe": stufe}
+        if pct is not None: x["pct"] = pct
+        out.append(x)
+    add("version", "Server", "v" + VERSION, "läuft seit " + _dauer(now - STARTED))
+    if S["state"] == "running":
+        gp = int(100 * (S["done"] + S["frac"]) / S["total"]) if S["total"] else 0
+        add("update", "Update", "Abbruch läuft" if S["stop"] else "läuft: %s %d %%" % (S["current"] or "…", gp), "", "run", gp)
+    else:
+        st = load_state(); lr = st.get("last_run")
+        add("update", "Update", "keins aktiv", ("zuletzt " + _ago(lr)) if lr else "noch nie gelaufen")
+    s_ = stats(); bereit = s_["regionen_bereit"]
+    lr = load_state().get("last_run")
+    add("karten", "Karten", "%d von %d bereit" % (bereit, s_["regionen_gesamt"]), ("Stand " + _ago(lr)) if lr else "", "ok" if bereit else "warn")
+    b = bs_status()
+    if b["fehler"]: add("baustellen", "Baustellen", "Fehler", b["fehler"][:60], "bad")
+    elif not b["stand"]: add("baustellen", "Baustellen", "keine Liste", "noch nicht abgerufen", "warn")
+    else: add("baustellen", "Baustellen", "%d Sperrungen" % b["n_gesperrt"], "%d Meldungen · %s" % (b["n"], _ago(b["stand"])), "warn" if now - b["stand"] > 3 * 86400 else "ok")
+    sc = scdb_info()
+    if sc.get("alter_tage") is None: add("scdb", "Blitzerliste", "keine Liste", "bitte hochladen", "warn")
+    else: add("scdb", "Blitzerliste", "%d Tage alt" % sc["alter_tage"], "fällig" if sc.get("faellig") else "", "warn" if sc.get("faellig") else "ok")
+    d = disk()
+    if d["gesamt"]:
+        pr = round(100 * (1 - d["frei"] / d["gesamt"]))
+        add("speicher", "Speicher", "%d %% belegt" % pr, "%s frei" % fmt_size(d["frei"]), "bad" if pr >= 90 else ("warn" if pr >= 80 else "ok"), pr)
+    r = routing_info()
+    if not r["br"]["laeuft"]: add("routing", "Routing", "offline", "startet bei Bedarf", "warn")
+    else:
+        h = r["heute"]; add("routing", "Routing", "online", ("Ø %.1f s heute" % (h["avg_ms"] / 1000.0)) if h["n"] else "bereit")
+    with DEV_LOCK: aktive = len([1 for v in DEVS.values() if now - v.get("seen", 0) < 600])
+    add("handys", "Handys", "%d aktiv" % aktive, "%d Profile" % len(PST["profiles"]))
+    try: n = len(FRI.admin().get("teilen_jetzt", []))
+    except Exception: n = 0
+    add("live", "Live-Standort", ("%d teilen" % n) if n else "niemand", "")
+    dl = cert_days_left()
+    if dl is not None: add("zertifikat", "Zertifikat", ("noch %d Tage" % dl) if dl >= 0 else "abgelaufen", "Mobilithek", "bad" if dl < 0 else ("warn" if dl <= 30 else "ok"))
+    return out
+
+NOTES.status_fn = build_status
 
 def new_code(n=8): return "".join(secrets.choice(CODE_CHARS) for _ in range(n))
 def save_profiles():
@@ -1088,6 +1318,8 @@ def _profile_add(name):
         code = new_code(); now = int(time.time())
         PST["profiles"][name] = {"slug": slug, "code": code, "created": now, "seen": now, "disabled": False}; save_profiles()
     os.makedirs(profile_dir(slug), exist_ok=True); log("Profil angelegt:", name)
+    try: NOTES.add("profil", f"Neues Profil angelegt: {name}")
+    except Exception: pass
     return code
 def migrate_old():
     """Erster Start mit v1.11: bisherige Touren, Fahrten und Ablage gehören zum Profil th3_s1nc."""
@@ -1235,13 +1467,14 @@ def tour_list():
             t = json.load(open(f"{tours_dir()}/{n}", encoding="utf-8")); out.append({"id": t["id"], "name": t["name"], "profile": t.get("profile"), "avoid": t.get("avoid", []), "points": len(t.get("points", [])), "updated": t.get("updated", 0)})
         except Exception: pass
     return sorted(out, key=lambda x: -x["updated"])
+MAX_TOUR_PTS = 300   # gefahrene Fahrten werden mit vielen Punkten übernommen, damit die Route genau der Spur folgt
 def clean_points(pts):
     out = []
     for p in pts or []:
         la, lo = float(p[0]), float(p[1])
         if not (-90 <= la <= 90 and -180 <= lo <= 180): raise ValueError("Punkt außerhalb")
         out.append([round(la, 6), round(lo, 6)])
-    if len(out) < 2 or len(out) > 27: raise ValueError("2 bis 27 Punkte (Start, bis 25 Zwischenpunkte, Ziel)")
+    if len(out) < 2 or len(out) > MAX_TOUR_PTS: raise ValueError(f"2 bis {MAX_TOUR_PTS} Punkte (Start, Zwischenpunkte, Ziel)")
     return out
 def tour_save(body):
     pts = clean_points(body.get("points")); name = str(body.get("name") or "Tour").strip()[:80] or "Tour"
@@ -1507,8 +1740,8 @@ def stats():
             "letzter_bau": st.get("last_run"), "state": S["state"], "routing": bool(p and p.poll() is None), "version": VERSION,
             "laender": len({r["land"] for r in REGIONS if os.path.exists(f"{PUB}/maps/{r['id']}.pmtiles")})}
 
-PROF_GET = ("/api/tours", "/api/tour", "/api/outbox", "/api/rides", "/api/ride", "/api/ride/gpx", "/api/ride/csv", "/api/ride/preview", "/api/me", "/api/settings", "/api/favs", "/api/baustellen")
-PROF_POST = ("/api/tour/save", "/api/tour/delete", "/api/tour/rename", "/api/phone", "/api/ride/upload", "/api/ride/delete", "/api/ride/rename", "/api/ride/demo", "/api/settings/save", "/api/favs/save")
+PROF_GET = ("/api/poi", "/api/tours", "/api/tour", "/api/outbox", "/api/rides", "/api/ride", "/api/ride/gpx", "/api/ride/csv", "/api/ride/preview", "/api/me", "/api/settings", "/api/favs", "/api/baustellen", "/api/laender", "/api/friends", "/api/friends/live", "/api/notify")
+PROF_POST = ("/api/tour/save", "/api/tour/delete", "/api/tour/rename", "/api/phone", "/api/ride/upload", "/api/ride/delete", "/api/ride/rename", "/api/ride/demo", "/api/settings/save", "/api/favs/save", "/api/friends/request", "/api/friends/respond", "/api/friends/remove", "/api/friends/permit", "/api/live", "/api/live/stop")
 EXT_PAGES = ("/", "/index.html", "/logo.png", "/favicon.ico", "/mein", "/mein.html", "/planer", "/planer.html", "/touren", "/touren.html", "/api/route")
 KARTEN_PFADE = ("/manifest.json", "/maps/", "/pois/", "/limits/", "/rd5/", "/cameras.csv", "/api/need")   # große Dateien: von außen nur mit Schalter "Karten extern ladbar"
 DENYLOG = {}
@@ -1614,7 +1847,22 @@ class H(BaseHTTPRequestHandler):
             self.send_json(aktiv_info())
         elif path == "/api/admin/profiles":
             if not self.authed(): return self.send_json({"fehler": "Bitte anmelden."}, 401)
-            self.send_json({"profile": [{k: v for k, v in x.items() if k not in ("touren", "fahrten")} for x in profile_info()], "invite": PST["invite"]})   # Touren und Fahrten sieht nur der User selbst
+            self.send_json({"profile": [{**{k: v for k, v in x.items() if k not in ("touren", "fahrten")}, "meldungen": NOTES.is_recip(x["name"])} for x in profile_info()], "invite": PST["invite"]})   # Touren und Fahrten sieht nur der User selbst
+        elif path == "/api/friends": self.send_json({"friends": FRI.listing(CUR.name), "offen": FRI.pending_in(CUR.name), "sicht": FRI.viewers(CUR.name)})
+        elif path == "/api/notify":
+            try: n = int(urllib.parse.parse_qs(self.path.partition("?")[2]).get("since", ["0"])[0])
+            except Exception: n = 0
+            self.send_json(NOTES.since(CUR.name, n))
+        elif path == "/api/admin/notify":
+            if not self.authed(): return self.send_json({"fehler": "Bitte anmelden."}, 401)
+            self.send_json(NOTES.admin())
+        elif path == "/api/admin/routing":
+            if not self.authed(): return self.send_json({"fehler": "Bitte anmelden."}, 401)
+            self.send_json(routing_info())
+        elif path == "/api/friends/live": self.send_json({"positions": FRI.positions_for(CUR.name)})
+        elif path == "/api/admin/friends":
+            if not self.authed(): return self.send_json({"fehler": "Bitte anmelden."}, 401)
+            self.send_json(FRI.admin())
         elif path in ("/mein", "/mein.html"): self.send_page("mein.html")
         elif path in ("/planer", "/planer.html"): self.send_page("planer.html")
         elif path == "/api/route":
@@ -1622,6 +1870,13 @@ class H(BaseHTTPRequestHandler):
             self.send_response(code); self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(b))); self.send_header("Cache-Control", "no-store"); self.end_headers()
             if self.command != "HEAD": self.wfile.write(b)
+        elif path == "/api/poi":
+            q = urllib.parse.parse_qs(self.path.partition("?")[2])
+            try:
+                hits, n = poi_search(q.get("cat", [""])[0], float(q.get("lat", ["0"])[0]), float(q.get("lon", ["0"])[0]), float(q.get("km", ["15"])[0]))
+                self.send_json({"orte": hits, "regionen": n})
+            except ValueError as ex: self.send_json({"fehler": str(ex)}, 400)
+        elif path == "/api/laender": self.send_json({"regionen": laender_boxen()})
         elif path == "/api/tours": self.send_json({"touren": tour_list()})
         elif path == "/api/tour":
             t = tour_get(urllib.parse.parse_qs(self.path.partition("?")[2]).get("id", [""])[0])
@@ -1734,7 +1989,25 @@ class H(BaseHTTPRequestHandler):
             except PermissionError as ex: fail(ip); return self.send_json({"fehler": str(ex)}, 403)
             except ValueError as ex: return self.send_json({"fehler": str(ex)}, 400)
         if p in PROF_POST and not self.need_profile(): return
-        if p in PROF_POST: log(f"{CUR.name}: {p[5:]}", cat="anmeldung")
+        if p in PROF_POST and p != "/api/live": log(f"{CUR.name}: {p[5:]}", cat="anmeldung")
+        if p == "/api/live":
+            try: FRI.update(CUR.name, body.get("lat"), body.get("lon"), body.get("spd", 0), body.get("hdg", 0))
+            except (ValueError, TypeError) as ex: return self.send_json({"fehler": str(ex)}, 400)
+            return self.send_json({"ok": True, "sicht": FRI.viewers(CUR.name)})
+        if p == "/api/live/stop": FRI.stop(CUR.name); return self.send_json({"ok": True})
+        if p.startswith("/api/friends/"):
+            who = str(body.get("name", "")).strip(); k, v = find_profile(who)
+            if not v or v.get("disabled"): return self.send_json({"fehler": "Dieses Profil gibt es nicht."}, 404)
+            try:
+                if p == "/api/friends/request":
+                    res = FRI.request(CUR.name, k); log(f"Freunde: {CUR.name} → {k}: {res}", cat="freunde"); return self.send_json({"ok": True, "status": res})
+                if p == "/api/friends/respond":
+                    acc = bool(body.get("accept")); FRI.respond(CUR.name, k, acc); log(f"Freunde: {CUR.name} {'nimmt an' if acc else 'lehnt ab'}: {k}", cat="freunde"); return self.send_json({"ok": True})
+                if p == "/api/friends/remove":
+                    FRI.remove(CUR.name, k); log(f"Freunde: {CUR.name} entfernt {k}", cat="freunde"); return self.send_json({"ok": True})
+                if p == "/api/friends/permit":
+                    FRI.permit(CUR.name, k, body.get("allow")); log(f"Freunde: {CUR.name} {'erlaubt' if body.get('allow') else 'verbietet'} {k} die Ansicht", cat="freunde"); return self.send_json({"ok": True})
+            except ValueError as ex: return self.send_json({"fehler": str(ex)}, 400)
         if p not in PROF_POST:   # alles andere nur mit Admin-Passwort
             if not ADMIN_PW: return self.send_json({"fehler": "ADMIN_PASSWORD ist nicht gesetzt - Änderungen sind abgeschaltet."}, 403)
             if not self.authed(): return self.send_json({"fehler": "Bitte anmelden."}, 401)
@@ -1757,7 +2030,7 @@ class H(BaseHTTPRequestHandler):
                 if act == "delete":
                     if str(body.get("confirm", "")).strip().lower() != k.lower(): return self.send_json({"fehler": "Zum Löschen den Namen bestätigen."}, 400)
                     with PLOCK: PST["profiles"].pop(k, None); save_profiles()
-                    shutil.rmtree(profile_dir(v["slug"]), ignore_errors=True); log("Profil gelöscht:", k)
+                    shutil.rmtree(profile_dir(v["slug"]), ignore_errors=True); FRI.remove_profile(k); NOTES.remove_profile(k); log("Profil gelöscht:", k)
                     return self.send_json({"ok": True})
             except ValueError as ex: return self.send_json({"fehler": str(ex)}, 400)
             return self.send_json({"fehler": "unbekannt"}, 400)
@@ -1780,6 +2053,9 @@ class H(BaseHTTPRequestHandler):
         if p == "/api/admin/region/loeschen":
             try: return self.send_json({"ok": True, "frei": region_delete(str(body.get("id", "")))})
             except ValueError as ex: return self.send_json({"fehler": str(ex)}, 409)
+        if p == "/api/admin/friends/entfernen":
+            if not FRI.remove_link(str(body.get("a", "")), str(body.get("b", ""))): return self.send_json({"fehler": "Diese Verbindung gibt es nicht."}, 404)
+            log(f"Freunde: Admin entfernt {body.get('a')} – {body.get('b')}", cat="freunde"); return self.send_json({"ok": True})
         if p == "/api/admin/handy/entfernen":
             if not dev_remove(str(body.get("id", "")).strip().lower()): return self.send_json({"fehler": "Dieses Handy gibt es nicht (mehr)."}, 404)
             return self.send_json({"ok": True})
@@ -1815,6 +2091,33 @@ class H(BaseHTTPRequestHandler):
             if not self.authed(): return self.send_json({"fehler": "Bitte anmelden."}, 401)
             if body.get("stop"): BSS["stop"] = True; return self.send_json({"ok": True})
             return self.send_json({"ok": bs_run(force=True)})
+        if p == "/api/admin/notify":
+            if not self.authed(): return self.send_json({"fehler": "Bitte anmelden."}, 401)
+            if "profil" in body:
+                k, _ = find_profile(str(body.get("profil", "")))
+                if not k: return self.send_json({"fehler": "Profil nicht gefunden."}, 404)
+                NOTES.set_recip(k, bool(body.get("an"))); log("Admin-Meldungen für %s: %s" % (k, "an" if body.get("an") else "aus"))
+            elif "typ" in body:
+                if not NOTES.set_type(str(body.get("typ")), bool(body.get("an"))): return self.send_json({"fehler": "Unbekannte Art."}, 400)
+            elif "info" in body:
+                if not NOTES.set_info(str(body.get("info")), bool(body.get("an"))): return self.send_json({"fehler": "Unbekannte Info."}, 400)
+            elif body.get("test"): NOTES.add("test", "Testmeldung aus der Verwaltung.")
+            elif body.get("leeren"): NOTES.clear()
+            return self.send_json({"ok": True, **NOTES.admin()})
+        if p == "/api/admin/routing/leistung":
+            if not self.authed(): return self.send_json({"fehler": "Bitte anmelden."}, 401)
+            try:
+                with CFG_LOCK:
+                    CFG["br_mem_mb"] = max(512, min(16384, int(body.get("mem_mb", CFG["br_mem_mb"]))))
+                    CFG["br_threads"] = max(1, min(32, int(body.get("threads", CFG["br_threads"]))))
+                    save_cfg()
+            except (ValueError, TypeError): return self.send_json({"fehler": "Ungültiger Wert."}, 400)
+            log(f"Routing-Leistung: {CFG['br_mem_mb']} MB, {CFG['br_threads']} Berechnungen, BRouter startet neu", cat="karte")
+            def _restart():
+                try: stop_brouter(); start_brouter()
+                except Exception as ex: log("BRouter-Neustart:", ex)
+            threading.Thread(target=_restart, daemon=True).start()
+            return self.send_json({"ok": True})
         if p == "/api/admin/logclear":
             log_clear(); log("Protokoll geleert"); return self.send_json({"ok": True})
         if p == "/api/config":
@@ -1825,6 +2128,8 @@ class H(BaseHTTPRequestHandler):
                     for k in ("win_start", "win_end"):
                         if k in body: CFG[k] = int(body[k]) % 24
                     if "every_days" in body: CFG["every_days"] = max(1, int(body["every_days"]))
+                    if "br_mem_mb" in body: CFG["br_mem_mb"] = max(512, min(16384, int(body["br_mem_mb"])))
+                    if "br_threads" in body: CFG["br_threads"] = max(1, min(32, int(body["br_threads"])))
                     if "extern_karten" in body:
                         CFG["extern_karten"] = bool(body["extern_karten"]); log("Karten extern ladbar: " + ("AN" if CFG["extern_karten"] else "aus"))
                     if "regions" in body: CFG["regions"] = [i for i in body["regions"] if i in BYID]
@@ -1866,6 +2171,8 @@ def main():
     try: write_manifest()   # Regionsliste (auch neue Regionen) gleich beim Start erneuern
     except Exception as ex: log("Manifest-Fehler:", ex)
     ps = ProxyServer(("127.0.0.1", PROXY_PORT), ProxyH); threading.Thread(target=ps.serve_forever, daemon=True).start()
+    try: NOTES.add("start", "Der Server wurde gestartet (Version %s)." % VERSION); NOTES.check_version(VERSION)
+    except Exception as ex: log("Start-Meldung:", ex)
     if len(sys.argv) > 1 and sys.argv[1] == "now": start_run(scheduled_ids())
     threading.Thread(target=scheduler, daemon=True).start()
     def br_boot():

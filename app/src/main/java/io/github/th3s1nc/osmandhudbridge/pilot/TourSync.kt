@@ -10,7 +10,7 @@ import java.net.URL
 /** Touren mit dem eigenen Server abgleichen: geplante Touren holen/sichern, gefahrene Fahrten hochladen. */
 object TourSync {
     class Planned(val id: String, val name: String, val profile: String, val points: Int, val updated: Long)
-    class Tour(val name: String, val profile: String, val points: List<Pair<Double, Double>>)
+    class Tour(val name: String, val profile: String, val points: List<Pair<Double, Double>>, val avoid: List<String>? = null)
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("pilot_server", Context.MODE_PRIVATE)
     fun base(ctx: Context): String = RegionSync.serverUrl(ctx)
@@ -63,14 +63,15 @@ object TourSync {
         val txt = http(ctx, "$b/api/tour?id=" + java.net.URLEncoder.encode(id, "UTF-8"), null) ?: return null
         return try {
             val j = JSONObject(txt); val a = j.getJSONArray("points")
-            Tour(j.optString("name", "Tour"), j.optString("profile"), (0 until a.length()).map { val p = a.getJSONArray(it); Pair(p.getDouble(0), p.getDouble(1)) })
+            Tour(j.optString("name", "Tour"), j.optString("profile"), (0 until a.length()).map { val p = a.getJSONArray(it); Pair(p.getDouble(0), p.getDouble(1)) },
+                j.optJSONArray("avoid")?.let { x -> (0 until x.length()).map { x.getString(it) } })
         } catch (_: Exception) { null }
     }
 
     fun saveTour(ctx: Context, name: String, profile: String, points: List<Pair<Double, Double>>): Boolean {
         val b = base(ctx); if (b.isEmpty()) return false
         val pts = JSONArray(); for (p in points) pts.put(JSONArray().put(p.first).put(p.second))
-        val av = JSONArray(); for (k in Avoid.get(ctx).on) av.put(k)
+        val av = JSONArray(); for (k in PilotSession.avoid(ctx).on) av.put(k)
         val body = JSONObject().put("name", name).put("profile", profile).put("avoid", av).put("points", pts).toString()
         return http(ctx, "$b/api/tour/save", body) != null
     }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Dunkles Design schlicht: schwarzer Grund, orange Akzent, dunkelgraue Flächen -->
-    <style name="Theme.HudBridge" parent="Theme.Material3.Dark.NoActionBar">
+    <style name="Base.Theme.HudBridge" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">#FF7A00</item>
         <item name="colorOnPrimary">#000000</item>
         <item name="colorPrimaryContainer">#5A2D00</item>
@@ -19,7 +19,11 @@
         <item name="android:statusBarColor">#000000</item>
         <item name="android:navigationBarColor">#0B0B0C</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">#000000</item>
     </style>
+
+    <!-- Das App-Design; ab Android 12 steht der schwarze Startbildschirm in values-v31 -->
+    <style name="Theme.HudBridge" parent="Base.Theme.HudBridge" />
 
     <style name="Widget.HudBridge.Card" parent="Widget.Material3.CardView.Filled">
         <item name="cardBackgroundColor">#1C1C1E</item>

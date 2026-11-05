@@ -36,6 +36,30 @@ class RoadAhead(val x: DoubleArray, val y: DoubleArray, val startTags: Map<Strin
 class Bend(val apexM: Double, val radiusM: Double, val lat: Double, val lon: Double)
 
 /**
+ * Die geplante Route für die Warnungen: Punkte, Strecke vom Start (cumM) und die Strecken (turnsAtM), an denen man abbiegt
+ * (Abbiegen, Kreisverkehr, Gabelung; leichte Kurven zählen nicht). Reine Daten, damit es getestet werden kann.
+ */
+class RouteLine(val lat: DoubleArray, val lon: DoubleArray, val cumM: IntArray, val turnsAtM: IntArray) {
+    val totalM: Int get() = if (cumM.isEmpty()) 0 else cumM[cumM.size - 1]
+
+    /** Wird innerhalb von [radiusM] um die Strecke [atM] abgebogen? */
+    fun turnWithin(atM: Double, radiusM: Double): Boolean = turnsAtM.any { abs(it - atM) <= radiusM }
+
+    /** Position bei Strecke [s] (auf die Route begrenzt). Gibt (lat, lon) zurück. */
+    fun pointAt(s: Double): DoubleArray {
+        val n = cumM.size
+        if (n == 0) return doubleArrayOf(0.0, 0.0)
+        if (s <= 0 || n == 1) return doubleArrayOf(lat[0], lon[0])
+        if (s >= cumM[n - 1]) return doubleArrayOf(lat[n - 1], lon[n - 1])
+        var lo = 0; var hi = n - 1
+        while (hi - lo > 1) { val mid = (lo + hi) ushr 1; if (cumM[mid] <= s) lo = mid else hi = mid }
+        val span = (cumM[hi] - cumM[lo]).toDouble()
+        val f = if (span <= 0.0) 0.0 else (s - cumM[lo]) / span
+        return doubleArrayOf(lat[lo] + (lat[hi] - lat[lo]) * f, lon[lo] + (lon[hi] - lon[lo]) * f)
+    }
+}
+
+/**
  * Warnung vor sehr scharfen Kurven (nur Ton). Aus der Straßenform vor dir (aktuelle Straße, bei gleichem Namen auch die
  * anschließenden Stücke) wird die engste Kurve gesucht. Daraus folgt ein Kurventempo (Wurzel aus Querbeschleunigung mal Radius).
  * Ist man deutlich schneller und kann gerade noch bequem bremsen (2 s Reaktion, 2,5 m/s²), kommt einmal der Ton.
@@ -59,13 +83,17 @@ class CurveWarn {
      * Rückgabe: true = jetzt Ton.
      */
     fun update(ways: List<Way>, index: CurveIndex, lat: Double, lon: Double, headingDeg: Double?, speedMs: Float,
-               level: Int, limitKmh: Int = 0, innerorts: Boolean = false): Boolean {
+               level: Int, limitKmh: Int = 0, innerorts: Boolean = false, route: RouteLine? = null, progressM: Double = 0.0): Boolean {
         forgetFar(lat, lon)
         if (headingDeg == null || speedMs < MIN_SPEED_MS || innerorts || (limitKmh in 1..50)) return false
         val lookahead = (speedMs * 14.0).coerceIn(150.0, MAX_LOOKAHEAD_M)
-        val road = roadAhead(ways, index, lat, lon, headingDeg, lookahead) ?: return false
-        if (isTownRoad(road.startTags)) return false
+        val mapRoad = roadAhead(ways, index, lat, lon, headingDeg, lookahead) ?: return false
+        if (isTownRoad(mapRoad.startTags)) return false
+        // Mit Navigation zählt die geplante Route (keine Ratespiele an Abzweigen), sonst die Straße unter dir
+        val road = if (route != null) routeAhead(route, progressM, lat, lon, lookahead, mapRoad.startTags) ?: mapRoad else mapRoad
         val bend = sharpestBend(road, CurveLevel.maxRadius(level)) ?: return false
+        // Wer dort ohnehin abbiegt, braucht keinen Kurventon
+        if (route != null && road !== mapRoad && route.turnWithin(progressM + bend.apexM, TURN_SKIP_M)) return false
         // dieselbe Kurve (der engste Punkt wandert beim Näherkommen um ein paar Meter)
         val kx = M_PER_DEG * cos(Math.toRadians(lat))
         if (warned.any { hypot((it.lon - bend.lon) * kx, (it.lat - bend.lat) * M_PER_DEG) < SAME_BEND_M }) return false
@@ -96,6 +124,7 @@ class CurveWarn {
         const val MARGIN_MS = 10.0 / 3.6 // mindestens 10 km/h zu schnell
         const val FORGET_M = 500.0
         const val SAME_BEND_M = 60.0
+        const val TURN_SKIP_M = 40.0 // Kurve näher als so an einer geplanten Abbiegung: kein Ton
         private const val M_PER_DEG = 111_320.0
         private const val MIN_TURN_DEG = 30.0
 
@@ -180,6 +209,20 @@ class CurveWarn {
                 ys[k] = py[seg] + (py[seg + 1] - py[seg]) * f
             }
             return RoadAhead(xs, ys, w0.tags, lat, lon)
+        }
+
+        /** Die Route vor dir als Linie in Metern ab deiner Position, in [STEP]-m-Abständen; null, wenn zu kurz. */
+        fun routeAhead(line: RouteLine, progressM: Double, lat: Double, lon: Double, lookaheadM: Double, tags: Map<String, String>): RoadAhead? {
+            val len = minOf(lookaheadM, line.totalM - progressM)
+            if (len < 2 * STEP) return null
+            val kx = M_PER_DEG * cos(Math.toRadians(lat)); val ky = 110_540.0
+            val n = (len / STEP).toInt() + 1
+            val xs = DoubleArray(n); val ys = DoubleArray(n)
+            for (k in 0 until n) {
+                val p = line.pointAt(progressM + k * STEP)
+                xs[k] = (p[1] - lon) * kx; ys[k] = (p[0] - lat) * ky
+            }
+            return RoadAhead(xs, ys, tags, lat, lon)
         }
 
         private const val MAX_ON_ROAD_M = 25.0

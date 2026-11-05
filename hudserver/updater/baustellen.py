@@ -76,7 +76,7 @@ def parse(src, progress=None):
                 s = _iso(_txt(v, "overallStartTime")) if v is not None and _txt(v, "overallStartTime") else 0
                 e = _iso(_txt(v, "overallEndTime")) if v is not None and _txt(v, "overallEndTime") else 0
                 k = _kind(rec, text)
-                key = (tuple(a), tuple(b), k, s, e)
+                key = (tuple(sorted((tuple(a), tuple(b)))), k, s, e)   # beide Fahrtrichtungen derselben Meldung zählen einmal
                 if key in seen: continue
                 seen.add(key)
                 m = ROAD_RE.match(text)
@@ -125,13 +125,23 @@ def simplify(pts, tol=6.0):
     return [p for p, k in zip(pts, keep) if k]
 
 
+GEOM_V = "v2|"   # Schlüssel-Version im Zwischenspeicher: alte Linien (vom schnellsten statt kürzesten Weg) werden nicht mehr benutzt
+
+
+def plausible(g, a, b):
+    """Folgt die gefundene Straße wirklich der Strecke zwischen den Punkten? Höchstens 1,3-fache Luftlinie plus 100 m."""
+    if not g or len(g) < 2: return False
+    d = hav(a, b)
+    return sum(hav(g[i], g[i + 1]) for i in range(len(g) - 1)) <= 1.3 * d + 100
+
+
 def add_geometry(items, route_fn, cache, progress=None, stop=lambda: False):
     """Zu jedem Eintrag die echte Straße zwischen Anfang und Ende holen (route_fn(a, b) -> [[lat, lon], ...] oder None).
-    Ist der Weg unplausibel länger als die Luftlinie, bleibt es bei der geraden Linie."""
+    Ist der Weg länger als 1,3 x Luftlinie + 100 m, bleibt es bei der geraden Linie (Luftlinie zwischen den beiden Punkten)."""
     ok = fail = misses = 0
     for n, x in enumerate(items):
         if stop(): break
-        key = f"{x['a'][0]},{x['a'][1]}|{x['b'][0]},{x['b'][1]}"
+        key = GEOM_V + f"{x['a'][0]},{x['a'][1]}|{x['b'][0]},{x['b'][1]}"
         d = hav(x["a"], x["b"])
         if d >= 25:
             g = cache.get(key)
@@ -140,11 +150,8 @@ def add_geometry(items, route_fn, cache, progress=None, stop=lambda: False):
                 except Exception: g = None
                 if g: cache[key] = g; misses = 0   # nur Erfolge merken, Misserfolge werden beim nächsten Mal wieder versucht
                 else: misses += 1                  # 25 Fehlschläge hintereinander: keine Routendaten da, der Rest bleibt gerade
-            if g:
-                length = sum(hav(g[i], g[i + 1]) for i in range(len(g) - 1))
-                if len(g) >= 3 and length <= 3 * d + 300:
-                    x["g"] = [[round(p[0], 5), round(p[1], 5)] for p in simplify(g)]; ok += 1
-                else: fail += 1
+            if g and plausible(g, x["a"], x["b"]):
+                x["g"] = [[round(p[0], 5), round(p[1], 5)] for p in simplify(g)]; ok += 1
             else: fail += 1
         if progress and n % 10 == 0: progress((n + 1) / max(1, len(items)))
     return ok, fail

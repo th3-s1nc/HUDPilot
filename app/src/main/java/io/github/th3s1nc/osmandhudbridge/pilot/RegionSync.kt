@@ -139,7 +139,7 @@ object RegionSync {
         } finally { c.disconnect() }
     }
 
-    class Outbox(val ts: Long, val name: String, val profile: String, val points: List<Pair<Double, Double>>)
+    class Outbox(val ts: Long, val name: String, val profile: String, val points: List<Pair<Double, Double>>, val avoid: List<String>? = null)
 
     /** Vom Web-Planer gesendete Route (null: keine oder Server nicht erreichbar). Kurze Zeitgrenzen, damit die Karte nicht wartet. */
     fun fetchOutbox(ctx: Context): Outbox? {
@@ -153,7 +153,8 @@ object RegionSync {
                 val a = j.optJSONArray("points") ?: return null
                 if (a.length() < 2) return null
                 val pts = (0 until a.length()).map { val p = a.getJSONArray(it); Pair(p.getDouble(0), p.getDouble(1)) }
-                Outbox(j.optLong("ts"), j.optString("name", "Tour"), j.optString("profile"), pts)
+                Outbox(j.optLong("ts"), j.optString("name", "Tour"), j.optString("profile"), pts,
+                    j.optJSONArray("avoid")?.let { x -> (0 until x.length()).map { x.getString(it) } })
             } finally { c.disconnect() }
         } catch (_: Exception) { null }
     }

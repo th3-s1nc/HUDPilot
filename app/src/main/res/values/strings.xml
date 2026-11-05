@@ -16,7 +16,6 @@
     <string name="ui_tempo">Tempo: –</string>
     <string name="ui_strasse">Straße: –</string>
     <string name="ui_erklaerung">Erklärung</string>
-    <string name="ui_strassendaten_diese_app_zeigt">Straßendaten: Diese App zeigt keine Karte. Sie lädt Straßendaten für Tempolimit und Straßennamen.</string>
     <string name="ui_warnung">WARNUNG</string>
     <string name="ui_tempowarnung">Tempowarnung</string>
     <string name="ui_bei_ueberschreitung_warnen">Bei Überschreitung warnen</string>
@@ -74,6 +73,8 @@
     <string name="ui_warnt_vor_festen_blitzern">Warnt vor festen Blitzern vor dir auf deiner Straße, mit Meldung am HUD und, wenn „Ton bei Blitzern“ an ist, mit Ton. Die Daten kommen aus OpenStreetMap und aus deiner eigenen Blitzer-Liste (siehe unten). OpenStreetMap ist lückenhaft: mobile Blitzer und Abschnittskontrollen fehlen. In Deutschland und einigen anderen Ländern ist so eine Warnung für Fahrer nicht erlaubt.</string>
     <string name="ui_warnabstand_normal_ca_10">Warnabstand: Normal (ca. 10 s)</string>
     <string name="ui_kurz_normal_oder_lang">Kurz, Normal oder Lang. Je schneller du fährst, desto früher kommt die Warnung: bei 100 km/h ca. 280 m vor dem Blitzer, bei 50 km/h ca. 140 m.</string>
+    <string name="ui_fruehererkennung">Früherkennung</string>
+    <string name="ui_fruehererkennung_info">Zeigt bei aktiver Navigation das nächste Tempolimit kurz vor dem Wechsel an (etwa 4 Sekunden vorher, 40 bis 150 m), zum Beispiel „Gleich 50“. Nur wenn das Limit in der Karte ausdrücklich eingetragen ist. Ohne Ton.</string>
     <string name="ui_ton_bei_blitzern">Ton bei Blitzern</string>
     <string name="ui_due_due_due_einmal_2">Dü-dü-dü, einmal pro Blitzer, sobald die Warnung kommt. Unabhängig vom Ton bei Überschreitung. Mit HUD, Navigation oder Aufnahme.</string>
     <string name="ui_eigene_blitzer_liste">Blitzer-Liste (SCDB)</string>

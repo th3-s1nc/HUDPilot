@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12 und neuer: Startbildschirm mit schwarzem Grund (statt weiß) -->
+    <style name="Theme.HudBridge" parent="Base.Theme.HudBridge">
+        <item name="android:windowSplashScreenBackground">#000000</item>
+    </style>
+</resources>

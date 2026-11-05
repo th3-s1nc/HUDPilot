@@ -13,6 +13,12 @@ object PilotSession {
     var routeWaypoints: List<Waypoint> = emptyList()
     var profileId: String = PilotStore.profiles.first().id
 
+    /** Profil und Vermeiden-Schalter einer Route aus dem Webplaner (gelten nur für diese Route). */
+    val planner = PlannerOverride()
+
+    /** Vermeiden-Schalter, die jetzt gelten: die der Planer-Route, sonst die eigenen. */
+    fun avoid(ctx: Context): Avoid.Set = planner.avoid?.let { Avoid.Set(it) } ?: Avoid.get(ctx)
+
     private const val LAST = "pilot_last.gpx"
 
     fun load(ctx: Context, p: GpxRoute.Parsed, rawGpx: String) {

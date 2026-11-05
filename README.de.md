@@ -12,7 +12,7 @@ Inoffizielle Hobby-App für den privaten Gebrauch.
 
 **Navigation und Karte**
 - Offline-Vektorkarte (MapLibre, Protomaps) mit 3D-Gebäuden, Tag- und Nachtstil, Suche nach Orten und Adressen, Orte-Suche (Tanken, Essen, Hotel, Parken) aus den heruntergeladenen Daten
-- Routen mit BRouter (offline), mehrere Motorrad-Profile (Landstraße, kurvig, schnell, schnellste mit Autobahn), „Vermeiden“ für Autobahn, Fähren, Maut und unbefestigte Wege, Zwischenziele, Routenvorschau, Neuberechnung bei Abweichung
+- Routen mit BRouter (offline), mehrere Motorrad-Profile (Landstraße, kurvig, schnell, schnellste mit Autobahn) und ein Auto-Profil, „Vermeiden“ für Autobahn, Fähren, Maut und unbefestigte Wege, Zwischenziele, Routenvorschau, Neuberechnung bei Abweichung
 - Sprachansagen mit der installierten Handy-Stimme, Spurhinweise, Hinweiskarte mit Abbiegepfeil, Ankunft und Restweg, Ankunftsflagge
 - Hoch- und Querformat, Norden oben / Fahrtrichtung oben / 3D, Zoom passt sich dem Tempo an, Simulation einer Fahrt zum Testen
 - **Baustellen und Sperrungen** (Bayern, aus der Mobilithek, über den eigenen Server): auf der Karte sichtbar, mit Hinweis entlang der Route und auf Wunsch **Umfahrung gesperrter Strecken**
@@ -24,7 +24,7 @@ Inoffizielle Hobby-App für den privaten Gebrauch.
 - Der Dienst läuft im Vordergrund, verbindet sich selbst neu und zeigt lieber nichts als etwas Falsches
 
 **Warnungen**
-- Tempolimit aus OpenStreetMap (importiert oder online), Tempo-Warnton bei Überschreitung (mit HUD, Navigation oder laufender Aufnahme)
+- Tempolimit aus OpenStreetMap (importiert oder online), Tempo-Warnton bei Überschreitung (mit HUD, Navigation oder laufender Aufnahme), optional Früherkennung des nächsten Limits auf der Route („Gleich 50“), Kurventon, der der geplanten Route folgt
 - Blitzer-Warnung (aus, mit Hinweis beim Einschalten: in Deutschland und einigen Ländern für Fahrer nicht erlaubt), Hinweistöne für Bahnübergänge, Zebrastreifen, Verkehrsberuhigung und scharfe Kurven
 
 **Fahrten und Touren**

@@ -348,6 +348,7 @@ class BridgeService : Service(), HudClient.Listener {
             lastFixAt = SystemClock.elapsedRealtime()
             gpsPolicy.onFix(lastFixAt, if (location.hasSpeed()) location.speed else null)
             limitProvider.onLocation(location)
+            io.github.th3s1nc.osmandhudbridge.pilot.LiveShare.onFix(this@BridgeService, location.latitude, location.longitude, if (location.hasSpeed()) location.speed * 3.6f else 0f, if (location.hasBearing() && location.hasSpeed() && location.speed > 1.5f) location.bearing else null)
             if (gpsMode != io.github.th3s1nc.osmandhudbridge.limit.GpsPolicy.Mode.FAST) {
                 BridgeBus.gps = "GPS: Sparmodus (ohne HUD)"
                 return
@@ -536,6 +537,7 @@ class BridgeService : Service(), HudClient.Listener {
         controller.carMode = carMode
         controller.acousticWarn = sp.getBoolean(KEY_WARN_SOUND, false)
         cameraSound = sp.getBoolean(KEY_CAMERA_SOUND, sp.getBoolean(KEY_WARN_SOUND, false))
+        limitProvider.limitAhead = sp.getBoolean(KEY_LIMIT_AHEAD, false)
         limitProvider.curveLevel = if (sp.getBoolean(KEY_CURVE, false)) sp.getInt(KEY_CURVE_LEVEL, 1).coerceIn(0, 2) else -1
         limitProvider.pointMask =
             (if (sp.getBoolean(KEY_HINT_RAIL, false)) io.github.th3s1nc.osmandhudbridge.limit.PointKind.LEVEL_CROSSING else 0) or
@@ -689,6 +691,7 @@ class BridgeService : Service(), HudClient.Listener {
         const val KEY_KEEP_SCREEN = "keep_screen" // Display bleibt an, solange die App vorne ist
         const val KEY_CAR_MODE = "car_mode" // Auto-Modus (Testfahrt ohne HUD)
         const val KEY_WARN_SOUND = "warn_sound" // Warnton bei Überschreitung
+        const val KEY_LIMIT_AHEAD = "limit_ahead" // Früherkennung: kommendes Tempolimit der Route zeigen
         const val KEY_CURVE = "hint_curve" // Ton vor sehr scharfen Kurven
         const val KEY_CURVE_LEVEL = "hint_curve_level" // 0 = wenig, 1 = normal, 2 = viel
         const val KEY_HINT_RAIL = "hint_rail" // Ton vor Bahnübergängen (nur mit importierten Straßendaten)
