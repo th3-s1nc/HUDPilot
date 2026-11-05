@@ -101,6 +101,8 @@ pre,.logbox{margin:0;max-height:560px;overflow:auto;font:12px/1.5 ui-monospace,C
  <div class="note" id="verx"></div></div>
  <div class="card"><h2>Zugriff von außen</h2>
   <div class="row"><label style="display:flex;gap:9px;align-items:center;cursor:pointer"><input type="checkbox" id="xk"><b>Karten von außen laden</b></label><span id="xkt" class="tag w"></span></div>
+  <div class="row"><label style="display:flex;gap:9px;align-items:center;cursor:pointer"><input type="checkbox" id="ng"><b>Nur gebaute Regionen in der App anbieten</b></label><span id="ngt" class="tag w"></span></div>
+  <div class="note" id="ngn">Die App zeigt dann nur Regionen, die hier fertig gebaut sind. Einzelne Regionen blendest du in der Regionsliste unter „Neu bauen ▾“ aus. Was ein Handy schon geladen hat, bleibt dort sichtbar.</div>
   <div class="note" style="margin-top:2px">Aus (empfohlen): Von außen nur Anmeldung, Planer, Touren, Fahrten und Sync. Karten sind groß und belasten den Upload. An: Die App lädt sie auch unterwegs.</div>
   <div class="note" id="xn"></div>
   <div class="note">Verwaltung, Passwort und neue Profile gibt es von außen nie. Nach 5 falschen Anmeldungen: 15 Minuten gesperrt.</div></div> <div class="card" id="nfc"><h2>Admin-Meldungen</h2><div class="note" style="margin:-4px 0 10px">Diese Ereignisse landen in der App bei Profilen mit gesetztem Haken (Tab „Profile“). Hier schaltest du einzelne Arten aus.</div>
@@ -160,7 +162,8 @@ function result(){const s=S,e=s.ergebnis;
  if(e.abgebrochen)return'<div class="box"><span class="ic">■</span><div><b>Abgebrochen um '+ft(e.ende)+'</b><small>'+esc(sub)+'</small></div></div>';
  if(errs.length)return'<div class="box bad"><span class="ic">!</span><div><b>Fertig um '+ft(e.ende)+', aber mit Fehlern</b><small>'+esc(sub)+'</small>'+errs.map(x=>"<small><b>"+esc(x[0]=="_"?"Allgemein":names(x[0]))+":</b> "+esc(x[1])+"</small>").join("")+'</div></div>';
  return'<div class="box ok"><span class="ic">✓</span><div><b>Fertig um '+ft(e.ende)+'</b><small>'+esc(sub)+'</small></div></div>'}
-function regionTag(r,s){if(r.fehler)return'<span class="tag e" title="'+esc(r.fehler)+'">Fehler</span>';if(s.state=="running"&&s.current==r.name)return'<span class="tag b">baut …</span>';if(r.wartet)return'<span class="tag b">wartet</span>';
+function regionTag(r,s){const t=regionTag0(r,s);return r.versteckt?t+' <span class="tag w" title="In der App ausgeblendet">ausgeblendet</span>':t}
+function regionTag0(r,s){if(r.fehler)return'<span class="tag e" title="'+esc(r.fehler)+'">Fehler</span>';if(s.state=="running"&&s.current==r.name)return'<span class="tag b">baut …</span>';if(r.wartet)return'<span class="tag b">wartet</span>';
  if(!r.karte_bytes)return'<span class="tag w">nicht gebaut</span>';if(!r.strassen_bytes)return'<span class="tag b">Straßendaten noch nicht gebaut</span>';return'<span class="tag">aktuell</span>'}
 function render(){const s=S,c=s.cfg;
  const rh=result();if(rh!==resSig){resSig=rh;$("res").innerHTML=rh;const st=$("bStop");if(st)st.onclick=()=>{st.disabled=true;st.textContent="Abbruch läuft …";post("/api/stop").then(load)}}
@@ -179,6 +182,7 @@ function render(){const s=S,c=s.cfg;
  if(sig!=rgSig&&!document.querySelector("#rg details[open]")){rgSig=sig;drawRg()}
  if(!dirty){$("li").value=c.limit_in_mbit;$("lo").value=c.limit_out_mbit;$("ws").value=c.win_start;$("we").value=c.win_end;$("ed").value=c.every_days}
  const xk=$("xk");xk.checked=!!c.extern_karten;$("xkt").textContent=c.extern_karten?"AN":"aus";$("xkt").className="tag "+(c.extern_karten?"b":"w");
+ const ng=$("ng");ng.checked=c.nur_gebaute!==false;$("ngt").textContent=ng.checked?"AN":"aus";$("ngt").className="tag "+(ng.checked?"b":"w");
  $("xn").textContent="Als „extern“ gilt alles, was über den Proxy (z. B. Nginx Proxy Manager) oder mit einem Weiterleitungs-Kopf ankommt.";
  if(s.version){$("ver").textContent="v"+s.version;$("verx").textContent="Server v"+s.version+" · zuletzt gestartet "+fd(s.gestartet)}
  strip();scRender()}
@@ -186,7 +190,7 @@ let RGS=null,landOpen={},phOpen={};
 function gfInfo(s){const i=s.regionsliste||{};$("gfi").textContent=i.extra?"Liste: "+i.gesamt+" Regionen ("+i.extra+" aus Geofabrik, Stand "+fday(i.stand)+")":"Liste: "+(i.gesamt||0)+" Regionen (mitgeliefert). „Europa-Liste holen“ ergänzt weitere Länder; es wird nichts geladen oder gebaut."}
 function drawRg(){const s=RGS;if(!s)return;const q=($("rq").value||"").trim().toLowerCase();
  const row=r=>{const has=r.karte_bytes>0;
-  return'<tr><td><input type="checkbox" class="ck" value="'+r.id+'"'+(r.aktiv?" checked":"")+'></td><td><b>'+esc(r.name)+'</b>'+(r.fehler?'<br><span class="er" style="font-size:12.5px">'+esc(r.fehler)+"</span>":"")+'</td><td class="r">'+fb(r.karte_bytes)+'</td><td class="r">'+fb(r.strassen_bytes)+'</td><td class="r">'+(r.poi_anzahl?nf(r.poi_anzahl):"–")+"</td><td>"+fday(r.stand)+"</td><td>"+regionTag(r,s)+'</td><td class="r">'+(has?'<details class="menu"><summary class="sm">Neu bauen ▾</summary><div class="dd"><button data-id="'+r.id+'" data-o="">Alles (Karte, Routen, Orte, Straßen)</button><button data-id="'+r.id+'" data-o="poi">Nur Straßendaten und Orte</button><button data-del="'+r.id+'" class="dl">Vom Server löschen …</button></div></details>':'<button class="sm" data-id="'+r.id+'" data-o="">Bauen</button>')+"</td></tr>"};
+  return'<tr><td><input type="checkbox" class="ck" value="'+r.id+'"'+(r.aktiv?" checked":"")+'></td><td><b>'+esc(r.name)+'</b>'+(r.fehler?'<br><span class="er" style="font-size:12.5px">'+esc(r.fehler)+"</span>":"")+'</td><td class="r">'+fb(r.karte_bytes)+'</td><td class="r">'+fb(r.strassen_bytes)+'</td><td class="r">'+(r.poi_anzahl?nf(r.poi_anzahl):"–")+"</td><td>"+fday(r.stand)+"</td><td>"+regionTag(r,s)+'</td><td class="r">'+(has?'<details class="menu"><summary class="sm">Neu bauen ▾</summary><div class="dd"><button data-id="'+r.id+'" data-o="">Alles (Karte, Routen, Orte, Straßen)</button><button data-id="'+r.id+'" data-o="poi">Nur Straßendaten und Orte</button><button data-hide="'+r.id+'">'+(r.versteckt?"In der App wieder anzeigen":"In der App ausblenden")+'</button><button data-del="'+r.id+'" class="dl">Vom Server löschen …</button></div></details>':'<button class="sm" data-id="'+r.id+'" data-o="">Bauen</button>')+"</td></tr>"};
  const building=r=>s.state=="running"&&s.current==r.name;
  const by={};s.regionen.forEach(r=>{(by[r.land]=by[r.land]||[]).push(r)});
  const nm=L=>by[L][0].landname||L;
@@ -204,6 +208,7 @@ function drawRg(){const s=RGS;if(!s)return;const q=($("rq").value||"").trim().to
  $("rg").innerHTML=h||'<tr><td colspan="8" class="mu" style="padding:14px">Keine passende Region.</td></tr>';
  document.querySelectorAll("#rg .ck").forEach(x=>x.onchange=saveRegions);
  document.querySelectorAll("#rg button[data-id]").forEach(b=>b.onclick=()=>run([b.dataset.id],b.dataset.o));
+ document.querySelectorAll("#rg button[data-hide]").forEach(b=>b.onclick=()=>toggleHide(b.dataset.hide));
  document.querySelectorAll("#rg button[data-del]").forEach(b=>b.onclick=()=>delRegion(b.dataset.del));
  document.querySelectorAll("#rg tr.land").forEach(t=>t.onclick=()=>{const L=t.dataset.land,o=landOpen[L]!==undefined?landOpen[L]:(by[L].some(r=>r.aktiv||r.karte_bytes>0||building(r)));landOpen[L]=!o;drawRg()});
  document.querySelectorAll("#rg .lk").forEach(x=>{const l=by[x.dataset.land],n=l.filter(r=>r.aktiv).length;x.checked=n==l.length;x.indeterminate=n>0&&n<l.length;x.onclick=ev=>ev.stopPropagation();
@@ -214,6 +219,8 @@ async function delRegion(id){const r=RGS.regionen.find(x=>x.id==id);if(!r)return
  if(!confirm(r.name+" vom Server löschen?\n\nKarte, Orte und Straßendaten ("+fb(r.karte_bytes+r.strassen_bytes+r.poi_bytes)+") werden gelöscht, der Haken wird entfernt. Routendaten bleiben, wenn eine andere gebaute Region sie braucht. Handys, die die Region schon geladen haben, behalten sie. Du kannst sie später neu bauen."))return;
  const[ok,j]=await post("/api/admin/region/loeschen",{id});$("gfm").className="note";$("gfm").innerHTML=ok?'<span class="ok">'+esc(r.name)+" gelöscht, "+fb(j.frei)+" frei.</span>":'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";rgSig="";load()}
 $("bGf").onclick=async()=>{const b=$("bGf");b.disabled=true;$("gfm").className="note";$("gfm").textContent="Hole die Liste von Geofabrik … (kann etwas dauern)";const[ok,j]=await post("/api/admin/regionen-holen",{});b.disabled=false;$("gfm").innerHTML=ok?'<span class="ok">'+j.anzahl+" Regionen ergänzt."+(j.fehlend&&j.fehlend.length?" Nicht gefunden: "+esc(j.fehlend.join(", ")):"")+"</span>":'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";rgSig="";load()};
+$("ng").onchange=async()=>{await post("/api/config",{nur_gebaute:$("ng").checked});load()};
+function toggleHide(id){const v=new Set(RGS.cfg.versteckt||[]);v.has(id)?v.delete(id):v.add(id);return post("/api/config",{versteckt:[...v]}).then(()=>{rgSig="";load()})}
 $("xk").onchange=async()=>{const[ok,j]=await post("/api/config",{extern_karten:$("xk").checked});if(!ok)$("xkt").textContent=j.fehler||"Fehler";load()};
 $("bAll").onclick=()=>run(S.cfg.regions,"");$("bPoi").onclick=()=>run(S.cfg.regions,"poi");
 $("bSave").onclick=async()=>{const[ok,j]=await post("/api/config",{limit_in_mbit:+$("li").value,limit_out_mbit:+$("lo").value,win_start:+$("ws").value,win_end:+$("we").value,every_days:+$("ed").value});$("sm").innerHTML=ok?'<span class="ok">Gespeichert</span>':'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";if(ok)dirty=false;load()};

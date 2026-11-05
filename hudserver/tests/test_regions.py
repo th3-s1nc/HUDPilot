@@ -131,7 +131,8 @@ class FetchTest(unittest.TestCase):
         h.log_message = lambda *a, **k: None
         srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), h)
         threading.Thread(target=srv.serve_forever, daemon=True).start()
-        old = U.GEOFABRIK
+        old = U.GEOFABRIK; old_ng = U.CFG["nur_gebaute"]
+        U.CFG["nur_gebaute"] = False   # "alle" soll hier auch ungebaute Regionen enthalten
         try:
             U.GEOFABRIK = f"http://127.0.0.1:{srv.server_address[1]}"
             os.makedirs(U.PUB, exist_ok=True)
@@ -144,7 +145,7 @@ class FetchTest(unittest.TestCase):
             self.assertEqual(U.regions_info()["extra"], n)
             self.assertEqual(U.CFG["regions"], U.BASE_IDS)
         finally:
-            U.GEOFABRIK = old; srv.shutdown()
+            U.GEOFABRIK = old; U.CFG["nur_gebaute"] = old_ng; srv.shutdown()
             if os.path.exists(U.EXTRA_FILE): os.remove(U.EXTRA_FILE)
             U.reload_regions()
 

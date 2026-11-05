@@ -18,7 +18,7 @@ import baustellen as BSM
 import friends as FR
 import notify as NT
 SESS_TOKEN = hmac.new(ADMIN_PW.encode(), b"hudsess", hashlib.sha256).hexdigest() if ADMIN_PW else ""
-VERSION = "1.34.0"; STARTED = int(time.time())
+VERSION = "1.36.0"; STARTED = int(time.time())
 UA = f"hudpilot-server/{VERSION} (private use)"
 LIMITS_DIR = os.environ.get("LIMITS_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "limits"))   # Import-Code der App (Klassen-Ordner, gebaut mit limits-tool/build.sh)
 LIMITS_MAIN = "io.github.th3s1nc.osmandhudbridge.limit.LimitsCliKt"
@@ -73,6 +73,7 @@ CFG = {"limit_in_mbit": 0.0, "limit_out_mbit": 0.0, "win_start": 1, "win_end": 6
        "every_days": int(os.environ.get("UPDATE_EVERY_DAYS", "30")),
        "log_level": "normal", "log_cats": list(LOG_PRESETS["normal"]), "extern_karten": False,
        "br_mem_mb": 4096, "br_threads": 8,   # Rechenleistung für BRouter (Routenberechnung)
+       "nur_gebaute": True, "versteckt": [],   # Sichtbarkeit in der App: nur gebaute Regionen anbieten; einzelne Regionen ausblenden
        "regions": list(BASE_IDS)}   # erzeugte Europa-Regionen sind nie von selbst angehakt
 if os.environ.get("REGIONS", "ALL") != "ALL":
     CFG["regions"] = [x.strip() for x in os.environ["REGIONS"].split(",") if x.strip() in BYID]
@@ -523,6 +524,13 @@ def cleanup_tmp():
         except OSError: pass
     if n: log(f"Aufgeräumt: {n} Rest(e) vom letzten Lauf entfernt ({fmt_size(size)})", cat="aufraeumen")
 
+def app_sichtbar(regionen, alle, versteckt, nur_gebaute):
+    """Was die App sehen darf: ausgeblendete Regionen fallen weg; bei "nur gebaute" bleiben in der Liste "alle" nur Regionen mit fertiger Karte."""
+    hid = set(versteckt or [])
+    reg = [r for r in regionen if r["id"] not in hid]
+    al = [a for a in alle if a["id"] not in hid and (a.get("bereit") or not nur_gebaute)]
+    return reg, al
+
 def write_manifest():
     regs = []
     for r in REGIONS:
@@ -548,6 +556,7 @@ def write_manifest():
                              "kacheln": li.get("tiles", 0), "zahlen": li.get("stats", "")}
     alle = [{"id": r["id"], "name": r["name"], "land": r["land"], "landname": LAND_NAMES.get(r["land"], r["land"]), "bbox": r["bbox"],
              "bereit": os.path.exists(f"{PUB}/maps/{r['id']}.pmtiles")} for r in REGIONS]
+    regs, alle = app_sichtbar(regs, alle, CFG.get("versteckt", []), CFG.get("nur_gebaute", True))
     m = {"erzeugt": datetime.datetime.now().isoformat(timespec="seconds"), "quelle": st.get("planet", ""), "regionen": regs, "alle": alle}
     cp = f"{PUB}/cameras.csv"
     if os.path.exists(cp):
@@ -1714,7 +1723,7 @@ def status():
         mp = f"{PUB}/maps/{r['id']}.pmtiles"; has = os.path.exists(mp)
         rd = sum(os.path.getsize(f"{PUB}/rd5/{t}.rd5") for t in tiles_for(r["bbox"]) if os.path.exists(f"{PUB}/rd5/{t}.rd5"))
         pp = f"{PUB}/pois/{r['id']}.tsv.gz"; lp = f"{PUB}/limits/{r['id']}.zip"
-        rows.append({"id": r["id"], "name": r["name"], "land": r["land"], "landname": LAND_NAMES.get(r["land"], r["land"]), "aktiv": r["id"] in CFG["regions"], "gebraucht": needed_map().get(r["id"], 0), "wartet": r["id"] in PENDING,
+        rows.append({"id": r["id"], "name": r["name"], "land": r["land"], "landname": LAND_NAMES.get(r["land"], r["land"]), "aktiv": r["id"] in CFG["regions"], "versteckt": r["id"] in CFG.get("versteckt", []), "gebraucht": needed_map().get(r["id"], 0), "wartet": r["id"] in PENDING,
                      "strassen_bytes": os.path.getsize(lp) if os.path.exists(lp) else 0, "strassen_stand": int(os.path.getmtime(lp)) if os.path.exists(lp) else 0,
                      "poi_bytes": os.path.getsize(pp) if os.path.exists(pp) else 0, "poi_anzahl": st.get("poi_count", {}).get(r["id"], 0),
                      "karte_bytes": os.path.getsize(mp) if has else 0, "stand": int(os.path.getmtime(mp)) if has else 0,
@@ -2133,7 +2142,11 @@ class H(BaseHTTPRequestHandler):
                     if "extern_karten" in body:
                         CFG["extern_karten"] = bool(body["extern_karten"]); log("Karten extern ladbar: " + ("AN" if CFG["extern_karten"] else "aus"))
                     if "regions" in body: CFG["regions"] = [i for i in body["regions"] if i in BYID]
+                    if "nur_gebaute" in body: CFG["nur_gebaute"] = bool(body["nur_gebaute"])
+                    if "versteckt" in body: CFG["versteckt"] = sorted({i for i in body["versteckt"] if i in BYID})
                     save_cfg()
+                if "nur_gebaute" in body or "versteckt" in body:
+                    write_manifest(); log("App-Sichtbarkeit geändert: " + ("nur gebaute Regionen" if CFG["nur_gebaute"] else "alle Regionen") + f", {len(CFG['versteckt'])} ausgeblendet", cat="karte")
             except (ValueError, TypeError): return self.send_json({"fehler": "Ungültiger Wert."}, 400)
             return self.send_json({"ok": True})
         if p == "/api/tour/save":

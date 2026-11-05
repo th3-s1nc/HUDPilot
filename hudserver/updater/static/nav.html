@@ -1,10 +1,10 @@
 <style>:root{--nvbg:#fff;--nvbd:#dde1e6;--nvtx:#667;--nvac:#ff7a00}
-@media(prefers-color-scheme:dark){:root{--nvbg:#1a1e26;--nvbd:#2b313b;--nvtx:#9aa}}
+@media(prefers-color-scheme:dark){:root{--nvbg:#14171d;--nvbd:#2a2f3a;--nvtx:#9aa}}
 body{padding-top:52px!important;box-sizing:border-box}
 #hpnav{position:fixed;top:0;left:0;right:0;height:52px;z-index:5000;display:flex;align-items:center;gap:4px;padding:0 12px;background:var(--nvbg);border-bottom:1px solid var(--nvbd);font:600 14px system-ui,sans-serif;overflow-x:auto;white-space:nowrap}
 #hpnav img{width:28px;height:28px;border-radius:8px;margin-right:4px}#hpnav b{color:var(--nvtx);margin-right:8px;font-weight:700}
 #hpnav a{padding:7px 12px;border-radius:10px;color:var(--nvtx);text-decoration:none;cursor:pointer}#hpnav a:hover{background:rgba(255,122,0,.10)}
-#hpnav a.on{background:rgba(255,122,0,.16);color:var(--nvac)}#hpnav .sp{flex:1}
+#hpnav a.on{background:var(--nvac);color:#fff}#hpnav .sp{flex:1}
 html.nonav #hpnav{display:none}html.nonav body{padding-top:0!important}</style>
 <nav id="hpnav"><img src="/logo.png" alt=""><b>HUDPilot</b><a href="/mein" data-p="/mein">Übersicht</a><a href="/planer" data-p="/planer">Planer</a><a href="/touren" data-p="/touren">Touren</a><span class="sp"></span><a id="hpnout">Abmelden</a></nav>
 <script>(function(){var p=location.pathname.replace(/\.html$/,"");document.querySelectorAll("#hpnav a[data-p]").forEach(function(a){if(a.dataset.p==p)a.className="on"});
