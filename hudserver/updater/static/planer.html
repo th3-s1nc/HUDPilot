@@ -151,7 +151,7 @@ function redraw(){
  markers.forEach(m=>m.remove());markers=[];
  pts.forEach((p,i)=>{const el=pinEl(i,pts.length);
   const m=new maplibregl.Marker({element:el,draggable:true}).setLngLat([p[1],p[0]]).addTo(map);
-  m.on("dragend",()=>{const ll=m.getLngLat();pts[i]=[ll.lat,ll.lng];route()});
+  m.on("dragend",async()=>{const ll=m.getLngLat();const q=await snapTo([ll.lat,ll.lng]);if(!q)return redraw();pts[i]=q;redraw();route()});
   el.addEventListener("click",e=>{e.stopPropagation();closePopups();popup(m.getLngLat(),markerMenu(i))});markers.push(m)});
  $("pts").innerHTML="";pts.forEach((p,i)=>{const li=document.createElement("li");li.textContent=lab(i,pts.length)+": "+p[0].toFixed(4)+", "+p[1].toFixed(4);
   const mv=(t,d)=>{const x=document.createElement("span");x.className="m";x.textContent=t;x.onclick=()=>{const j=i+d;if(j<0||j>=pts.length)return;const q=pts.splice(i,1)[0];pts.splice(j,0,q);redraw();route()};li.appendChild(x)};
@@ -168,14 +168,22 @@ function insertIndex(p){
   for(let i=0;i<pts.length-1;i++)if(ci>=at[i]&&ci<=at[i+1])return i+1;
  }
  let bi=1,bc=1e18;for(let i=0;i<pts.length-1;i++){const c=hav(pts[i],p)+hav(p,pts[i+1])-hav(pts[i],pts[i+1]);if(c<bc){bc=c;bi=i+1}}return bi}
+/* Neuer oder verschobener Punkt rastet auf die nächste befahrbare Straße ein (der Server fragt BRouter, die Karte hier ist nur ein Bild).
+   Gibt den Punkt zurück (verschoben oder unverändert, wenn der Server nicht antwortet) oder null, wenn weit und breit keine Straße ist. */
+async function snapTo(p){
+ try{const r=await fetch("/api/snap?lat="+p[0].toFixed(6)+"&lon="+p[1].toFixed(6)+"&profile="+encodeURIComponent($("prof").value));
+  if(!r.ok)return p;const j=await r.json();
+  if(!j.ok){if(j.fehler)return p;say("Hier ist keine Straße in der Nähe – bitte näher an eine Straße klicken.","er");return null}
+  if(j.m>=3)say("Auf die nächste Straße gesetzt ("+Math.round(j.m)+" m verschoben).","ok");
+  return[j.lat,j.lon]}catch(e){return p}}
 const PT_MAX=300;
 function full(){if(pts.length>=PT_MAX){say("Höchstens "+PT_MAX+" Punkte.","er");return true}return false}
 map.on("click",e=>{const p=[e.lngLat.lat,e.lngLat.lng];if(full())return;closePopups();
  if($("bszeig").checked&&map.getLayer("bs-line")){const f=map.queryRenderedFeatures([[e.point.x-8,e.point.y-8],[e.point.x+8,e.point.y+8]],{layers:["bs-line"]});if(f.length){bsPopup(f[0].properties.n,e.lngLat);return}}
  const d=document.createElement("div");d.className="pop";
- const add=(t,f)=>{const b=document.createElement("button");b.className="g";b.textContent=t;b.onclick=()=>{closePopups();f();redraw();route()};d.appendChild(b)};
- if(pts.length<2){add(pts.length?"Ziel":"Start",()=>pts.push(p))}
- else{add("Zwischenpunkt (passend in die Route)",()=>pts.splice(insertIndex(p),0,p));add("Neues Ziel (ans Ende)",()=>pts.push(p));add("Neuer Start (an den Anfang)",()=>pts.unshift(p))}
+ const add=(t,f)=>{const b=document.createElement("button");b.className="g";b.textContent=t;b.onclick=async()=>{closePopups();const q=await snapTo(p);if(!q)return;f(q);redraw();route()};d.appendChild(b)};
+ if(pts.length<2){add(pts.length?"Ziel":"Start",q=>pts.push(q))}
+ else{add("Zwischenpunkt (passend in die Route)",q=>pts.splice(insertIndex(q),0,q));add("Neues Ziel (ans Ende)",q=>pts.push(q));add("Neuer Start (an den Anfang)",q=>pts.unshift(q))}
  popup(e.lngLat,d)});
 
 sumUpdate();
@@ -237,12 +245,16 @@ function mergeRoutes(js){if(js.length==1)return js[0];
  js.forEach((j,i)=>{const f=j.features[0],c=f.geometry.coordinates;co=co.concat(i?c.slice(1):c);tl+=+f.properties["track-length"]||0;tt+=+f.properties["total-time"]||0;asc+=+f.properties["filtered ascend"]||0;
   if(j.sperrung){sp=sp||{n:0,umfahren:0,bleibt:[]};sp.n+=j.sperrung.n||0;sp.umfahren=(sp.umfahren<0||j.sperrung.umfahren<0)?-1:sp.umfahren+(j.sperrung.umfahren||0);(j.sperrung.bleibt||[]).forEach(t=>{if(!sp.bleibt.includes(t))sp.bleibt.push(t)})}});
  return{features:[{geometry:{coordinates:co},properties:{"track-length":tl,"total-time":tt,"filtered ascend":asc}}],sperrung:sp||undefined}}
+const segCache=new Map();
 async function doRoute(keep){
  if(!keep){drawRoute(null);last=null;bigInfo(null)}$("err").textContent="";
  if(pts.length<2){$("info").textContent=pts.length?"Noch ein Punkt für das Ziel setzen.":"Noch keine Punkte.";return}
  const my=++seq;if(!keep)$("info").textContent="Berechne …";
  const one=async ps=>{const ll=ps.map(p=>p[1].toFixed(6)+","+p[0].toFixed(6)).join("|");
-  const r=await fetch("/api/route?lonlats="+encodeURIComponent(ll)+"&profile="+$("prof").value+"&avoid="+getAvoid().join(",")+($("sperr").checked?"&sperr=1":""));return{ok:r.ok,j:await r.json()}};
+  const url="/api/route?lonlats="+encodeURIComponent(ll)+"&profile="+$("prof").value+"&avoid="+getAvoid().join(",")+($("sperr").checked?"&sperr=1":"");
+  const hit=segCache.get(url);if(hit&&Date.now()-hit.t<600000)return hit.v;   // unveränderte Stücke nicht nochmal rechnen
+  const r=await fetch(url);const v={ok:r.ok,j:await r.json()};
+  if(v.ok){if(segCache.size>=200)segCache.delete(segCache.keys().next().value);segCache.set(url,{t:Date.now(),v})}return v};
  try{const rs=await poolMap(chunkPts(pts),q=>one(q.p),6);if(my!=seq)return;
   const bad=rs.find(x=>!x.ok),r={ok:!bad},j=bad?bad.j:mergeRoutes(rs.map(x=>x.j));
   if(!r.ok){$("info").textContent="";$("err").textContent=(j.fehler||"Fehler")+(/datafile .* not found/.test(j.fehler||"")?" – für diesen Bereich fehlen Routendaten auf dem Server (Region dort bauen lassen).":"");return}

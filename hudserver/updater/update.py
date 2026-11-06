@@ -18,7 +18,7 @@ import baustellen as BSM
 import friends as FR
 import notify as NT
 SESS_TOKEN = hmac.new(ADMIN_PW.encode(), b"hudsess", hashlib.sha256).hexdigest() if ADMIN_PW else ""
-VERSION = "1.36.0"; STARTED = int(time.time())
+VERSION = "1.37.0"; STARTED = int(time.time())
 UA = f"hudpilot-server/{VERSION} (private use)"
 LIMITS_DIR = os.environ.get("LIMITS_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "limits"))   # Import-Code der App (Klassen-Ordner, gebaut mit limits-tool/build.sh)
 LIMITS_MAIN = "io.github.th3s1nc.osmandhudbridge.limit.LimitsCliKt"
@@ -532,6 +532,7 @@ def app_sichtbar(regionen, alle, versteckt, nur_gebaute):
     return reg, al
 
 def write_manifest():
+    rc_clear()   # Routendaten können sich geändert haben: Zwischenspeicher der Strecken leeren
     regs = []
     for r in REGIONS:
         mp = f"{PUB}/maps/{r['id']}.pmtiles"
@@ -908,6 +909,32 @@ def start_brouter():
     log(f"BRouter gestartet (Port {BR_PORT}, {mem} MB, {thr} Berechnungen gleichzeitig)", cat="karte")
     threading.Thread(target=warm_brouter, daemon=True).start()
 
+BR_WATCH = {"fails": 0, "neustarts": 0}
+
+def _port_open(port, timeout=3):
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=timeout): return True
+    except OSError: return False
+
+def brouter_watch(now=None, alive_fn=None):
+    """Jede Minute: lebt BRouter? Ist der Prozess weg, oder antwortet der Port zweimal hintereinander nicht, wird er neu gestartet
+    und der Admin bekommt eine Meldung. Gibt True zurück, wenn neu gestartet wurde."""
+    now = now or time.time()
+    p = BR_PROC["p"]
+    if not os.path.exists(BR_JAR) or not BR_PROC.get("since"): return False   # nie gestartet (oder nicht installiert)
+    if now - BR_PROC["since"] < 90: return False                              # startet gerade noch
+    alive = p is not None and p.poll() is None
+    ok = alive and (alive_fn() if alive_fn else _port_open(BR_PORT))
+    if ok: BR_WATCH["fails"] = 0; return False
+    BR_WATCH["fails"] += 1
+    if alive and BR_WATCH["fails"] < 2: return False
+    BR_WATCH["fails"] = 0; BR_WATCH["neustarts"] += 1
+    log("BRouter antwortet nicht" if alive else "BRouter war beendet", "- starte neu", cat="karte")
+    try: NOTES.add("brouter", "BRouter war ausgefallen und wurde automatisch neu gestartet.", cool=3600)
+    except Exception: pass
+    stop_brouter(); start_brouter()
+    return True
+
 def stop_brouter():
     p = BR_PROC["p"]
     if p and p.poll() is None:
@@ -1001,20 +1028,61 @@ def routing_info():
         last = list(RT_LOG)[-20:][::-1]; aktiv = RT_STAT["aktiv"]
     p = BR_PROC["p"]
     return {"aktiv": aktiv, "heute": heute, "langsam_ab_ms": RT_SLOW_MS, "letzte": last,
-            "br": {"laeuft": bool(p and p.poll() is None), "seit": BR_PROC.get("since", 0), "mem_mb": BR_PROC.get("mem", 0), "threads": BR_PROC.get("threads", 0)},
+            "br": {"laeuft": bool(p and p.poll() is None), "seit": BR_PROC.get("since", 0), "mem_mb": BR_PROC.get("mem", 0), "threads": BR_PROC.get("threads", 0), "neustarts": BR_WATCH["neustarts"]},
+            "cache": {"treffer": RC_STAT["treffer"], "fehlt": RC_STAT["fehlt"], "eintraege": len(ROUTE_CACHE)},
             "cfg": {"mem_mb": int(CFG.get("br_mem_mb", 4096)), "threads": int(CFG.get("br_threads", 8))}}
+
+# Gleiche Strecken (Start/Ziel, Profil, Optionen) nicht noch einmal rechnen: kurz zwischenspeichern. Nur erfolgreiche Antworten.
+RC_TTL = 600; RC_MAX = 300
+ROUTE_CACHE = collections.OrderedDict(); RC_LOCK = threading.Lock(); RC_STAT = {"treffer": 0, "fehlt": 0}
+
+def rc_get(key, now=None):
+    now = now or time.time()
+    with RC_LOCK:
+        e = ROUTE_CACHE.get(key)
+        if not e: RC_STAT["fehlt"] += 1; return None
+        if now - e[0] > RC_TTL: ROUTE_CACHE.pop(key, None); RC_STAT["fehlt"] += 1; return None
+        ROUTE_CACHE.move_to_end(key); RC_STAT["treffer"] += 1; return e[1]
+
+def rc_put(key, body, now=None):
+    with RC_LOCK:
+        ROUTE_CACHE[key] = (now or time.time(), body); ROUTE_CACHE.move_to_end(key)
+        while len(ROUTE_CACHE) > RC_MAX: ROUTE_CACHE.popitem(last=False)
+
+def rc_clear():
+    with RC_LOCK: ROUTE_CACHE.clear()
 
 def route_proxy(query):
     """Reicht /api/route an BRouter weiter und misst die Dauer. Gibt (Statuscode, Bytes) zurück."""
+    hit = rc_get(query)
+    if hit is not None: return 200, hit
     t0 = time.time(); q = urllib.parse.parse_qs(query)
     prof = q.get("profile", [PROFILES[0]])[0]; pts = q.get("lonlats", [""])[0].count("|") + 1
     rt_start()
     code, body = 500, b""
     try:
         code, body = route_proxy_raw(query)
+        if code == 200: rc_put(query, body)
         return code, body
     finally:
         rt_done(prof if prof in PROFILES else PROFILES[0], pts, code, int((time.time() - t0) * 1000), body)
+
+def snap_point(lon, lat, profile=None):
+    """Nächste befahrbare Straße zu einem Punkt (BRouter ordnet Punkte bis etwa 250 m zu). Rechnet dafür eine winzige Strecke
+    und nimmt ihren Anfang. Gibt {"ok": True, "lat", "lon", "m"} oder {"ok": False} zurück."""
+    prof = profile if profile in PROFILES else PROFILES[0]
+    for dx in (0.0003, -0.0003):
+        q = urllib.parse.urlencode({"lonlats": f"{lon:.6f},{lat:.6f}|{lon + dx:.6f},{lat:.6f}", "profile": prof})
+        code, body = route_proxy_raw(q)
+        if code == 503: return {"ok": False, "fehler": "Routing antwortet nicht."}
+        if code != 200: continue
+        try:
+            c = json.loads(body)["features"][0]["geometry"]["coordinates"][0]
+            sl, sa = float(c[0]), float(c[1])
+        except Exception: continue
+        m = math.hypot((sl - lon) * 111320 * math.cos(math.radians(lat)), (sa - lat) * 111320)
+        return {"ok": True, "lat": round(sa, 6), "lon": round(sl, 6), "m": int(round(m))}
+    return {"ok": False}
 
 def route_proxy_raw(query):
     """Reicht /api/route an BRouter weiter. Gibt (Statuscode, Bytes) zurück."""
@@ -1150,6 +1218,7 @@ def cert_days_left():
 def notify_tick():
     """Jede Minute: Zustände prüfen, die eine Meldung wert sind (jede Art meldet sich nur alle paar Stunden oder Tage)."""
     try:
+        brouter_watch()
         if scdb_info().get("faellig"): NOTES.add("scdb", "Die SCDB-Blitzerliste ist älter als %d Tage. Bitte neu holen: scdb.info/my" % SCDB_REMIND_DAYS, cool=7 * 86400)
         if S["state"] == "running" and not S["stop"] and time.time() - (S["beat"] or S["started"] or time.time()) > 900:
             NOTES.add("haengt", "Der Server hängt vermutlich: seit über 15 Minuten keine Bewegung beim Update.", cool=6 * 3600)
@@ -1159,6 +1228,30 @@ def notify_tick():
             CERT_AT[0] = time.time(); n = cert_days_left()
             if n is not None and n <= 30: NOTES.add("zertifikat", ("Das Mobilithek-Zertifikat läuft in %d Tagen ab. Bitte ein neues anfordern." % n) if n >= 0 else "Das Mobilithek-Zertifikat ist abgelaufen.", cool=7 * 86400)
     except Exception as ex: log("Meldungs-Prüfung:", ex)
+
+def selftest():
+    """Einmal kurz nach dem Start: antworten Routing, Karten und Baustellen-Liste? Gibt eine Liste mit Problemen zurück (leer = alles ok)."""
+    prob = []
+    names = sorted(n for n in os.listdir(f"{PUB}/rd5") if n.endswith(".rd5")) if os.path.isdir(f"{PUB}/rd5") else []
+    if os.path.exists(BR_JAR) and names:
+        m = re.match(r"E(\d+)_N(\d+)\.rd5$", names[0])
+        if m:
+            lon, lat = int(m.group(1)) + 2.5, int(m.group(2)) + 2.5
+            code, _ = route_proxy_raw(urllib.parse.urlencode({"lonlats": f"{lon},{lat}|{lon + 0.02},{lat + 0.02}", "profile": PROFILES[0]}))
+            if code == 503: prob.append("Routing antwortet nicht")
+    elif os.path.exists(BR_JAR): prob.append("Keine Routendaten vorhanden")
+    if not any(os.path.exists(f"{PUB}/maps/{r['id']}.pmtiles") for r in REGIONS): prob.append("Keine fertige Karte vorhanden")
+    q, _ = bs_source()
+    if q == "live" and not os.path.exists(BS_LIST): prob.append("Baustellen: noch keine Liste geholt")
+    return prob
+
+def selftest_run():
+    time.sleep(120)   # BRouter braucht nach dem Start etwas
+    try:
+        prob = selftest()
+        if prob: log("Selbsttest: " + "; ".join(prob), cat="karte"); NOTES.add("selbsttest", "Selbsttest nach dem Start: " + "; ".join(prob) + ".", cool=6 * 3600)
+        else: log("Selbsttest: alles in Ordnung", cat="karte")
+    except Exception as ex: log("Selbsttest-Fehler:", ex)
 
 def bs_daily():
     """Einmal pro Tag, nur mit echter Quelle (die Testdatei ändert sich nicht)."""
@@ -1751,7 +1844,7 @@ def stats():
 
 PROF_GET = ("/api/poi", "/api/tours", "/api/tour", "/api/outbox", "/api/rides", "/api/ride", "/api/ride/gpx", "/api/ride/csv", "/api/ride/preview", "/api/me", "/api/settings", "/api/favs", "/api/baustellen", "/api/laender", "/api/friends", "/api/friends/live", "/api/notify")
 PROF_POST = ("/api/tour/save", "/api/tour/delete", "/api/tour/rename", "/api/phone", "/api/ride/upload", "/api/ride/delete", "/api/ride/rename", "/api/ride/demo", "/api/settings/save", "/api/favs/save", "/api/friends/request", "/api/friends/respond", "/api/friends/remove", "/api/friends/permit", "/api/live", "/api/live/stop")
-EXT_PAGES = ("/", "/index.html", "/logo.png", "/favicon.ico", "/mein", "/mein.html", "/planer", "/planer.html", "/touren", "/touren.html", "/api/route")
+EXT_PAGES = ("/", "/index.html", "/logo.png", "/favicon.ico", "/mein", "/mein.html", "/planer", "/planer.html", "/touren", "/touren.html", "/api/route", "/api/snap")
 KARTEN_PFADE = ("/manifest.json", "/maps/", "/pois/", "/limits/", "/rd5/", "/cameras.csv", "/api/need")   # große Dateien: von außen nur mit Schalter "Karten extern ladbar"
 DENYLOG = {}
 
@@ -1874,6 +1967,12 @@ class H(BaseHTTPRequestHandler):
             self.send_json(FRI.admin())
         elif path in ("/mein", "/mein.html"): self.send_page("mein.html")
         elif path in ("/planer", "/planer.html"): self.send_page("planer.html")
+        elif path == "/api/snap":
+            q = urllib.parse.parse_qs(self.path.partition("?")[2])
+            try: lon, lat = float(q.get("lon", [""])[0]), float(q.get("lat", [""])[0])
+            except ValueError: return self.send_json({"ok": False, "fehler": "lon und lat nötig."}, 400)
+            if not (-180 <= lon <= 180 and -90 <= lat <= 90): return self.send_json({"ok": False, "fehler": "Punkt außerhalb."}, 400)
+            self.send_json(snap_point(lon, lat, q.get("profile", [""])[0]))
         elif path == "/api/route":
             code, b = route_proxy(self.path.partition("?")[2])
             self.send_response(code); self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -2192,6 +2291,7 @@ def main():
         try: prepare_brouter_profiles(); start_brouter()
         except Exception as ex: log("BRouter-Start-Fehler:", ex)
     threading.Thread(target=br_boot, daemon=True).start()
+    threading.Thread(target=selftest_run, daemon=True).start()
     log(f"Statusseite auf Port {PORT}", "(Änderungen aus)" if not ADMIN_PW else "")
     class Srv(ThreadingHTTPServer): daemon_threads = True
     Srv(("0.0.0.0", PORT), H).serve_forever()

@@ -119,3 +119,8 @@ v1.36.0: Neue Übersichtsseite im Look der App (mein.html). Volle Breite, 6 Kenn
 neben "Zuletzt geplant", unten die 5 letzten Fahrten als Karten (die letzte orange hervorgehoben). Doppelte Knöpfe entfernt (Planer/Touren stehen
 schon oben in der Leiste). Hell und dunkel nach Geräteeinstellung, auf dem Handy untereinander. Die Leiste oben zeigt die aktuelle Seite als orangen Knopf.
 
+v1.37.0: Planer rastet neue und verschobene Punkte auf die nächste Straße ein (neu: GET /api/snap; kein Schalter, meldet "keine Straße in der Nähe",
+wenn nichts erreichbar ist). Zwischenspeicher für Strecken (10 Minuten, höchstens 300; wird beim Neubau der Karten geleert), im Planer werden nur
+geänderte Teilstücke neu gerechnet. BRouter-Wächter: stürzt BRouter ab oder antwortet zweimal nicht, startet der Server ihn neu (Admin-Meldung
+"brouter"). Selbsttest 2 Minuten nach dem Start (Routing, Karte, Baustellenliste; Admin-Meldung "selbsttest"). Routing-Leistung zeigt Zwischenspeicher
+und automatische Neustarts. Neue Tests: tests/test_snap.py. Passt zur App v0.37.0.

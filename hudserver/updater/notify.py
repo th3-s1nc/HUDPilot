@@ -11,6 +11,8 @@ TYPES = [
     ("baustellen", "Baustellen-Abruf fehlgeschlagen", True),
     ("zertifikat", "Mobilithek-Zertifikat läuft bald ab (30 Tage vorher)", True),
     ("platte", "Festplatte über 90 % voll", True),
+    ("brouter", "BRouter war ausgefallen und wurde neu gestartet", True),
+    ("selbsttest", "Selbsttest nach dem Start meldet ein Problem", True),
     ("start", "Server neu gestartet", True),
     ("profil", "Neues Profil angelegt", False),
     ("version", "Neue Server-Version nach dem Update", False),
