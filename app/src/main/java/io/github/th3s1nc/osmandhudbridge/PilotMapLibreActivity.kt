@@ -246,6 +246,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
     private var simSpeed = 50.0
     private var simFactor = 1.0
     private var simBar: View? = null
+    private var gpsLogDot: TextView? = null
     private val simChips = ArrayList<TextView>()
     private val ticker = Handler(Looper.getMainLooper())
     private val prefs by lazy { getSharedPreferences("pilot_ui", MODE_PRIVATE) }
@@ -1032,6 +1033,18 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         })
         hitViews.add(sbar)
         markSim()
+
+        // Kleiner roter Punkt, solange das GPS-Log (Werkzeuge) mitschreibt
+        gpsLogDot = TextView(this).apply {
+            text = "● GPS-Log"
+            textSize = 11f
+            setTextColor(0xFFFF453A.toInt())
+            setPadding(dp(8), dp(2), dp(8), dp(2))
+            background = box(10, 0x99000000.toInt())
+            visibility = View.GONE
+            isClickable = false
+        }
+        root.addView(gpsLogDot, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.END).apply { setMargins(0, dp(if (landscape) 4 else 36), dp(8), 0) })
 
         // Suche (oben, nur ohne Navigation): Eingabe, Kategorien, Trefferliste
         val sb = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -2007,22 +2020,34 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         return bmp
     }
 
-    private fun onPosition(lat: Double, lon: Double, hdg: Float?, kmh: Float) {
-        if (!PilotNav.simulated) LiveShare.onFix(this, lat, lon, kmh, hdg)   // Simulationen werden nie geteilt
+    /** Beruhigt Pfeil und Richtung (Stillstand festhalten, Richtung erst ab 10 km/h, Sprünge bestätigen). */
+    private val arrowFilter = io.github.th3s1nc.osmandhudbridge.pilot.ArrowFilter()
+
+    private fun onPosition(lat: Double, lon: Double, hdg: Float?, kmh: Float, rawBearing: Float? = null, accuracyM: Float? = null, logIt: Boolean = false, estimated: Boolean = false) {
+        if (!PilotNav.simulated && !estimated) LiveShare.onFix(this, lat, lon, kmh, hdg)   // Simulationen und geschätzte Positionen (Tunnel) werden nie geteilt
         if (hdg != null) heading = hdg
         lastKmh = kmh
         val p = LatLng(lat, lon)
         lastPos = p
         haveFix = true
-        lastFixAt = SystemClock.elapsedRealtime()
-        saveLastPos(lat, lon)
+        if (!estimated) { lastFixAt = SystemClock.elapsedRealtime(); saveLastPos(lat, lon) }
         if (pl.dest != null && !planning && PilotSession.route == null && planMsg == waitGps) recalc()
         refreshOverlay()
         // Beim Navigieren sitzt der Pfeil auf der Route, solange man höchstens 30 m davon entfernt ist
-        var shown = p
-        if (PilotNav.guiding) PilotSession.route?.let { r -> RouteSnap.snap(r.points, lat, lon, 40.0)?.let { shown = LatLng(it.lat, it.lon) } }
-        else snapToRoad(lat, lon, hdg ?: heading, kmh)?.let { shown = it }
+        var snapped: LatLng? = null
+        if (PilotNav.guiding) PilotSession.route?.let { r -> RouteSnap.snap(r.points, lat, lon, 40.0)?.let { snapped = LatLng(it.lat, it.lon) } }
+        else snapped = snapToRoad(lat, lon, hdg ?: heading, kmh)
+        val shown: LatLng = if (PilotNav.simulated) (snapped ?: p) else {
+            val sp = snapped
+            val last = lastShown
+            val r = arrowFilter.position(lat, lon, if (sp != null) Pair(sp.latitude, sp.longitude) else null, if (last != null) Pair(last.latitude, last.longitude) else null, kmh, accuracyM)
+            LatLng(r.lat, r.lon)
+        }
         lastShown = shown
+        if (logIt) io.github.th3s1nc.osmandhudbridge.pilot.GpsLog.fix(
+            this, if (estimated) "tunnel" else if (PilotNav.guiding) "nav" else "frei", lat, lon, accuracyM, kmh, rawBearing, arrowFilter.heading, shown.latitude, shown.longitude,
+            snapped != null, arrowFilter.isStill, PilotNav.lastState?.lateralM
+        )
         pushMe()
         if (follow) {
             val bearing = if (headUp && heading != null) heading!!.toDouble() else null
@@ -2078,7 +2103,8 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
     private fun roadLayerIds(): Array<String> {
         roadIds?.let { return it }
         val st = style ?: return emptyArray()
-        val skip = listOf("casing", "labels", "shields", "pier", "runway", "taxiway", "rail", "oneway")
+        // "other" = Rad-, Fuß- und sonstige Wege (kind path/other): der Pfeil soll nicht auf einen Radweg neben der Straße springen
+        val skip = listOf("casing", "labels", "shields", "pier", "runway", "taxiway", "rail", "oneway", "other")
         val ids = try {
             st.layers.map { it.id }.filter { id -> id.startsWith("roads_") && skip.none { id.contains(it) } }.toTypedArray()
         } catch (_: Exception) { emptyArray() }
@@ -2087,12 +2113,12 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
     }
 
     /**
-     * Freies Fahren: Pfeil auf die nächste Straße der Karte setzen, wenn eine in Fahrtrichtung höchstens 28 m entfernt ist.
-     * Gibt null zurück (Pfeil bleibt auf der GPS-Position), wenn keine passt, bei Schritttempo oder ohne Karte.
+     * Freies Fahren: Pfeil auf die nächste Straße der Karte setzen, wenn eine in Fahrtrichtung höchstens 28 m entfernt ist (ab 3 km/h, mit der gemerkten Richtung).
+     * Gibt null zurück (Pfeil bleibt auf der GPS-Position), wenn keine passt, im Stand oder ohne Karte.
      */
     private fun snapToRoad(lat: Double, lon: Double, hdg: Float?, kmh: Float): LatLng? {
         val m = map ?: return null
-        if (kmh < 8f || hdg == null) return null
+        if (kmh < io.github.th3s1nc.osmandhudbridge.pilot.ArrowFilter.SNAP_MIN_KMH || hdg == null) return null
         val ids = roadLayerIds()
         if (ids.isEmpty()) return null
         return try {
@@ -2280,6 +2306,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         setBtnIcon(btnNorth, if (!headUp) R.drawable.ic_view_north else if (tilt3d) R.drawable.ic_view_3d else R.drawable.ic_view_head)
         btnNorth.alpha = 1f
         simBar?.visibility = if (PilotNav.simulated && PilotNav.guiding) View.VISIBLE else View.GONE
+        gpsLogDot?.visibility = if (io.github.th3s1nc.osmandhudbridge.pilot.GpsLog.enabled(this)) View.VISIBLE else View.GONE
         simLed?.lit = PilotNav.simulated
         updateRecUi()
         updateMenuHud()
@@ -3411,6 +3438,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         lastState = state
         hintOverride = null
         if (PilotNav.simulated) onPosition(PilotNav.lastLat, PilotNav.lastLon, PilotNav.lastHeading?.toFloat(), simSpeed.toFloat())
+        else if (PilotNav.coasting) onPosition(PilotNav.lastLat, PilotNav.lastLon, PilotNav.lastHeading?.toFloat(), PilotNav.lastSpeedKmh, logIt = true, estimated = true)   // Tunnel: Pfeil läuft auf der Route weiter
         else refreshOverlay()
     }
 
@@ -3461,8 +3489,9 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
             if (location.hasAccuracy() && location.accuracy > 200f) return
             altitude = if (location.hasAltitude()) location.altitude else null
             val kmh = if (location.hasSpeed()) location.speed * 3.6f else 0f
-            val hdg = if (location.hasBearing() && location.hasSpeed() && location.speed > 1.5f) location.bearing else null
-            onPosition(location.latitude, location.longitude, hdg, kmh)
+            val rawBearing = if (location.hasBearing() && location.hasSpeed()) location.bearing else null
+            val hdg = arrowFilter.updateHeading(rawBearing?.toDouble(), kmh)?.toFloat()
+            onPosition(location.latitude, location.longitude, hdg, kmh, rawBearing, if (location.hasAccuracy()) location.accuracy else null, true)
         }
 
         override fun onProviderEnabled(provider: String) {}
@@ -3525,6 +3554,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         ticker.removeCallbacks(simTick)
         try { locMgr?.removeUpdates(locListener) } catch (_: Exception) {}
         locMgr = null
+        io.github.th3s1nc.osmandhudbridge.pilot.GpsLog.flush(this)
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         mapView.onPause()
         super.onPause()

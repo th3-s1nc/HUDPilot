@@ -42,6 +42,14 @@ object PilotNav {
         private set
     var lastState: Guide.State? = null
         private set
+    /** Tempo der letzten echten Position (für den Weiterlauf im Tunnel). */
+    @Volatile var lastSpeedKmh = 0f
+        private set
+    /** true, solange die Position wegen GPS-Verlust (Tunnel) auf der Route weitergeschätzt wird. */
+    @Volatile var coasting = false
+        private set
+    private var lastRealFixMs = 0L
+    private var progressAtFix = 0
     /** Kurzer Hinweistext (z. B. "Neuberechnung …"). */
     @Volatile var message: String = ""
         private set
@@ -99,6 +107,8 @@ object PilotNav {
         rerouting = false
         message = ""
         wasOff = false
+        coasting = false
+        lastRealFixMs = 0L
         lastLogMs = 0L
         startMs = android.os.SystemClock.elapsedRealtime()
         voice.reset()
@@ -136,6 +146,7 @@ object PilotNav {
         }
         guide = null
         rerouting = false
+        coasting = false
         message = ""
         if (had && !arrived) { PilotBus.clear(); PilotVoice.silence() }
         if (had) for (l in listeners) l.onStopped(arrived)
@@ -144,15 +155,52 @@ object PilotNav {
     }
 
     /**
+     * Vom Dienst-Takt (jede Sekunde). Fällt das GPS aus (Tunnel), läuft die Position mit dem letzten Tempo auf der Route weiter,
+     * höchstens 2 Minuten und nicht bis ganz ans Ziel. Sobald wieder echtes GPS kommt, gilt dieses.
+     */
+    fun coast(nowMs: Long = android.os.SystemClock.elapsedRealtime()) {
+        if (!driving) return
+        val g = guide ?: return
+        val st = lastState ?: return
+        if (lastRealFixMs == 0L || st.offRoute || st.finished) return
+        val since = nowMs - lastRealFixMs
+        if (!DeadReckon.active(since, lastSpeedKmh)) {
+            if (coasting && since > DeadReckon.MAX_MS) {
+                coasting = false
+                BridgeBus.log(Tx.t("Kein GPS mehr seit über 2 Minuten, Weiterlauf beendet", "No GPS for over 2 minutes, dead reckoning ended"))
+            }
+            return
+        }
+        val dist = (progressAtFix + DeadReckon.meters(lastSpeedKmh, since)).coerceAtMost((g.route.totalM - 60).toDouble().coerceAtLeast(0.0))
+        val at = RouteWalk.pointAt(g.route, dist) ?: return
+        if (!coasting) {
+            coasting = true
+            BridgeBus.log(Tx.t("GPS-Verlust: Position läuft auf der Route weiter (${lastSpeedKmh.roundToInt()} km/h)", "GPS lost: position keeps moving along the route (${lastSpeedKmh.roundToInt()} km/h)"))
+            ctx?.let { GpsLog.event(it, "GPS-Verlust, Weiterlauf mit ${lastSpeedKmh.roundToInt()} km/h") }
+        }
+        onFix(at.lat, at.lon, lastSpeedKmh, at.bearing.roundToInt(), 1.0, nowMs, 30f, estimated = true)
+    }
+
+    /**
      * Eine Position. speedKmh/headingDeg können fehlen (null). timeFactor: Zeitraffer der Simulation (für die Ankunftszeit).
      */
     fun onFix(
         lat: Double, lon: Double, speedKmh: Float?, headingDeg: Int?, timeFactor: Double = 1.0,
-        nowMs: Long = android.os.SystemClock.elapsedRealtime(), accuracyM: Float? = null
+        nowMs: Long = android.os.SystemClock.elapsedRealtime(), accuracyM: Float? = null, estimated: Boolean = false
     ) {
         val g = guide ?: return
         val st = g.update(lat, lon, accuracyM)
         lastState = st
+        if (!estimated) {
+            if (coasting) {
+                coasting = false
+                BridgeBus.log(Tx.t("GPS wieder da, Weiterlauf beendet", "GPS is back, dead reckoning ended"))
+                ctx?.let { GpsLog.event(it, "GPS wieder da") }
+            }
+            lastRealFixMs = nowMs
+            lastSpeedKmh = speedKmh ?: 0f
+            progressAtFix = st.progressM
+        }
         logProgress(g, st, speedKmh, accuracyM, nowMs)
         lastLat = lat; lastLon = lon
         if (headingDeg != null) lastHeading = headingDeg
@@ -209,6 +257,7 @@ object PilotNav {
         val acc = accuracyM?.roundToInt()?.let { Tx.t(", Genauigkeit $it m", ", accuracy $it m") } ?: ""
         if (st.offRoute != wasOff) {
             wasOff = st.offRoute
+            ctx?.let { GpsLog.event(it, (if (st.offRoute) "Neben der Route " else "Wieder auf der Route ") + "${st.lateralM} m" + (accuracyM?.roundToInt()?.let { a -> ", Genauigkeit $a m" } ?: "")) }
             BridgeBus.log(
                 if (st.offRoute) Tx.t("Neben der Route: ${st.lateralM} m$acc", "Off route: ${st.lateralM} m$acc")
                 else Tx.t("Wieder auf der Route: ${st.lateralM} m$acc", "Back on route: ${st.lateralM} m$acc")
@@ -231,8 +280,14 @@ object PilotNav {
     private fun reroute(g: Guide, lat: Double, lon: Double, nowMs: Long, heading: Int?) {
         val c = ctx ?: return
         val wps = g.remainingWaypoints(lat, lon)
+        val old = g.route
+        val progress = lastState?.progressM ?: 0
+        // Schneller Wiedereinstieg: erst nur das kurze Stück zurück auf die alte Route rechnen (etwa 4 km voraus oder bis zum nächsten Wegpunkt)
+        val target = RouteSplice.target(old, progress)
+        ctx?.let { GpsLog.event(it, "Neuberechnung gestartet" + if (target != null) " (Wiedereinstieg ${target.atM - progress} m voraus)" else " (volle Route)") }
         BridgeBus.log(
             Tx.t("Neuberechnung gestartet: ", "Recalculation started: ") + "${wps.size} " + Tx.t("Wegpunkte", "waypoints") +
+                (if (target != null) Tx.t(", Wiedereinstieg ${target.atM - progress} m voraus", ", rejoin ${target.atM - progress} m ahead") else "") +
                 Tx.t(", nächste Wartezeit ", ", next wait ") + "${g.cooldownMs() / 1000} s" +
                 (if (heading != null) Tx.t(", Fahrtrichtung $heading°", ", heading $heading°") else "")
         )
@@ -241,19 +296,33 @@ object PilotNav {
         val profile = profileId
         val t0 = android.os.SystemClock.elapsedRealtime()
         exec.execute {
-            val out = PilotRouter.compute(c, wps, profile, startDirection = if (heading != null) ((heading % 360) + 360) % 360 else -1)
+            val dir = if (heading != null) ((heading % 360) + 360) % 360 else -1
+            var computed: PilotRouter.Outcome? = null
+            var joinedShort = false
+            if (target != null) {
+                val tp = old.points[target.index]
+                val so = PilotRouter.compute(c, listOf(Waypoint(lat, lon, false, "Position"), Waypoint(tp.lat, tp.lon, false, "Wiedereinstieg")), profile, startDirection = dir)
+                if (so is PilotRouter.Outcome.Ok && RouteSplice.acceptable(so.route, lat, lon, tp.lat, tp.lon)) {
+                    val joined = RouteSplice.splice(old, target, so.route, progress)
+                    if (joined != null && joined.waypointIndex.size == wps.size) { computed = PilotRouter.Outcome.Ok(joined); joinedShort = true; PilotRouter.avoidedRoute = null }
+                }
+            }
+            if (computed == null) computed = PilotRouter.compute(c, wps, profile, startDirection = dir)
+            val result = computed
             main.post {
                 val took = android.os.SystemClock.elapsedRealtime() - t0
                 rerouting = false
                 if (guide !== g) return@post // inzwischen beendet
-                when (out) {
+                when (result) {
                     is PilotRouter.Outcome.Ok -> {
+                        val out: PilotRouter.Outcome.Ok = result
                         g.setRoute(out.route, wps, android.os.SystemClock.elapsedRealtime())
                         voice.newRoute()
                         BridgeBus.log(
                             Tx.t("Neue Route: ", "New route: ") + "${out.route.totalM} m, ${out.route.instructions.size} " +
-                                Tx.t("Hinweise", "instructions") + ", $took ms"
+                                Tx.t("Hinweise", "instructions") + ", $took ms" + if (joinedShort) Tx.t(" (kurzes Stück + alte Route)", " (short part + old route)") else ""
                         )
+                        ctx?.let { GpsLog.event(it, "Neue Route fertig: $took ms" + if (joinedShort) " (Wiedereinstieg)" else " (volle Route)") }
                         PilotSession.route = out.route
                         PilotSession.routeWaypoints = wps
                         lastNext = null
@@ -261,9 +330,10 @@ object PilotNav {
                         for (l in listeners) l.onRerouted(out.route)
                     }
                     is PilotRouter.Outcome.Failed -> {
+                        ctx?.let { GpsLog.event(it, "Neuberechnung fehlgeschlagen: ${result.message} ($took ms)") }
                         g.rerouteFailed(android.os.SystemClock.elapsedRealtime())
-                        BridgeBus.log(Tx.t("Neuberechnung fehlgeschlagen: ", "Recalculation failed: ") + out.message + " ($took ms)")
-                        message = Tx.t("Neuberechnung fehlgeschlagen: ", "Recalculation failed: ") + out.message
+                        BridgeBus.log(Tx.t("Neuberechnung fehlgeschlagen: ", "Recalculation failed: ") + result.message + " ($took ms)")
+                        message = Tx.t("Neuberechnung fehlgeschlagen: ", "Recalculation failed: ") + result.message
                     }
                 }
             }

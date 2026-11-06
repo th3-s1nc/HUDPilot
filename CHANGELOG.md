@@ -2,6 +2,17 @@
 
 (Deutsch. HUDPilot ist eine Kopie der OSMAnd HUD Bridge v0.11.101 mit eigener Navigation und zählt ab 0.1.0 neu. Der Verlauf der Bridge steht darunter.)
 
+## v0.37.1 (HUDPilot, Pfeil springt nicht mehr auf Radwege)
+- **Freies Fahren:** Der Pfeil rastet nur noch auf Straßen ein, nicht mehr auf Rad-, Fuß- und sonstige Wege (auch nicht auf Brücken und in Tunneln). Vorher konnte er neben der Straße auf einen parallelen Radweg springen.
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
+## v0.37.0 (HUDPilot, ruhigerer Pfeil, bessere Wiedereinfädelung, GPS-Log)
+- **Pfeil bleibt ruhig:** Im Stand und bei sehr langsamer Fahrt dreht sich der Pfeil nicht mehr um 180 Grad; die Richtung wird erst bei echter Bewegung übernommen. Ab 3 km/h rastet der Pfeil auf der Route ein (z. B. an Ampeln nicht mehr neben der Straße).
+- **Neuberechnung:** Kommt man bald wieder auf die alte Route, wird das neue Stück nahtlos an den Rest der Route angehängt. Bei kurzem GPS-Ausfall (Tunnel) läuft die Position entlang der Route weiter.
+- **GPS-Log (neu, Tab Werkzeuge, über dem Protokoll):** Schalter zum Mitschreiben der GPS-Daten samt Abweichungen und Neuberechnungen, mit Teilen-Knopf, Löschen und Info. Der rote Punkt auf der Karte zeigt die Aufzeichnung.
+- Braucht Server ab v1.37.0 nur für das Einrasten im Planer; sonst auch mit dem alten Server nutzbar.
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut (nur die Rechenlogik per Tests geprüft).
+
 ## v0.36.1 (HUDPilot, einheitliche Symbole und schwarzer Start)
 - **Menü:** „Freunde“ hat jetzt ein orangenes Linien-Symbol wie die übrigen Punkte (vorher ein farbiges Emoji). Im Untermenü Freunde ebenso „Standort teilen“ und „Darf mich sehen“.
 - **Start der App (Android 12 und neuer):** Der Startbildschirm hat jetzt schwarzen statt weißen Grund. Das Fenster ist auch sonst schwarz hinterlegt.

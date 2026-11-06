@@ -228,6 +228,7 @@ class BridgeService : Service(), HudClient.Listener {
             controller.tick()
             applyGpsMode(gpsPolicy.mode(SystemClock.elapsedRealtime(), client.isReady || TrackRecorder.active || carMode || io.github.th3s1nc.osmandhudbridge.pilot.PilotNav.driving))
             io.github.th3s1nc.osmandhudbridge.pilot.PilotNav.watchGps()
+            io.github.th3s1nc.osmandhudbridge.pilot.PilotNav.coast()   // GPS weg (Tunnel): Position läuft auf der Route weiter
             if (notifRecording != TrackRecorder.active) {
                 notifRecording = TrackRecorder.active
                 if (notifRecording) {

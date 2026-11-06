@@ -319,6 +319,7 @@ class MainActivity : AppCompatActivity() {
         setupInfoToggle(R.id.btnInfoNotifAccess, R.id.tvInfoNotifAccess)
         setupInfoToggle(R.id.btnInfoBattery, R.id.tvInfoBattery)
         setupInfoToggle(R.id.btnInfoVerbose, R.id.tvInfoVerbose)
+        setupInfoToggle(R.id.btnInfoGpsLog, R.id.tvInfoGpsLog)
         setupInfoToggle(R.id.btnInfoRecWhat, R.id.tvInfoRecWhat2)
     }
 
@@ -1104,6 +1105,21 @@ class MainActivity : AppCompatActivity() {
             if (on) batteryExemption() else startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
             syncPermSwitches()
         }
+        val swGps = findViewById<MaterialSwitch>(R.id.swGpsLog)
+        swGps.isChecked = io.github.th3s1nc.osmandhudbridge.pilot.GpsLog.enabled(this)
+        swGps.setOnCheckedChangeListener { _, on ->
+            io.github.th3s1nc.osmandhudbridge.pilot.GpsLog.setEnabled(this, on)
+            findViewById<TextView>(R.id.tvGpsLogInfo).text = io.github.th3s1nc.osmandhudbridge.pilot.GpsLog.info(this)
+        }
+        findViewById<MaterialButton>(R.id.btnGpsLogShare).setOnClickListener {
+            if (!io.github.th3s1nc.osmandhudbridge.pilot.GpsLog.share(this))
+                Toast.makeText(this, Tx.t("Noch nichts aufgezeichnet", "Nothing recorded yet"), Toast.LENGTH_SHORT).show()
+        }
+        findViewById<MaterialButton>(R.id.btnGpsLogClear).setOnClickListener {
+            io.github.th3s1nc.osmandhudbridge.pilot.GpsLog.clear(this)
+            findViewById<TextView>(R.id.tvGpsLogInfo).text = io.github.th3s1nc.osmandhudbridge.pilot.GpsLog.info(this)
+            Toast.makeText(this, Tx.t("GPS-Log gelöscht", "GPS log deleted"), Toast.LENGTH_SHORT).show()
+        }
         findViewById<MaterialButton>(R.id.btnLog).setOnClickListener { shareLog() }
         findViewById<MaterialButton>(R.id.btnLogClear).setOnClickListener {
             BridgeBus.clearLog()
@@ -1253,6 +1269,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvSignSpeed).text = Tx.t("Tempo: ", "Speed: ") + (spd?.let { "$it km/h" } ?: "–")
         findViewById<TextView>(R.id.tvLogHome).text = StatusText.en(BridgeBus.lastLinesNewestFirst(3)).ifBlank { "–" }
         tvLog.text = StatusText.en(BridgeBus.lastLinesNewestFirst(25))
+        findViewById<TextView>(R.id.tvGpsLogInfo).text = io.github.th3s1nc.osmandhudbridge.pilot.GpsLog.info(this)
     }
 
     private fun refresh() {
