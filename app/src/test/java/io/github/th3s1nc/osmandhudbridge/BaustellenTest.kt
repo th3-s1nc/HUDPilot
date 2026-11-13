@@ -82,4 +82,41 @@ class BaustellenTest {
         assertEquals(80, out[0].size)
         assertEquals(pts.last().first, out[0][78], 1e-9)
     }
+
+    @Test fun gespeicherteTourMitSperrungUndEinschraenkung() {
+        val c = site("1", "c", Pair(49.0003, 11.050), Pair(49.0003, 11.052))
+        val r = site("2", "r", Pair(49.0003, 11.070), Pair(49.0003, 11.072))
+        val w = site("3", "w", Pair(49.0003, 11.080), Pair(49.0003, 11.082))   // reine Arbeiten: kein Hinweis
+        val h = BaustellenLogic.tourHits(route, listOf(w, r, c), 1_000)
+        assertEquals(2, h.size); assertEquals(1, BaustellenLogic.closedCount(h)); assertEquals("c", h[0].site.kind)
+        val m = BaustellenLogic.tourMessage(h)
+        assertTrue(m.startsWith("• Gesperrt: B85 Amberg")); assertTrue(m.contains("• Eingeschränkt:")); assertEquals(2, m.lines().size)
+    }
+
+    @Test fun nachrichtKuerztNachDreiMeldungen() {
+        val l = (0 until 5).map { site("$it", "c", Pair(49.0003, 11.010 + it * 0.015), Pair(49.0003, 11.012 + it * 0.015)) }
+        val h = BaustellenLogic.tourHits(route, l, 1_000)
+        assertEquals(5, h.size)
+        val m = BaustellenLogic.tourMessage(h); assertEquals(4, m.lines().size); assertTrue(m.endsWith("… und 2 weitere"))
+    }
+
+    @Test fun abgelaufeneOderLeereTourMeldetNichts() {
+        val alt = site("1", "c", Pair(49.0003, 11.050), Pair(49.0003, 11.052), 0, 500)
+        assertEquals(0, BaustellenLogic.tourHits(route, listOf(alt), 1_000).size)
+        assertEquals(0, BaustellenLogic.tourHits(emptyList(), listOf(alt), 100).size)
+    }
+
+    @Test fun langeLuftlinieWirdNichtGeprueftUndNichtUmfahren() {
+        val lang = Site("1", "St2129", "St2129 zwischen A und B gesperrt", "c", 0, 0, listOf(Pair(49.0003, 11.010), Pair(49.0003, 11.090)), approx = true)   // ca. 5,8 km Luftlinie
+        assertTrue(!lang.usable)
+        assertEquals(0, BaustellenLogic.onRoute(route, listOf(lang), 1_000).size)
+        assertEquals(0, BaustellenLogic.nogoLines(listOf(lang), 1_000, DoubleArray(2) { 49.0 }, doubleArrayOf(11.0, 11.1)).size)
+    }
+
+    @Test fun kurzeLuftlinieUndEchteStrasseBleibenBrauchbar() {
+        val kurz = Site("1", "", "gesperrt", "c", 0, 0, listOf(Pair(49.0003, 11.050), Pair(49.0003, 11.052)), approx = true)   // ca. 145 m
+        assertTrue(kurz.usable); assertEquals(1, BaustellenLogic.onRoute(route, listOf(kurz), 1_000).size)
+        val echt = Site("2", "St2129", "gesperrt", "c", 0, 0, listOf(Pair(49.0003, 11.010), Pair(49.0003, 11.090)), approx = false)
+        assertTrue(echt.usable); assertEquals(1, BaustellenLogic.onRoute(route, listOf(echt), 1_000).size)
+    }
 }

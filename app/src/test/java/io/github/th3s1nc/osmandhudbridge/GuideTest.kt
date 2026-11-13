@@ -333,6 +333,25 @@ class MapHazardsTest {
 class PlanTest {
     private fun p(n: String) = io.github.th3s1nc.osmandhudbridge.pilot.PlanPoint(50.0, 8.0, n)
 
+    @Test fun appendDestMakesOldDestinationTheLastVia() {
+        val pl = io.github.th3s1nc.osmandhudbridge.pilot.Plan()
+        assertTrue(pl.appendDest(p("A")))
+        assertEquals("A", pl.dest!!.name)
+        assertTrue(pl.vias.isEmpty())
+        pl.addVia(p("V"))
+        assertTrue(pl.appendDest(p("B")))
+        assertEquals("B", pl.dest!!.name)
+        assertEquals(listOf("V", "A"), pl.vias.map { it.name })
+    }
+
+    @Test fun appendDestRefusedWhenViasFull() {
+        val pl = io.github.th3s1nc.osmandhudbridge.pilot.Plan()
+        pl.dest = p("Ziel")
+        for (i in 1..io.github.th3s1nc.osmandhudbridge.pilot.Plan.MAX_VIAS) pl.addVia(p("V$i"))
+        assertFalse(pl.appendDest(p("Neu")))
+        assertEquals("Ziel", pl.dest!!.name)
+    }
+
     @Test fun waypointsNeedDestinationAndStart() {
         val pl = io.github.th3s1nc.osmandhudbridge.pilot.Plan()
         assertTrue(pl.waypoints(p("jetzt")) == null)

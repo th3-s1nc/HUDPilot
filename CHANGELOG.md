@@ -2,6 +2,45 @@
 
 (Deutsch. HUDPilot ist eine Kopie der OSMAnd HUD Bridge v0.11.101 mit eigener Navigation und zählt ab 0.1.0 neu. Der Verlauf der Bridge steht darunter.)
 
+## v0.42.3 (HUDPilot, Passwort versteckt)
+- Anmelde-Dialog (Profil auf dem Server): Das Passwort-Feld zeigt Punkte statt Klartext. Mit dem Haken "Anzeigen" lässt es sich einblenden (auch für den Einladungscode beim Anlegen).
+- Werkzeuge, GPS-Log: Der Schalter heißt nur noch "Aufzeichnung" (Englisch "Recording"). Vorher war der Text so lang, dass der Schalter rechts abgeschnitten war. Die Erklärung steht weiter hinter dem "i".
+
+## v0.42.2 (HUDPilot, Baustellen-Anzeige sichtbar)
+- Baustellen ohne gefundene Straße (nur Luftlinie) sind jetzt gut sichtbar gestrichelt (4 Pixel, 75 % Deckkraft) statt kaum zu erkennen. Genaue Linien bleiben dick und durchgezogen.
+- Die bessere Straßensuche (auch bei Straßen mit getrennten Fahrbahnen wie der B 15) kommt vom Server 1.48.2.
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
+## v0.42.1 (HUDPilot, Baustellen-Anzeige)
+- Baustellen ohne gefundene Straße (nur Luftlinie) werden auf der Karte dünn, gestrichelt und blass gezeichnet, im Titel steht "Lage ungefähr". Genaue Linien bleiben dick (rot bei Sperrung, orange bei Einschränkung).
+- Die Baustellenliste wird alle 2 Stunden (vorher 6) vom Server geholt, damit Korrekturen schneller ankommen.
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
+## v0.42.0 (HUDPilot, Baustellen genauer)
+- Meldungen, bei denen der Server keine Straße gefunden hat und nur eine lange Luftlinie (über 300 m) kennt, werden nicht mehr zum Prüfen ("liegt eine Baustelle auf meiner Route?") und nicht mehr zum Umfahren benutzt. Auf der Karte bleiben sie gestrichelt als Hinweis. Kurze Luftlinien (bis 300 m) und alle Meldungen mit echter Straße gelten wie bisher.
+- Die bessere Einstufung (gesperrte Spur und "Gesperrt für Ausweichverkehr" sind nur noch Einschränkungen) kommt vom Server 1.48.0.
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
+## v0.41.0 (HUDPilot, Fahrtenliste)
+- In der Liste der gefahrenen Fahrten steht jetzt der Durchschnitt (Ø km/h, nur Fahrzeit in Bewegung) statt der Höchstgeschwindigkeit. Die Höchstgeschwindigkeit bleibt in der Fahrtansicht.
+
+## v0.40.0 (HUDPilot, Baustellen-Hinweis bei gespeicherten Touren)
+- **Baustelle auf der Tour:** Öffnest du eine gespeicherte Tour, prüft die App die vom Server mitgelieferte, gespeicherte Strecke gegen die aktuellen Baustellen und Sperrungen. Liegt eine darauf, kommt eine Meldung mit bis zu drei Einträgen (Art, Ort, bis wann). Bei einer Sperrung stehen "Umfahren" (die Strecke wird um die Sperrung neu gerechnet, Zwischenpunkte bleiben) und "Trotzdem so fahren" (die Tour bleibt wie gespeichert) zur Wahl. Bei bloßer Einschränkung (Ampel, eine Spur) gibt es nur einen Hinweis. Die Wahl gilt für diese geöffnete Tour. Braucht Server 1.47.0 oder neuer (liefert die Strecke) und eingeschaltete Baustellenanzeige.
+- Die Strecke selbst wird in der App wie bisher auf dem Handy gerechnet (für die Ansagen), das geht offline und schnell.
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
+## v0.39.0 (HUDPilot, Passwort, Ortsmeidung, Tourenliste)
+- **Passwort:** Es wird nicht mehr alles in Großbuchstaben umgewandelt, Groß- und Kleinschreibung bleibt erhalten. Überall steht "Passwort" statt "Code" (der Einladungscode bleibt).
+- **Passwort ändern:** Server → Profil → "Passwort ändern …" (bisheriges Passwort, neues, Wiederholung; mindestens 8 Zeichen, höchstens 64, keine Umlaute, kein | und kein ;). Die Anmeldung bleibt bestehen. Braucht Server 1.46.0 oder neuer.
+- **Ortsdurchfahrten vermeiden:** Neuer Schalter unter Menü → Vermeiden, dazu "Stärke der Ortsmeidung" (Regler 0,5 bis 4, Standard 1,5). Gleiche Regel wie im Planer; Touren aus dem Planer bringen ihre Stärke mit, und "Plan auf Server speichern" sendet sie.
+- **Tourenliste:** Unter dem Namen steht "xxx km | x h xx min" (bei alten Touren, die der Server noch nicht gerechnet hat, das Datum). "Punkte" werden nicht mehr angezeigt.
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
+## v0.38.0 (HUDPilot, Ziel anhängen, Verlauf)
+- **Neues Ziel ans Ende hängen:** Wählst du bei vorhandenem Ziel einen weiteren Ort, gibt es jetzt "Ans Ende anhängen (altes Ziel wird Zwischenziel)". "Ziel ersetzen" bleibt eine eigene Zeile.
+- **Verlauf:** Jeder gewählte Ort (Suche, Karte, Favorit) kommt sofort in den Verlauf, nicht erst beim Losfahren. Der Titel heißt "Zuletzt verwendet", es werden 30 statt 10 Einträge gemerkt.
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
 ## v0.37.1 (HUDPilot, Pfeil springt nicht mehr auf Radwege)
 - **Freies Fahren:** Der Pfeil rastet nur noch auf Straßen ein, nicht mehr auf Rad-, Fuß- und sonstige Wege (auch nicht auf Brücken und in Tunneln). Vorher konnte er neben der Straße auf einen parallelen Radweg springen.
 - Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.

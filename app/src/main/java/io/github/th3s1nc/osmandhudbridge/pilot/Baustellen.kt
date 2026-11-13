@@ -72,7 +72,7 @@ object Baustellen {
                 // Nach einem App-Update die Liste einmal neu holen (Darstellung und Server können sich geändert haben)
                 val appVer = try { app.packageManager.getPackageInfo(app.packageName, 0).versionName ?: "" } catch (_: Exception) { "" }
                 val newVer = prefs(app).getString("bs_app", "") != appVer
-                if (!force && !newVer && sites.isNotEmpty() && file(app).isFile && System.currentTimeMillis() - last < 6 * 3600_000L) { onDone(false); return@execute }
+                if (!force && !newVer && sites.isNotEmpty() && file(app).isFile && System.currentTimeMillis() - last < 2 * 3600_000L) { onDone(false); return@execute }
                 val c = URL(base.trimEnd('/') + "/api/baustellen").openConnection() as HttpURLConnection
                 try {
                     c.connectTimeout = 4_000; c.readTimeout = 30_000; c.setRequestProperty("User-Agent", "HUDPilot")

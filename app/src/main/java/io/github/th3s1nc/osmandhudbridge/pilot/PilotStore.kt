@@ -57,6 +57,7 @@ object PilotStore {
         if (!out.isFile || out.lastModified() < base.lastModified()) {
             var txt = base.readText()
             for ((k, v) in avoid.values()) txt = txt.replace(Regex("(?m)^assign avoid_$k\\s*=\\s*\\d.*$"), "assign avoid_$k = $v")
+            if (avoid.has(Avoid.CITY)) txt = CityCost.patch(txt, avoid.cityw)   // Ortsdurchfahrten: Aufschlag nur in der Variante
             out.writeText(txt)
         }
         return out.path

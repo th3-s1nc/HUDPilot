@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import io.github.th3s1nc.osmandhudbridge.limit.Tx
 import io.github.th3s1nc.osmandhudbridge.pilot.AutoSync
 import io.github.th3s1nc.osmandhudbridge.pilot.Favs
+import io.github.th3s1nc.osmandhudbridge.pilot.PasswordRules
 import io.github.th3s1nc.osmandhudbridge.pilot.RegionLogic
 import io.github.th3s1nc.osmandhudbridge.pilot.RegionSync
 import io.github.th3s1nc.osmandhudbridge.pilot.ServerProfile
@@ -91,9 +92,10 @@ class ServerActivity : AppCompatActivity() {
         profBox.removeAllViews(); syncBox.removeAllViews()
         if (ServerProfile.has(this)) {
             profBox.addView(tv(Tx.t("Angemeldet als ", "Signed in as ") + ServerProfile.name(this), 15f))
+            profBox.addView(btn(Tx.t("Passwort ändern …", "Change password …"), false) { passwordDialog() }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
             profBox.addView(btn(Tx.t("Anderes Profil / Abmelden …", "Other profile / sign out …"), false) { profileDialog() }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         } else {
-            profBox.addView(tv(Tx.t("Noch kein Profil. Mit eigenem Namen und Code anmelden oder neu anlegen (Einladungscode vom Server-Betreiber).", "No profile yet. Sign in with your name and code or create one (invitation code from the server owner)."), 13f, GREY))
+            profBox.addView(tv(Tx.t("Noch kein Profil. Mit eigenem Namen und Passwort anmelden oder neu anlegen (Einladungscode vom Server-Betreiber).", "No profile yet. Sign in with your name and password or create one (invitation code from the server owner)."), 13f, GREY))
             profBox.addView(btn(Tx.t("Anmelden / Neu anlegen …", "Sign in / create …"), true) { profileDialog() }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         }
         val cb = CheckBox(this).apply {
@@ -139,15 +141,23 @@ class ServerActivity : AppCompatActivity() {
         if (RegionSync.serverUrl(this).isEmpty()) { toast(Tx.t("Erst die Serveradresse eintragen und verbinden.", "Enter the server address and connect first.")); return }
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0) }
         col.addView(TextView(this).apply {
-            text = Tx.t("Eigener Name und Code. Neu hier? Name wählen und den Einladungscode vom Server-Betreiber eintragen, dann „Neu anlegen\".",
-                "Your own name and code. New here? Pick a name and enter the invitation code from the server owner, then \"Create\".")
+            text = Tx.t("Eigener Name und Passwort. Neu hier? Name wählen und den Einladungscode vom Server-Betreiber eintragen, dann „Neu anlegen\".",
+                "Your own name and password. New here? Pick a name and enter the invitation code from the server owner, then \"Create\".")
         })
         val eName = EditText(this).apply { hint = Tx.t("Name", "Name"); setSingleLine(true); setText(ServerProfile.name(this@ServerActivity)) }
-        val eCode = EditText(this).apply { hint = Tx.t("Code (beim Anlegen: Einladungscode)", "Code (when creating: invitation code)"); setSingleLine(true); inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS }
-        col.addView(eName); col.addView(eCode)
+        val eCode = EditText(this).apply { hint = Tx.t("Passwort (beim Anlegen: Einladungscode)", "Password (when creating: invitation code)"); setSingleLine(true); inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD or android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS }
+        val cShow = android.widget.CheckBox(this).apply {
+            text = Tx.t("Anzeigen", "Show")
+            setOnCheckedChangeListener { _, on ->
+                val sel = eCode.selectionEnd
+                eCode.inputType = android.text.InputType.TYPE_CLASS_TEXT or (if (on) android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD else android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD) or android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                eCode.setSelection(sel.coerceIn(0, eCode.text.length))
+            }
+        }
+        col.addView(eName); col.addView(eCode); col.addView(cShow)
         fun run(create: Boolean) {
             val n = eName.text.toString(); val c = eCode.text.toString()
-            if (n.isBlank() || c.isBlank()) { toast(Tx.t("Name und Code eintragen.", "Enter name and code.")); return }
+            if (n.isBlank() || c.isBlank()) { toast(Tx.t("Name und Passwort eintragen.", "Enter name and password.")); return }
             exec.execute {
                 val r = if (create) ServerProfile.create(this, n, c) else ServerProfile.login(this, n, c)
                 runOnUiThread {
@@ -155,7 +165,7 @@ class ServerActivity : AppCompatActivity() {
                     if (!r.ok) { Toast.makeText(this, r.text, Toast.LENGTH_LONG).show(); return@runOnUiThread }
                     if (create) AlertDialog.Builder(this)
                         .setTitle(Tx.t("Profil angelegt", "Profile created"))
-                        .setMessage(Tx.t("Dein Code (bitte merken, zum Beispiel für den Planer am PC):\n\n", "Your code (please remember it, e.g. for the planner on the PC):\n\n") + r.code)
+                        .setMessage(Tx.t("Dein Passwort (bitte merken, zum Beispiel für den Planer am PC):\n\n", "Your password (please remember it, e.g. for the planner on the PC):\n\n") + r.code)
                         .setPositiveButton("OK", null).show()
                     else Toast.makeText(this, Tx.t("Angemeldet als ", "Signed in as ") + ServerProfile.name(this), Toast.LENGTH_SHORT).show()
                     render()
@@ -173,6 +183,43 @@ class ServerActivity : AppCompatActivity() {
             .setNegativeButton(Tx.t("Abbrechen", "Cancel"), null)
         if (ServerProfile.has(this)) b.setNeutralButton(Tx.t("Abmelden", "Sign out")) { _, _ -> ServerProfile.clear(this); render() }
         b.show()
+    }
+
+    /** Passwort ändern: bisheriges Passwort, neues Passwort, Wiederholung. Die Anmeldung auf diesem Gerät bleibt bestehen. */
+    private fun passwordDialog() {
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0) }
+        col.addView(TextView(this).apply {
+            text = Tx.t("Mindestens ${PasswordRules.MIN} Zeichen, Groß- und Kleinschreibung zählt. Keine Umlaute, kein | und kein ;",
+                "At least ${PasswordRules.MIN} characters, upper and lower case matter. No umlauts, no | and no ;")
+        })
+        fun field(h: String) = EditText(this).apply {
+            hint = h; setSingleLine(true)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        val eOld = field(Tx.t("Bisheriges Passwort", "Current password"))
+        val eNew = field(Tx.t("Neues Passwort", "New password"))
+        val eRep = field(Tx.t("Neues Passwort wiederholen", "Repeat new password"))
+        col.addView(eOld); col.addView(eNew); col.addView(eRep)
+        val d = AlertDialog.Builder(this).setTitle(Tx.t("Passwort ändern", "Change password")).setView(col)
+            .setPositiveButton(Tx.t("Ändern", "Change"), null)
+            .setNegativeButton(Tx.t("Abbrechen", "Cancel"), null).create()
+        d.setOnShowListener {
+            d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val o = eOld.text.toString(); val n = eNew.text.toString()
+                val err = PasswordRules.check(o, n, eRep.text.toString())
+                if (err != null) { toast(err); return@setOnClickListener }
+                exec.execute {
+                    val r = ServerProfile.changePassword(this, o, n)
+                    runOnUiThread {
+                        if (isFinishing || isDestroyed) return@runOnUiThread
+                        if (!r.ok) { Toast.makeText(this, r.text, Toast.LENGTH_LONG).show(); return@runOnUiThread }
+                        d.dismiss(); render()
+                        Toast.makeText(this, Tx.t("Passwort geändert.", "Password changed."), Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+        d.show()
     }
 
     private fun syncNow() {

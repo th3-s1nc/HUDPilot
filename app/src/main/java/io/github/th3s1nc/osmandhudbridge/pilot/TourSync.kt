@@ -9,8 +9,8 @@ import java.net.URL
 
 /** Touren mit dem eigenen Server abgleichen: geplante Touren holen/sichern, gefahrene Fahrten hochladen. */
 object TourSync {
-    class Planned(val id: String, val name: String, val profile: String, val points: Int, val updated: Long)
-    class Tour(val name: String, val profile: String, val points: List<Pair<Double, Double>>, val avoid: List<String>? = null)
+    class Planned(val id: String, val name: String, val profile: String, val points: Int, val updated: Long, val km: Double? = null, val min: Int? = null)
+    class Tour(val name: String, val profile: String, val points: List<Pair<Double, Double>>, val avoid: List<String>? = null, val cityw: Double? = null, val route: List<Pair<Double, Double>>? = null)
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("pilot_server", Context.MODE_PRIVATE)
     fun base(ctx: Context): String = RegionSync.serverUrl(ctx)
@@ -41,7 +41,8 @@ object TourSync {
         val a = JSONObject(txt).optJSONArray("touren") ?: return emptyList()
         return (0 until a.length()).map {
             val o = a.getJSONObject(it)
-            Planned(o.getString("id"), o.optString("name", "Tour"), o.optString("profile"), o.optInt("points"), o.optLong("updated"))
+            Planned(o.getString("id"), o.optString("name", "Tour"), o.optString("profile"), o.optInt("points"), o.optLong("updated"),
+                if (o.has("km") && !o.isNull("km")) o.optDouble("km") else null, if (o.has("min") && !o.isNull("min")) o.optInt("min") else null)
         }
     }
 
@@ -64,15 +65,18 @@ object TourSync {
         return try {
             val j = JSONObject(txt); val a = j.getJSONArray("points")
             Tour(j.optString("name", "Tour"), j.optString("profile"), (0 until a.length()).map { val p = a.getJSONArray(it); Pair(p.getDouble(0), p.getDouble(1)) },
-                j.optJSONArray("avoid")?.let { x -> (0 until x.length()).map { x.getString(it) } })
+                j.optJSONArray("avoid")?.let { x -> (0 until x.length()).map { x.getString(it) } },
+                if (j.has("cityw")) j.optDouble("cityw") else null,
+                j.optJSONArray("route")?.let { r -> (0 until r.length()).map { k -> val c = r.getJSONArray(k); Pair(c.getDouble(1), c.getDouble(0)) } }?.takeIf { it.size >= 2 })   // Server liefert [lon, lat, höhe]
         } catch (_: Exception) { null }
     }
 
     fun saveTour(ctx: Context, name: String, profile: String, points: List<Pair<Double, Double>>): Boolean {
         val b = base(ctx); if (b.isEmpty()) return false
         val pts = JSONArray(); for (p in points) pts.put(JSONArray().put(p.first).put(p.second))
-        val av = JSONArray(); for (k in PilotSession.avoid(ctx).on) av.put(k)
-        val body = JSONObject().put("name", name).put("profile", profile).put("avoid", av).put("points", pts).toString()
+        val avs = PilotSession.avoid(ctx)
+        val av = JSONArray(); for (k in avs.on) av.put(k)
+        val body = JSONObject().put("name", name).put("profile", profile).put("avoid", av).put("cityw", avs.cityw).put("points", pts).toString()
         return http(ctx, "$b/api/tour/save", body) != null
     }
 

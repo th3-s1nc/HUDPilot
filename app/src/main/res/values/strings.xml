@@ -269,7 +269,7 @@
     <string name="pilot_loaded_hint">Tipp auf eine Region: öffnet die Regionen-Seite.</string>
     <string name="ui_vom_server_holen">Jetzt vom Server holen</string>
     <string name="ui_gps_log">GPS-Log</string>
-    <string name="ui_gps_log_aufzeichnung">Aufzeichnung für die Fehlersuche</string>
+    <string name="ui_gps_log_aufzeichnung">Aufzeichnung</string>
     <string name="ui_gps_log_info">Speichert etwa jede Sekunde Position, Genauigkeit, Tempo, Richtung und Einrasten, dazu Abweichungen und Neuberechnungen. Nur auf diesem Handy, nichts wird automatisch gesendet. Mit „Teilen“ gibst du die Datei weiter. Nach 7 Tagen oder ab etwa 5 MB werden alte Zeilen gelöscht.</string>
     <string name="ui_gps_log_teilen">GPS-Log teilen</string>
     <string name="ui_gps_log_loeschen">GPS-Log löschen</string>

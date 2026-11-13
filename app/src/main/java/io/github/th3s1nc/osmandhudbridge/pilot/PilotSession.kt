@@ -16,8 +16,11 @@ object PilotSession {
     /** Profil und Vermeiden-Schalter einer Route aus dem Webplaner (gelten nur für diese Route). */
     val planner = PlannerOverride()
 
+    /** Gespeicherte Strecke einer vom Server geöffneten Tour (zu groß für einen Intent); wird beim Laden der Tour abgeholt. */
+    @Volatile var savedRoute: List<Pair<Double, Double>>? = null
+
     /** Vermeiden-Schalter, die jetzt gelten: die der Planer-Route, sonst die eigenen. */
-    fun avoid(ctx: Context): Avoid.Set = planner.avoid?.let { Avoid.Set(it) } ?: Avoid.get(ctx)
+    fun avoid(ctx: Context): Avoid.Set = planner.avoid?.let { Avoid.Set(it, planner.cityw ?: CityCost.DEFAULT) } ?: Avoid.get(ctx)
 
     private const val LAST = "pilot_last.gpx"
 

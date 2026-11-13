@@ -32,7 +32,7 @@ object PilotRouter {
         if (r.error != null) return Outcome.Failed(friendly(r.error))
         var avoided = 0
         // Liegt eine Sperrung auf der Route? Dann mit Sperrzonen neu rechnen; klappt das nicht, bleibt die erste Route.
-        if (Baustellen.avoidEnabled(ctx) && Baustellen.enabled(ctx)) {
+        if ((avoidOverride ?: Baustellen.avoidEnabled(ctx)) && Baustellen.enabled(ctx)) {
             if (Baustellen.sites.isEmpty()) Baustellen.loadCached(ctx)
             val closed = Baustellen.sites.filter { it.kind == "c" }
             val t = Baustellen.now()
@@ -54,6 +54,9 @@ object PilotRouter {
         avoidedRoute = route; avoidedCount = avoided
         return Outcome.Ok(route)
     }
+
+    /** Entscheidung beim Öffnen einer gespeicherten Tour mit Baustelle: true = umfahren, false = trotzdem so fahren, null = die Einstellung im Menü gilt. */
+    @Volatile var avoidOverride: Boolean? = null
 
     /** Ergebnis der letzten Berechnung: für welche Route, wie viele Sperrungen umfahren (>0), -1 = nicht umfahrbar, 0 = nichts zu tun. */
     @Volatile var avoidedRoute: PilotRoute? = null

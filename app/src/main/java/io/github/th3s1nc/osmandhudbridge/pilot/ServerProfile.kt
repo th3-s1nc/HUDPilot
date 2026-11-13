@@ -9,7 +9,7 @@ import java.net.URL
 import java.net.URLEncoder
 
 /**
- * Profil auf dem eigenen Server (ab Server v1.11): jede Person hat Name und Code, Touren und Fahrten gehören zum Profil.
+ * Profil auf dem eigenen Server (ab Server v1.11): jede Person hat Name und Passwort, Touren und Fahrten gehören zum Profil.
  * Neue Profile entstehen mit dem Einladungscode, den der Server-Betreiber in der Admin-Oberfläche festlegt.
  */
 object ServerProfile {
@@ -19,7 +19,7 @@ object ServerProfile {
     fun code(ctx: Context): String = prefs(ctx).getString("prof_code", "") ?: ""
     fun has(ctx: Context): Boolean = name(ctx).isNotEmpty() && code(ctx).isNotEmpty()
     fun set(ctx: Context, name: String, code: String) {
-        prefs(ctx).edit().putString("prof_name", name).putString("prof_code", code.trim().uppercase())
+        prefs(ctx).edit().putString("prof_name", name).putString("prof_code", code.trim())
             .remove("tours_cache").remove("rides_uploaded").remove("set_ts").remove("set_fp").putLong("outbox_ts", 0L).apply()
         authFailed = false
     }
@@ -67,7 +67,7 @@ object ServerProfile {
         } catch (_: Exception) { reachable = false; Result(false, Tx.t("Server nicht erreichbar.", "Server not reachable.")) }
     }
 
-    /** Mit vorhandenem Profil anmelden (Name + Code). */
+    /** Mit vorhandenem Profil anmelden (Name + Passwort). */
     fun login(ctx: Context, name: String, code: String): Result {
         val base = RegionSync.serverUrl(ctx)
         if (base.isEmpty()) return Result(false, Tx.t("Erst die Serveradresse eintragen (Menü → Server).", "Enter the server address first (menu → server)."))
@@ -75,17 +75,41 @@ object ServerProfile {
             val c = URL(base.trimEnd('/') + "/api/me").openConnection() as HttpURLConnection
             try {
                 c.connectTimeout = 4_000; c.readTimeout = 10_000; c.setRequestProperty("User-Agent", "HUDPilot")
-                c.setRequestProperty("X-Profile", URLEncoder.encode(name.trim(), "UTF-8").replace("+", "%20")); c.setRequestProperty("X-Code", code.trim().uppercase()); DeviceId.apply(c)
+                c.setRequestProperty("X-Profile", URLEncoder.encode(name.trim(), "UTF-8").replace("+", "%20")); c.setRequestProperty("X-Code", code.trim()); DeviceId.apply(c)
                 reachable = true
                 when (c.responseCode) {
                     200 -> {
                         val j = JSONObject(c.inputStream.bufferedReader().use { it.readText() })
                         set(ctx, j.optString("name", name.trim()), code); Result(true, "")
                     }
-                    401 -> Result(false, Tx.t("Name oder Code stimmt nicht.", "Name or code is wrong."))
+                    401 -> Result(false, Tx.t("Name oder Passwort stimmt nicht.", "Name or password is wrong."))
                     404 -> Result(false, Tx.t("Der Server kennt noch keine Profile (Server v1.11 nötig).", "The server does not know profiles yet (server v1.11 needed)."))
                     else -> Result(false, Tx.t("Anmelden nicht möglich.", "Could not sign in."))
                 }
+            } finally { c.disconnect() }
+        } catch (_: Exception) { reachable = false; Result(false, Tx.t("Server nicht erreichbar.", "Server not reachable.")) }
+    }
+
+    /** Passwort ändern (Server: POST /api/profile/code). Bei Erfolg gilt das neue Passwort sofort auch hier, die Anmeldung bleibt. Blockiert. */
+    fun changePassword(ctx: Context, old: String, neu: String): Result {
+        val base = RegionSync.serverUrl(ctx)
+        if (base.isEmpty() || !has(ctx)) return Result(false, Tx.t("Erst anmelden.", "Sign in first."))
+        return try {
+            val c = URL(base.trimEnd('/') + "/api/profile/code").openConnection() as HttpURLConnection
+            try {
+                c.connectTimeout = 4_000; c.readTimeout = 10_000; c.requestMethod = "POST"; c.doOutput = true
+                c.setRequestProperty("Content-Type", "application/json; charset=utf-8"); c.setRequestProperty("User-Agent", "HUDPilot")
+                apply(ctx, c)
+                c.outputStream.use { it.write(JSONObject().put("alt", old.trim()).put("neu", neu).toString().toByteArray(Charsets.UTF_8)) }
+                val code = c.responseCode
+                reachable = true
+                val txt = (if (code in 200..299) c.inputStream else c.errorStream)?.bufferedReader()?.use { it.readText() }
+                val j = try { JSONObject(txt ?: "{}") } catch (_: Exception) { JSONObject() }
+                if (code == 200 && j.optBoolean("ok")) {
+                    prefs(ctx).edit().putString("prof_code", neu).apply(); authFailed = false
+                    Result(true, "")
+                } else if (code == 404) Result(false, Tx.t("Der Server kann das Passwort noch nicht ändern (neuere Server-Version nötig).", "The server cannot change the password yet (newer server version needed)."))
+                else Result(false, j.optString("fehler").takeIf { it.isNotEmpty() } ?: Tx.t("Ändern nicht möglich.", "Could not change."))
             } finally { c.disconnect() }
         } catch (_: Exception) { reachable = false; Result(false, Tx.t("Server nicht erreichbar.", "Server not reachable.")) }
     }

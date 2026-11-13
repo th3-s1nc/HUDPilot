@@ -25,6 +25,16 @@ class Plan {
         return true
     }
 
+    /** Neues Ziel ans Ende hängen: das bisherige Ziel wird letztes Zwischenziel. Ohne Ziel wird [p] einfach das Ziel. false, wenn kein Platz mehr ist. */
+    fun appendDest(p: PlanPoint): Boolean {
+        val d = dest
+        if (d == null) { dest = p; return true }
+        if (!d.shape && visibleCount() >= MAX_VIAS) return false
+        vias += d
+        dest = p
+        return true
+    }
+
     /** Anzahl der echten Zwischenziele (ohne Formpunkte). */
     fun visibleCount(): Int = vias.count { !it.shape }
 

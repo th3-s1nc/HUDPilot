@@ -15,9 +15,15 @@ class Site(
     /** true = der Server hat keine Straße gefunden: die Linie ist nur die Luftlinie zwischen Anfang und Ende (wird gestrichelt gezeichnet). */
     val approx: Boolean = false
 ) {
+    /** Zum Prüfen und Umfahren brauchbar? Mit echter Straße ja; nur Luftlinie nur, wenn sie kurz ist (wie auf dem Server). */
+    val usable: Boolean get() = !approx || BaustellenLogic.distM(line.first(), line.last()) <= SHORT_OK_M
+
     val minLat = line.minOf { it.first }; val maxLat = line.maxOf { it.first }
     val minLon = line.minOf { it.second }; val maxLon = line.maxOf { it.second }
 }
+
+/** Eine reine Luftlinie bis zu dieser Länge gilt noch als brauchbar (liegt meist nah an der Straße). */
+const val SHORT_OK_M = 300.0
 
 class SiteHit(val site: Site, val distM: Double)
 
@@ -27,6 +33,10 @@ object BaustellenLogic {
 
     /** Gilt die Meldung zum Zeitpunkt t (Sekunden)? Ende 0 = gilt weiter. */
     fun activeAt(s: Site, t: Long): Boolean = (s.endSec == 0L || s.endSec >= t) && (s.startSec == 0L || s.startSec <= t)
+
+    /** Abstand zweier Punkte (lat, lon) in Metern, flache Näherung. */
+    fun distM(a: Pair<Double, Double>, b: Pair<Double, Double>): Double =
+        hypot((b.first - a.first) * 110_540.0, (b.second - a.second) * 111_320.0 * cos(Math.toRadians((a.first + b.first) / 2)))
 
     /** Abstand eines Punkts zu einer Strecke in Metern (flache Näherung, genau genug für Straßen). */
     fun segDist(p: Pair<Double, Double>, a: Pair<Double, Double>, b: Pair<Double, Double>): Double {
@@ -69,7 +79,7 @@ object BaustellenLogic {
         val padLat = radiusM / 110_540.0; val padLon = radiusM / (111_320.0 * cos(Math.toRadians((mLat + xLat) / 2)))
         val out = ArrayList<SiteHit>()
         for (s in sites) {
-            if (s.kind == "w" || !activeAt(s, t)) continue
+            if (s.kind == "w" || !s.usable || !activeAt(s, t)) continue
             if (s.maxLat < mLat - padLat || s.minLat > xLat + padLat || s.maxLon < mLon - padLon || s.minLon > xLon + padLon) continue
             val d = minDist(route, s.line, radiusM)
             if (d <= radiusM) out += SiteHit(s, d)
@@ -90,7 +100,7 @@ object BaustellenLogic {
         mLat -= pad; xLat += pad; mLon -= pad; xLon += pad
         val out = ArrayList<DoubleArray>()
         for (s in sites) {
-            if (s.kind != "c" || !activeAt(s, t)) continue
+            if (s.kind != "c" || !s.usable || !activeAt(s, t)) continue
             if (s.maxLat < mLat || s.minLat > xLat || s.maxLon < mLon || s.minLon > xLon) continue
             val line = if (s.line.size <= 40) s.line else (0 until 39).map { s.line[it * (s.line.size - 1) / 39] } + s.line.last()
             val a = DoubleArray(line.size * 2); line.forEachIndexed { i, p -> a[2 * i] = p.first; a[2 * i + 1] = p.second }
@@ -132,5 +142,20 @@ object BaustellenLogic {
                 (if (restr > 0) "$restr Einschränkung" + (if (restr > 1) "en" else "") else "") + " auf der Route"
         }
         return "⚠ $head: ${title(first)}$until" + if (hits.size > 1) (if (en) " …" else " …") else ""
+    }
+
+    /** Liegt auf der gespeicherten Strecke einer Tour (Punkte als lat, lon) heute eine Sperrung oder Einschränkung? Gesperrte zuerst. */
+    fun tourHits(route: List<Pair<Double, Double>>, sites: List<Site>, t: Long): List<SiteHit> = onRoute(route, sites, t)
+
+    fun closedCount(hits: List<SiteHit>): Int = hits.count { it.site.kind == "c" }
+
+    /** Text für die Frage beim Öffnen einer gespeicherten Tour: bis zu drei Meldungen, dann "und n weitere". */
+    fun tourMessage(hits: List<SiteHit>, en: Boolean = false): String {
+        val lines = hits.take(3).map { h ->
+            val until = untilText(h.site).let { if (it.isEmpty()) "" else (if (en) ", until " else ", bis ") + it }
+            "• " + kindName(h.site.kind, en) + ": " + title(h.site).ifEmpty { if (en) "(no name)" else "(ohne Namen)" } + until
+        }
+        val more = hits.size - lines.size
+        return lines.joinToString("\n") + if (more > 0) (if (en) "\n… and $more more" else "\n… und $more weitere") else ""
     }
 }

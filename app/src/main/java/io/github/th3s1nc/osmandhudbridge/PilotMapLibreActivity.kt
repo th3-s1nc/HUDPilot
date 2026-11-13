@@ -16,6 +16,7 @@ import android.net.Uri
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.SeekBar
 import android.graphics.Path
 import android.graphics.drawable.BitmapDrawable
 import android.location.Location
@@ -31,11 +32,13 @@ import io.github.th3s1nc.osmandhudbridge.track.RideFormat
 import io.github.th3s1nc.osmandhudbridge.track.RideStore
 import io.github.th3s1nc.osmandhudbridge.track.TrackRecorder
 import io.github.th3s1nc.osmandhudbridge.pilot.Avoid
+import io.github.th3s1nc.osmandhudbridge.pilot.CityCost
 import io.github.th3s1nc.osmandhudbridge.pilot.RouteSnap
 import io.github.th3s1nc.osmandhudbridge.pilot.RegionSync
 import io.github.th3s1nc.osmandhudbridge.pilot.AutoSync
 import io.github.th3s1nc.osmandhudbridge.pilot.Baustellen
 import io.github.th3s1nc.osmandhudbridge.pilot.BaustellenLogic
+import io.github.th3s1nc.osmandhudbridge.pilot.SiteHit
 import io.github.th3s1nc.osmandhudbridge.pilot.Favs
 import io.github.th3s1nc.osmandhudbridge.pilot.FriendsApi
 import io.github.th3s1nc.osmandhudbridge.pilot.FriendsLogic
@@ -433,8 +436,8 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         ).apply { minZoom = 8f })
         // Keine Straße gefunden: nur die Luftlinie zwischen den zwei Punkten, gestrichelt
         st.addLayer(LineLayer("bs-dash", "bs-src").withFilter(Expression.eq(Expression.get("z"), Expression.literal(1))).withProperties(
-            PropertyFactory.lineColor(bsColor), PropertyFactory.lineWidth(5f),
-            PropertyFactory.lineDasharray(arrayOf(1.6f, 1.4f)), PropertyFactory.lineCap("butt"), PropertyFactory.lineOpacity(0.85f)
+            PropertyFactory.lineColor(bsColor), PropertyFactory.lineWidth(4f),
+            PropertyFactory.lineDasharray(arrayOf(2f, 1.5f)), PropertyFactory.lineCap("butt"), PropertyFactory.lineOpacity(0.75f)
         ).apply { minZoom = 8f })
         st.addSource(GeoJsonSource("route-src"))
         st.addLayer(LineLayer("route-casing", "route-src").withProperties(
@@ -511,7 +514,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         val x = Baustellen.sites.getOrNull(f.getNumberProperty("n")?.toInt() ?: -1) ?: return false
         val until = BaustellenLogic.untilText(x)
         AlertDialog.Builder(this)
-            .setTitle(BaustellenLogic.kindName(x.kind, Tx.en) + if (x.road.isNotEmpty()) " · " + x.road else "")
+            .setTitle(BaustellenLogic.kindName(x.kind, Tx.en) + (if (x.road.isNotEmpty()) " · " + x.road else "") + (if (x.approx) Tx.t(" · Lage ungefähr", " · position approximate") else ""))
             .setMessage(x.text + if (until.isNotEmpty()) "\n\n" + Tx.t("Bis ", "Until ") + until else "")
             .setPositiveButton("OK", null).show()
         return true
@@ -1710,13 +1713,46 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         val cur = PilotSession.avoid(this)
         showMenu(Tx.t("Vermeiden", "Avoid"), Avoid.KEYS.map { k ->
             MRow(if (cur.has(k)) "✓" else "○", Avoid.label(k), chevron = false) {
-                PilotSession.planner.avoid?.let { a -> Avoid.KEYS.forEach { x -> Avoid.set(this, x, x in a) } }
-                PilotSession.planner.dropAvoid()
+                adoptPlannerAvoid()
                 Avoid.set(this, k, !cur.has(k))
                 if (pl.dest != null && !PilotNav.guiding) changed()
                 menuAvoid()
             }
-        }, { menuNav() })
+        } + MRow("↔", Tx.t("Stärke der Ortsmeidung", "Town avoidance strength"), value = CityCost.num(cur.cityw)) { cityStrengthDialog() }, { menuNav() })
+    }
+
+    /** Hat eine Planer-Route eigene Vermeiden-Schalter, werden sie vor einer Änderung zu den eigenen (samt Stärke). */
+    private fun adoptPlannerAvoid() {
+        PilotSession.planner.avoid?.let { a ->
+            Avoid.KEYS.forEach { x -> Avoid.set(this, x, x in a) }
+            PilotSession.planner.cityw?.let { Avoid.setCityStrength(this, it) }
+        }
+        PilotSession.planner.dropAvoid()
+    }
+
+    /** Regler für die Stärke der Ortsmeidung (0,5 bis 4). Größer = Ortschaften werden stärker umfahren, Umwege werden länger. */
+    private fun cityStrengthDialog() {
+        val steps = CityCost.STEPS
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(12), dp(20), 0) }
+        val tv = TextView(this).apply { textSize = 18f }
+        val sb = SeekBar(this).apply { max = steps.size - 1; progress = steps.indexOf(PilotSession.avoid(this@PilotMapLibreActivity).cityw).coerceAtLeast(0) }
+        fun upd() { tv.text = Tx.t("Stärke: ", "Strength: ") + CityCost.num(steps[sb.progress]) }
+        upd()
+        sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar?, p: Int, u: Boolean) = upd()
+            override fun onStartTrackingTouch(s: SeekBar?) {}
+            override fun onStopTrackingTouch(s: SeekBar?) {}
+        })
+        col.addView(tv); col.addView(sb)
+        col.addView(TextView(this).apply { textSize = 13f; text = Tx.t("Wirkt nur, wenn „Ortsdurchfahrten“ eingeschaltet ist. Kleiner Wert = leicht meiden, großer Wert = stark meiden.", "Only works when “Town centres” is switched on. Small = avoid slightly, large = avoid strongly.") })
+        AlertDialog.Builder(this).setTitle(Tx.t("Stärke der Ortsmeidung", "Town avoidance strength")).setView(col)
+            .setPositiveButton("OK") { _, _ ->
+                adoptPlannerAvoid()
+                Avoid.setCityStrength(this, steps[sb.progress])
+                if (pl.dest != null && !PilotNav.guiding && Avoid.get(this).has(Avoid.CITY)) changed()
+                menuAvoid()
+            }
+            .setNegativeButton(Tx.t("Abbrechen", "Cancel")) { _, _ -> menuAvoid() }.show()
     }
 
     private fun menuRecord() {
@@ -2441,16 +2477,25 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         val pt = PlanPoint(lat, lon, name ?: Plan.coordName(lat, lon))
         val mode = addMode
         addMode = 0
+        // Jeder gewählte Ort kommt sofort in den Verlauf (nicht erst beim Losfahren)
+        addHistory(HistEntry(null, pt.name, pt.lat, pt.lon, System.currentTimeMillis()))
         when {
             pl.dest == null -> { pl.dest = pt; changed() }
             mode == 1 -> addViaPoint(pt)
             mode == 2 -> { pl.start = pt; changed() }
             else -> AlertDialog.Builder(this)
                 .setTitle(pt.name)
-                .setItems(arrayOf(Tx.t("Neues Ziel (ersetzt das alte)", "New destination (replaces the old one)"), Tx.t("Zwischenziel", "Waypoint"), Tx.t("Start", "Start"))) { _, which ->
+                .setItems(arrayOf(
+                    Tx.t("Ans Ende anhängen (altes Ziel wird Zwischenziel)", "Add at the end (old destination becomes a waypoint)"),
+                    Tx.t("Neues Ziel (ersetzt das alte)", "New destination (replaces the old one)"),
+                    Tx.t("Zwischenziel", "Waypoint"), Tx.t("Start", "Start"))) { _, which ->
                     when (which) {
-                        0 -> { pl.dest = pt; changed() }
-                        1 -> addViaPoint(pt)
+                        0 -> {
+                            if (pl.appendDest(pt)) changed()
+                            else Toast.makeText(this, Tx.t("Höchstens ${Plan.MAX_VIAS} Zwischenziele.", "At most ${Plan.MAX_VIAS} waypoints."), Toast.LENGTH_SHORT).show()
+                        }
+                        1 -> { pl.dest = pt; changed() }
+                        2 -> addViaPoint(pt)
                         else -> { pl.start = pt; changed() }
                     }
                 }
@@ -2488,6 +2533,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         startAfterPlan = false
         planning = false; planMsg = null
         PilotSession.profileId = PilotSession.planner.end(PilotSession.profileId)
+        PilotRouter.avoidOverride = null
         PilotSession.route = null
         showRoute(null)
         pushPoints()
@@ -2821,7 +2867,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
             }
         }
         if (l.isEmpty()) return
-        box.addView(label(Tx.t("Zuletzt gefahren  ·  Verlauf löschen", "Recently driven  ·  clear history"), 14f, 0xFFB0B0B8.toInt()).apply {
+        box.addView(label(Tx.t("Zuletzt verwendet  ·  Verlauf löschen", "Recently used  ·  clear history"), 14f, 0xFFB0B0B8.toInt()).apply {
             setPadding(dp(8), dp(10), dp(8), dp(6)); isClickable = true
             setOnClickListener { saveHistory(emptyList()); showResults(null, null) }
         })
@@ -3015,7 +3061,10 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         i.removeExtra("tour_pts")
         val av = i.getStringArrayExtra("tour_avoid")?.toList()
         i.removeExtra("tour_avoid")
-        pendingTour = RegionSync.Outbox(0L, name, prof, (0 until arr.size / 2).map { Pair(arr[it * 2], arr[it * 2 + 1]) }, av)
+        val cw = if (i.hasExtra("tour_cityw")) i.getDoubleExtra("tour_cityw", CityCost.DEFAULT) else null
+        i.removeExtra("tour_cityw")
+        pendingTour = RegionSync.Outbox(0L, name, prof, (0 until arr.size / 2).map { Pair(arr[it * 2], arr[it * 2 + 1]) }, av, cw, PilotSession.savedRoute)
+        PilotSession.savedRoute = null
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -3100,10 +3149,27 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
         for (i in 1 until p.size - 1) pl.addVia(PlanPoint(p[i].first, p[i].second, Tx.t("Zwischenziel ", "Waypoint ") + i, dense))
         pl.dest = PlanPoint(p.last().first, p.last().second, o.name)
         if (o.profile.isNotEmpty() || o.avoid != null)   // GPX-Dateien haben beides nicht
-            PilotSession.profileId = PilotSession.planner.begin(PilotSession.profileId, o.profile, o.avoid, PilotStore.profiles.map { it.id })
+            PilotSession.profileId = PilotSession.planner.begin(PilotSession.profileId, o.profile, o.avoid, PilotStore.profiles.map { it.id }, o.cityw)
         moveCam(LatLng(p.first().first, p.first().second), null, 10.0, false)
+        val hits = o.route?.takeIf { Baustellen.enabled(this) && Baustellen.sites.isNotEmpty() }
+            ?.let { BaustellenLogic.tourHits(it, Baustellen.sites, Baustellen.now()) } ?: emptyList()
+        if (hits.isNotEmpty()) PilotRouter.avoidOverride = false   // erst so, wie gespeichert; geändert wird nur nach deiner Antwort
         changed()
         Toast.makeText(this, if (PilotSession.planner.active) msg + "\n" + plannerHint() else msg, Toast.LENGTH_LONG).show()
+        if (hits.isNotEmpty()) askRoadworks(hits)
+    }
+
+    /** Eine gespeicherte Tour führt an einer aktuellen Baustelle oder Sperrung vorbei: umfahren oder trotzdem so fahren? */
+    private fun askRoadworks(hits: List<SiteHit>) {
+        val closed = BaustellenLogic.closedCount(hits)
+        val b = AlertDialog.Builder(this)
+            .setTitle(Tx.t("Baustelle auf der Tour", "Roadworks on the tour"))
+            .setMessage(BaustellenLogic.tourMessage(hits, Tx.en) + (if (closed == 0) "\n\n" + Tx.t("Eingeschränkt befahrbar, nicht gesperrt. Die Tour bleibt, wie sie ist.", "Passable with restrictions, not closed. The tour stays as it is.") else ""))
+        if (closed > 0) {
+            b.setPositiveButton(Tx.t("Umfahren", "Avoid")) { _, _ -> PilotRouter.avoidOverride = true; if (pl.dest != null && !PilotNav.guiding) changed() }
+            b.setNegativeButton(Tx.t("Trotzdem so fahren", "Keep the tour")) { _, _ -> PilotRouter.avoidOverride = false }
+        } else b.setPositiveButton("OK", null)
+        b.show()
     }
 
     /** Kurzer Hinweis, mit welchem Profil und welchen Vermeiden-Schaltern eine Planer-Route gerechnet wird. */
@@ -3576,7 +3642,7 @@ class PilotMapLibreActivity : AppCompatActivity(), PilotNav.Listener {
     }
 
     private companion object {
-        const val HIST_MAX = 10
+        const val HIST_MAX = 30
 
         /** Wo auf dem Bildschirm die eigene Position sitzt (von oben gerechnet): unten, damit man mehr von der Strecke voraus sieht. */
         const val CENTER_Y = 0.72f

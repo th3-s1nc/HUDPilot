@@ -268,7 +268,7 @@
     <string name="pilot_loaded_hint">Tap a region: opens the regions page.</string>
     <string name="ui_vom_server_holen">Get from server now</string>
     <string name="ui_gps_log">GPS log</string>
-    <string name="ui_gps_log_aufzeichnung">Recording for troubleshooting</string>
+    <string name="ui_gps_log_aufzeichnung">Recording</string>
     <string name="ui_gps_log_info">Saves position, accuracy, speed, heading and snapping about once a second, plus off-route events and recalculations. Only on this phone, nothing is sent automatically. Use “Share” to pass the file on. Old lines are deleted after 7 days or at about 5 MB.</string>
     <string name="ui_gps_log_teilen">Share GPS log</string>
     <string name="ui_gps_log_loeschen">Delete GPS log</string>

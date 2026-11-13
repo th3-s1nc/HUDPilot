@@ -115,7 +115,7 @@ class TourenView(private val act: AppCompatActivity) {
         if (status.isNotEmpty()) box.addView(tv(status, 13f, muted = true).apply { setPadding(0, dp(8), 0, dp(4)) })
         if (l.isEmpty()) { box.addView(tv(Tx.t("Noch keine geplante Tour. Im Webplaner speichern, oder in der Karte unter ▦ → „Plan auf Server speichern“.", "No planned tour yet. Save one in the web planner, or on the map under ▦ → “Save plan to server”."), 14f, muted = true).apply { setPadding(0, dp(10), 0, 0) }); return }
         val df = SimpleDateFormat("dd.MM.yyyy", Tx.loc())
-        for (p in l) box.addView(row(p.name, p.points.toString() + Tx.t(" Punkte · ", " points · ") + p.profile.removePrefix("motorrad_") + " · " + df.format(Date(p.updated * 1000)), { openPlanned(p) }))
+        for (p in l) box.addView(row(p.name, io.github.th3s1nc.osmandhudbridge.pilot.TourText.kmMin(p.km, p.min) ?: df.format(Date(p.updated * 1000)), { openPlanned(p) }))
         box.addView(tv(Tx.t("Antippen legt die Tour in die Planung der Karte.", "Tap to put the tour into the map planning."), 12f, muted = true).apply { setPadding(0, dp(10), 0, 0) })
     }
 
@@ -126,17 +126,18 @@ class TourenView(private val act: AppCompatActivity) {
             main.post {
                 if (act.isFinishing || act.isDestroyed) return@post
                 if (t == null || t.points.size < 2) { Toast.makeText(act, Tx.t("Tour nicht ladbar (Server erreichbar?).", "Tour not loadable (server reachable?)."), Toast.LENGTH_LONG).show(); return@post }
-                openOnMap(t.name, t.profile, t.points, t.avoid)
+                io.github.th3s1nc.osmandhudbridge.pilot.PilotSession.savedRoute = t.route
+                openOnMap(t.name, t.profile, t.points, t.avoid, t.cityw)
             }
         }
     }
 
-    private fun openOnMap(name: String, profile: String, pts: List<Pair<Double, Double>>, avoid: List<String>? = null) {
+    private fun openOnMap(name: String, profile: String, pts: List<Pair<Double, Double>>, avoid: List<String>? = null, cityw: Double? = null) {
         val arr = DoubleArray(pts.size * 2) { if (it % 2 == 0) pts[it / 2].first else pts[it / 2].second }
         act.startActivity(Intent(act, PilotMapLibreActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra("tour_name", name).putExtra("tour_profile", profile).putExtra("tour_pts", arr)
-            .apply { if (avoid != null) putExtra("tour_avoid", avoid.toTypedArray()) })
+            .apply { if (avoid != null) putExtra("tour_avoid", avoid.toTypedArray()); if (cityw != null) putExtra("tour_cityw", cityw) })
     }
 
     private fun renderRides(l: List<Ride>) {
@@ -154,7 +155,7 @@ class TourenView(private val act: AppCompatActivity) {
         val up = TourSync.uploadedIds(act)
         for (r in l) {
             val s = r.stats
-            val sub = RideStore.dateText(s.startMs) + " · " + RideFormat.distance(s.distanceM) + " · " + RideFormat.duration(s.movingMs) + " · max ${s.maxKmh} km/h" +
+            val sub = RideStore.dateText(s.startMs) + " · " + RideFormat.distance(s.distanceM) + " · " + RideFormat.duration(s.movingMs) + " · Ø ${s.avgKmh} km/h" +
                 (if (TourSync.base(act).isEmpty()) "" else if (r.id in up) "  ✓ " + Tx.t("auf Server", "on server") else "  ○ " + Tx.t("noch nicht auf Server", "not on server yet"))
             box.addView(row(r.name, sub, { act.startActivity(Intent(act, RideDetailActivity::class.java).putExtra(RideDetailActivity.EXTRA_ID, r.id)) }, { rideActions(r) }))
         }
