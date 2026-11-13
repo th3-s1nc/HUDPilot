@@ -18,7 +18,7 @@ import baustellen as BSM
 import friends as FR
 import notify as NT
 SESS_TOKEN = hmac.new(ADMIN_PW.encode(), b"hudsess", hashlib.sha256).hexdigest() if ADMIN_PW else ""
-VERSION = "1.37.0"; STARTED = int(time.time())
+VERSION = "1.49.1"; STARTED = int(time.time())
 UA = f"hudpilot-server/{VERSION} (private use)"
 LIMITS_DIR = os.environ.get("LIMITS_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "limits"))   # Import-Code der App (Klassen-Ordner, gebaut mit limits-tool/build.sh)
 LIMITS_MAIN = "io.github.th3s1nc.osmandhudbridge.limit.LimitsCliKt"
@@ -73,6 +73,7 @@ CFG = {"limit_in_mbit": 0.0, "limit_out_mbit": 0.0, "win_start": 1, "win_end": 6
        "every_days": int(os.environ.get("UPDATE_EVERY_DAYS", "30")),
        "log_level": "normal", "log_cats": list(LOG_PRESETS["normal"]), "extern_karten": False,
        "br_mem_mb": 4096, "br_threads": 8,   # Rechenleistung für BRouter (Routenberechnung)
+       "bs_aktiv": True, "bs_win_start": None, "bs_win_end": None, "bs_every_h": 24,   # Baustellen-Abruf: eigener Schalter, eigenes Zeitfenster, Abstand in Stunden
        "nur_gebaute": True, "versteckt": [],   # Sichtbarkeit in der App: nur gebaute Regionen anbieten; einzelne Regionen ausblenden
        "regions": list(BASE_IDS)}   # erzeugte Europa-Regionen sind nie von selbst angehakt
 if os.environ.get("REGIONS", "ALL") != "ALL":
@@ -81,12 +82,16 @@ if os.environ.get("REGIONS", "ALL") != "ALL":
 def load_cfg():
     try: CFG.update(json.load(open(f"{DATA}/config.json", encoding="utf-8")))
     except Exception: pass
+    # Baustellen-Fenster: solange noch keins gewählt ist, gilt das Fenster der Karten (so war es bis v1.38)
+    if CFG.get("bs_win_start") is None: CFG["bs_win_start"] = CFG["win_start"]
+    if CFG.get("bs_win_end") is None: CFG["bs_win_end"] = CFG["win_end"]
 def save_cfg():
     os.makedirs(DATA, exist_ok=True)
     json.dump(CFG, open(f"{DATA}/config.json", "w", encoding="utf-8"), indent=1)
 
-def in_window(h):
-    s, e = int(CFG["win_start"]), int(CFG["win_end"])
+def in_window(h, s=None, e=None):
+    """Liegt die Stunde h im Zeitfenster? Ohne s und e gilt das Fenster der Karten."""
+    s = int(CFG["win_start"] if s is None else s); e = int(CFG["win_end"] if e is None else e)
     if s == e: return True
     return s <= h < e if s < e else (h >= s or h < e)
 def cur_limit_mbit():
@@ -382,9 +387,132 @@ def poi_rows(lines):
 POI_CATS = {"fuel": {"fuel"}, "food": {"restaurant", "cafe", "pub", "biergarten", "fast_food", "bar", "ice_cream"},
             "hotel": {"hotel", "guest_house", "hostel", "motel"}, "parking": {"parking", "motorcycle_parking"}}
 
+def route_full(pts, prof, avoid, cityw=None):
+    """Länge (km), Fahrzeit (min), Anstieg (m) und die Strecke selbst ([[lon, lat, höhe], ...]) einer Tour: Etappen einzeln über BRouter. None, wenn eine Etappe nicht rechenbar ist."""
+    from concurrent.futures import ThreadPoolExecutor
+    def leg(i):
+        q = urllib.parse.urlencode({"lonlats": f"{pts[i][1]},{pts[i][0]}|{pts[i + 1][1]},{pts[i + 1][0]}", "profile": prof, "avoid": ",".join(avoid or []), "cityw": cityw or "", "alternativeidx": "0", "format": "geojson"})
+        code, body = route_proxy_raw(q)
+        if code != 200: return None
+        f = json.loads(body)["features"][0]; p = f["properties"]
+        return float(p["track-length"]), float(p["total-time"]), float(p.get("filtered ascend", 0) or 0), f["geometry"]["coordinates"]
+    with ThreadPoolExecutor(4) as ex: r = list(ex.map(leg, range(len(pts) - 1)))
+    if not r or any(x is None for x in r): return None
+    co = []
+    for i, x in enumerate(r): co += x[3][1:] if i else x[3]
+    return round(sum(x[0] for x in r) / 1000, 1), int(round(sum(x[1] for x in r) / 60)), int(round(sum(x[2] for x in r))), co
+
+def route_stats(pts, prof, avoid, cityw=None):
+    """Wie route_full, aber nur Länge, Zeit und Anstieg."""
+    r = route_full(pts, prof, avoid, cityw)
+    return r[:3] if r else None
+
+def _alte_touren():
+    """Gibt es noch Touren ohne Länge/Zeit oder ohne gespeicherte Strecke?"""
+    for d in os.listdir(f"{DATA}/profiles") if os.path.isdir(f"{DATA}/profiles") else []:
+        td = f"{DATA}/profiles/{d}/tours"
+        for fn in (os.listdir(td) if os.path.isdir(td) else []):
+            try:
+                t = json.load(open(f"{td}/{fn}", encoding="utf-8"))
+                if fn.endswith(".json") and len(t.get("points", [])) >= 2 and (t.get("km") is None or not os.path.exists(f"{td}/{fn[:-5]}.rt")): return True
+            except Exception: pass
+    return False
+
+def tours_nachrechnen():
+    """Touren ohne Länge/Zeit oder ohne gespeicherte Strecke (alte Touren) einmal nachrechnen und eintragen. Punkte, Profil und Schalter bleiben unverändert."""
+    n = 0
+    for d in [p for p in os.listdir(f"{DATA}/profiles")] if os.path.isdir(f"{DATA}/profiles") else []:
+        td = f"{DATA}/profiles/{d}/tours"
+        if not os.path.isdir(td): continue
+        for fn in os.listdir(td):
+            if not fn.endswith(".json"): continue
+            try:
+                t = json.load(open(f"{td}/{fn}", encoding="utf-8"))
+                rt = f"{td}/{fn[:-5]}.rt"
+                if (t.get("km") is not None and os.path.exists(rt)) or len(t.get("points", [])) < 2: continue
+                r = route_full(t["points"], t.get("profile") if t.get("profile") in PROFILES else PROFILES[0], t.get("avoid", []), t.get("cityw"))
+                if not r: continue
+                if t.get("km") is None:
+                    t["km"], t["min"], t["asc"] = r[:3]
+                    json.dump(t, open(f"{td}/{fn}", "w", encoding="utf-8"), ensure_ascii=False)
+                co = route_clean(r[3], t["points"])
+                if co: json.dump(co, open(rt, "w"), separators=(",", ":"))
+                n += 1
+            except Exception as ex: log(f"Tour nachrechnen: {fn}: {str(ex)[:80]}", cat="karte")
+    if n: log(f"Länge, Zeit und Strecke von {n} alten Tour(en) nachgetragen", cat="karte")
+    return n
+
+GRENZ_DIR = f"{DATA}/grenzen"; GRENZ_TRY = {}   # echte Grenzlinien je Region (Geofabrik .poly), vereinfacht und zwischengespeichert
+
+def poly_parse(text):
+    """Geofabrik/Osmosis .poly -> Liste äußerer Ringe [[lon, lat], ...]. Löcher (Abschnittsname mit "!") werden ignoriert."""
+    rings = []; cur = None; hole = False; first = True
+    for ln in text.splitlines():
+        ln = ln.strip()
+        if not ln: continue
+        if first: first = False; continue   # Kopfzeile = Name der Datei
+        if ln == "END":
+            if cur is not None and len(cur) >= 3 and not hole: rings.append(cur)
+            cur = None; continue
+        parts = ln.split()
+        if cur is None:
+            cur = []; hole = parts[0].startswith("!")
+            if len(parts) == 1: continue   # Abschnittsname
+        if len(parts) >= 2:
+            try: cur.append([float(parts[0]), float(parts[1])])
+            except ValueError: pass
+    return rings
+
+def poly_simplify(ring, tol=0.003):
+    """Douglas-Peucker (Toleranz in Grad, 0,003 = etwa 300 m); iterativ, damit große Ringe keine Rekursionsgrenze treffen."""
+    n = len(ring)
+    if n < 4: return ring
+    keep = [False] * n; keep[0] = keep[-1] = True; stack = [(0, n - 1)]
+    while stack:
+        a, b = stack.pop()
+        ax, ay = ring[a]; bx, by = ring[b]; dx, dy = bx - ax, by - ay; L = dx * dx + dy * dy; md, mi = 0.0, -1
+        for i in range(a + 1, b):
+            px, py = ring[i]
+            if L == 0: d = math.hypot(px - ax, py - ay)
+            else:
+                t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / L)); d = math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+            if d > md: md, mi = d, i
+        if mi >= 0 and md > tol: keep[mi] = True; stack += [(a, mi), (mi, b)]
+    return [p for p, k in zip(ring, keep) if k]
+
+def grenzen_laden(fetch=None):
+    """Fehlende Grenzlinien der gebauten Regionen holen (https://download.geofabrik.de/<pbf>.poly). Gibt die Zahl neu geholter zurück."""
+    os.makedirs(GRENZ_DIR, exist_ok=True); n = 0
+    for r in REGIONS:
+        if not r.get("pbf") or not os.path.exists(f"{PUB}/maps/{r['id']}.pmtiles"): continue
+        fn = f"{GRENZ_DIR}/{r['id']}.json"
+        if os.path.exists(fn) or time.time() - GRENZ_TRY.get(r["id"], 0) < 1800: continue
+        GRENZ_TRY[r["id"]] = time.time()
+        try:
+            url = f"https://download.geofabrik.de/{r['pbf']}.poly"
+            if fetch: txt = fetch(url)
+            else:
+                tmp = fn + ".poly"
+                subprocess.run(["curl", "-fsSL", "-A", UA, "-o", tmp, url], env=sub_env(), capture_output=True, timeout=90, check=True)
+                txt = open(tmp, encoding="utf-8", errors="replace").read(); os.remove(tmp)
+            rings = [poly_simplify(x) for x in poly_parse(txt)]
+            if not rings: raise ValueError("keine Grenzlinie in der Datei")
+            json.dump({"ringe": rings}, open(fn + ".new", "w")); os.replace(fn + ".new", fn); n += 1
+            log(f"Grenzlinie geholt: {r['name']} ({sum(len(x) for x in rings)} Punkte)", cat="karte")
+        except Exception as ex:
+            log(f"Grenzlinie nicht geholt: {r['name']}: {str(ex)[:100]}", cat="karte")
+    return n
+
 def laender_boxen():
-    """Gebaute Regionen mit Land und Rahmen (für den Planer: Rundtour im Land bleiben)."""
-    return [{"land": r["land"], "bbox": r["bbox"]} for r in REGIONS if os.path.exists(f"{PUB}/maps/{r['id']}.pmtiles")]
+    """Gebaute Regionen mit Land, Rahmen und (wenn geholt) echter Grenzlinie (für den Planer: Rundtour im Land bleiben)."""
+    out = []
+    for r in REGIONS:
+        if not os.path.exists(f"{PUB}/maps/{r['id']}.pmtiles"): continue
+        e = {"land": r["land"], "bbox": r["bbox"]}
+        try: e["poly"] = json.load(open(f"{GRENZ_DIR}/{r['id']}.json"))["ringe"]
+        except Exception: pass
+        out.append(e)
+    return out
 
 def poi_search(cat, lat, lon, km=15.0, limit=40):
     """Orte einer Kategorie im Umkreis aus den gebauten POI-Dateien (pois/<id>.tsv.gz). Sortiert nach Entfernung.
@@ -855,25 +983,35 @@ def scheduler():
 BR_JAR = os.environ.get("BROUTER_JAR", "/opt/brouter/brouter.jar"); BR_PORT = int(os.environ.get("BROUTER_PORT", "17777"))
 BR_PROF = f"{DATA}/brouter/profiles2"; BR_PROC = {"p": None}
 PROFILES = ["motorrad_landstrasse", "motorrad_kurvig", "motorrad_schnell", "motorrad_schnellste", "auto"]
-AVOID_KEYS = ["motorway", "ferry", "toll", "unpaved"]   # "Vermeiden"-Schalter, wie in der App
+AVOID_KEYS = ["motorway", "ferry", "toll", "unpaved", "city"]   # "Vermeiden"-Schalter, wie in der App
 
 def avoid_clean(v):
     """Liste oder Komma-Text -> sortierte Liste gültiger Schalter."""
     if isinstance(v, str): v = v.split(",")
     return [k for k in AVOID_KEYS if isinstance(v, (list, tuple)) and k in [str(x).strip() for x in v]]
 
-def variant_profile(prof, avoid):
+CITY_W = (0.5, 1.0, 1.5, 2.0, 3.0, 4.0)   # Stärke "Ortsdurchfahrten meiden" (Aufschlag auf die Kosten von Ortsstraßen)
+def city_w(v):
+    try: x = float(str(v).replace(",", "."))
+    except (TypeError, ValueError): return 1.5
+    return min(CITY_W, key=lambda w: abs(w - x))
+def city_cost(w): return " add switch or isresidentialorliving or maxspeed=50 or maxspeed=30 or maxspeed=20 maxspeed=10 %s 0" % ("%g" % w)
+CITY_COST = city_cost(1.5)
+def variant_profile(prof, avoid, cityw=None):
     """Profilname für die Schalter: legt <profil>__<code>.brf an (BRouter merkt sich Profile je Dateiname)."""
     avoid = avoid_clean(avoid)
     if not avoid: return prof
     base = os.path.join(BR_PROF, prof + ".brf")
     if not os.path.exists(base): return prof
-    name = prof + "__" + "".join(k[0] + ("1" if k in avoid else "0") for k in AVOID_KEYS)
+    cw = city_w(cityw)
+    name = prof + "__" + "".join(k[0] + ((str(int(cw * 10)) if k == "city" else "1") if k in avoid else "0") for k in AVOID_KEYS)
     out = os.path.join(BR_PROF, name + ".brf")
     if not os.path.exists(out) or os.path.getmtime(out) < os.path.getmtime(base):
         txt = open(base, encoding="utf-8").read()
         for k in AVOID_KEYS:
             txt = re.sub(r"(?m)^assign avoid_%s\s*=\s*\d.*$" % k, "assign avoid_%s = %d" % (k, 1 if k in avoid else 0), txt)
+        if "city" in avoid:   # Ortsdurchfahrten meiden: Aufschlag auf Wohnstraßen und Straßen mit Tempo 50 oder weniger (nur in der Variante, das Grundprofil bleibt unverändert)
+            txt = re.sub(r"(?m)^( *add switch and avoid_unpaved isunpaved [^\n]*)$", lambda m: m.group(1) + "\n" + city_cost(cw), txt, count=1)
         open(out, "w", encoding="utf-8").write(txt)
     return name
 
@@ -1006,7 +1144,7 @@ def rt_start():
     with RT_LOCK:
         RT_STAT["aktiv"] += 1
 
-def rt_done(prof, pts, code, ms, body):
+def rt_done(prof, pts, code, ms, body, extra=None):
     km = None
     if code == 200 and body:
         m = re.search(rb'"track-length"\s*:\s*"?(\d+)', body[:6000])
@@ -1018,7 +1156,9 @@ def rt_done(prof, pts, code, ms, body):
         RT_STAT["n"] += 1; RT_STAT["ms"] += ms; RT_STAT["max"] = max(RT_STAT["max"], ms)
         if ms >= RT_SLOW_MS: RT_STAT["langsam"] += 1
         if code != 200: RT_STAT["fehler"] += 1
-        RT_LOG.append({"ts": int(time.time()), "prof": prof.split("__")[0], "punkte": pts, "km": km, "ms": ms, "code": code})
+        e = {"ts": int(time.time()), "prof": prof.split("__")[0], "punkte": pts, "km": km, "ms": ms, "code": code}
+        if extra: e.update(extra)
+        RT_LOG.append(e)
 
 def routing_info():
     with RT_LOCK:
@@ -1065,7 +1205,8 @@ def route_proxy(query):
         if code == 200: rc_put(query, body)
         return code, body
     finally:
-        rt_done(prof if prof in PROFILES else PROFILES[0], pts, code, int((time.time() - t0) * 1000), body)
+        rt_done(prof if prof in PROFILES else PROFILES[0], pts, code, int((time.time() - t0) * 1000), body,
+                {"sperr": q.get("sperr", [""])[0] == "1", "nogos": bool(q.get("nogos", [""])[0]), "avoid": q.get("avoid", [""])[0] + ((" (Stärke " + str(city_w(q.get("cityw", [""])[0])) + ")") if "city" in q.get("avoid", [""])[0] else "")})
 
 def snap_point(lon, lat, profile=None):
     """Nächste befahrbare Straße zu einem Punkt (BRouter ordnet Punkte bis etwa 250 m zu). Rechnet dafür eine winzige Strecke
@@ -1089,7 +1230,7 @@ def route_proxy_raw(query):
     q = urllib.parse.parse_qs(query)
     ll = q.get("lonlats", [""])[0]; prof = q.get("profile", [PROFILES[0]])[0]
     if prof not in PROFILES: prof = PROFILES[0]
-    prof = variant_profile(prof, q.get("avoid", [""])[0])
+    prof = variant_profile(prof, q.get("avoid", [""])[0], q.get("cityw", [""])[0])
     if not ll or ll.count("|") < 1: return 400, json.dumps({"fehler": "Mindestens Start und Ziel nötig."}).encode()
     start_brouter()
     par = {"lonlats": ll, "profile": prof, "alternativeidx": "0", "format": "geojson"}
@@ -1143,6 +1284,79 @@ def bs_route(a, b):
         return [[c[1], c[0]] for c in j["features"][0]["geometry"]["coordinates"]]
     except Exception: return None
 
+BS_VER = 6   # 6 = Nachsuche: Autobahnen zuerst, Fortschritt im Protokoll; 5 = Autobahn-Meldungen ohne Parallelstraßen-Umweg, Linien mit auffälligem Umweg neu gesucht; 4 = neue Reihenfolge der Straßensuche, Endpunkt-Prüfung, kein 25er-Abbruch bei der Nachsuche; 3 = Spur-/Ausweichverkehr herabgestuft, Straßensuche mit Straßennummer und über alle Wege; bs_nachbessern holt das für die vorhandene Liste nach
+
+def bs_route_any(a, b, ref=None):
+    """Kürzester Weg über alle Wege (Profil "baustelle": Feldwege, Anliegerstraßen, Zugangsregeln und Einbahn ignoriert). None, wenn nichts gefunden."""
+    start_brouter()
+    ll = f"{a[1]},{a[0]}|{b[1]},{b[0]}"
+    url = f"http://127.0.0.1:{BR_PORT}/brouter?" + urllib.parse.urlencode({"lonlats": ll, "profile": "baustelle", "alternativeidx": "0", "format": "geojson"})
+    try:
+        with urllib.request.urlopen(url, timeout=20) as r: j = json.loads(r.read())
+        f0 = j["features"][0]
+        co = [[c[1], c[0]] for c in f0["geometry"]["coordinates"]]
+        cls = BSM.ref_classes(ref) if ref else None
+        if cls and BSM.class_share(f0["properties"].get("messages") or [], cls) < 0.6: return None   # liegt nicht überwiegend auf der Straße der Meldung (z. B. Parallelstraße)
+        return co
+    except Exception: return None
+
+def bs_nachbessern():
+    """Vorhandene Liste ohne neuen Abruf verbessern: (1) nach dem Text neu einstufen (sofort), (2) fehlende Straßen nachsuchen (BRouter, im Hintergrund)."""
+    try: out = json.load(open(BS_LIST, encoding="utf-8"))
+    except Exception: return
+    m = bs_meta()
+    if m.get("v") == BS_VER and m.get("gv") == BS_VER: return
+    items = out.get("items", [])
+    n_k = sum(1 for x in items if BSM.reklass(x))
+    def speichern():
+        out["items"] = items
+        raw = json.dumps(out, ensure_ascii=False, separators=(",", ":"))
+        open(BS_LIST + ".new", "w", encoding="utf-8").write(raw); os.replace(BS_LIST + ".new", BS_LIST)
+        mm = bs_meta(); mm.update(v=BS_VER, n_c=sum(1 for x in items if x.get("k") == "c"), bytes=len(raw.encode("utf-8")))
+        json.dump(mm, open(BS_META, "w", encoding="utf-8"))
+    speichern(); log(f"Baustellen: {n_k} Meldung(en) nach dem Text neu eingestuft", cat="karte")
+    todo = [x for x in items if x.get("a") and x.get("b") and (not x.get("g") or BSM.suspicious(x))]   # ohne Linie, mit auffälligem Umweg oder Autobahn
+    def _prio(x):   # Autobahnen zuerst, dann auffällige Umwege, dann die ohne Linie
+        if re.match(r"A\s*\d", x.get("r") or ""): return 0
+        return 1 if x.get("g") else 2
+    todo.sort(key=_prio)
+    try: cache = json.load(open(BS_GEOM, encoding="utf-8"))
+    except Exception: cache = {}
+    ok = fail = r_ok = a_ok = 0
+    for i in range(0, len(todo), 60):   # in Stücken, nach jedem Stück speichern (ein Neustart mittendrin verliert nichts)
+        o, f_ = BSM.add_geometry(todo[i:i + 60], bs_route, cache, ref_fn=bs_route_ref, any_fn=bs_route_any, max_misses=10 ** 9)
+        ok += o; fail += f_; r_ok += BSM.add_geometry.ref_ok; a_ok += BSM.add_geometry.any_ok
+        json.dump(cache, open(BS_GEOM + ".new", "w", encoding="utf-8")); os.replace(BS_GEOM + ".new", BS_GEOM)
+        speichern()
+        log(f"Baustellen: Nachsuche {min(i + 60, len(todo))} von {len(todo)} (gefunden bisher {ok})", cat="karte")
+    lang = [x for x in items if x.get("a") and x.get("b") and not x.get("g") and BSM.hav(x["a"], x["b"]) > 1000]
+    for x in lang[:30]:
+        log(f"Baustellen: ohne Straße, {int(BSM.hav(x['a'], x['b']))} m Luftlinie: {x.get('r') or '-'} {(x.get('t') or '')[:60]!r} {x['a']} → {x['b']}", cat="karte")
+    mm = bs_meta(); mm["gtry"] = mm.get("gtry", 0) + 1
+    if ok > 0 or not todo or mm["gtry"] >= 3: mm["gv"] = BS_VER   # nur "fertig", wenn BRouter etwas gefunden hat (oder dreimal versucht wurde)
+    json.dump(mm, open(BS_META, "w", encoding="utf-8"))
+    log(f"Baustellen: Straße nachgesucht für {len(todo)} Meldungen: gefunden {ok} (Straßennummer {r_ok}, alle Wege {a_ok}), nur Luftlinie {fail}", cat="karte")
+
+def bs_route_ref(a, b, ref):
+    """Straße zwischen zwei Punkten, die wirklich auf Straßen der Klasse der Straßennummer liegt (mehrere Profile probieren). None, wenn keine passt."""
+    cls = BSM.ref_classes(ref)
+    if not cls: return None
+    start_brouter()
+    ll = f"{a[1]},{a[0]}|{b[1]},{b[0]}"
+    best = None
+    for prof in ("auto", "motorrad_schnellste", "kuerzeste"):
+        url = f"http://127.0.0.1:{BR_PORT}/brouter?" + urllib.parse.urlencode({"lonlats": ll, "profile": prof, "alternativeidx": "0", "format": "geojson"})
+        try:
+            with urllib.request.urlopen(url, timeout=20) as r: j = json.loads(r.read())
+            f0 = j["features"][0]
+            co = [[c[1], c[0]] for c in f0["geometry"]["coordinates"]]
+            share = BSM.class_share(f0["properties"].get("messages") or [], cls)
+        except Exception: continue
+        if share < 0.7: continue
+        L = sum(BSM.hav(co[i], co[i + 1]) for i in range(len(co) - 1))
+        if best is None or (share, -L) > (best[0], -best[1]): best = (share, L, co)
+    return best[2] if best else None
+
 def bs_run(force=False):
     """Abrufen (oder Testdatei lesen), umrechnen, Straßen suchen, speichern. Läuft im eigenen Thread."""
     if not BS_LOCK.acquire(blocking=False): return False
@@ -1170,7 +1384,7 @@ def bs_run(force=False):
             try: cache = json.load(open(BS_GEOM, encoding="utf-8"))
             except Exception: cache = {}
             bs_set(50, f"Straßen suchen (0 von {len(act)}) …")
-            ok, fail = BSM.add_geometry(act, bs_route, cache, progress=lambda f: bs_set(50 + f * 45, f"Straßen suchen ({int(f * len(act))} von {len(act)}) …"), stop=lambda: BSS["stop"])
+            ok, fail = BSM.add_geometry(act, bs_route, cache, ref_fn=bs_route_ref, any_fn=bs_route_any, progress=lambda f: bs_set(50 + f * 45, f"Straßen suchen ({int(f * len(act))} von {len(act)}) …"), stop=lambda: BSS["stop"])
             if BSS["stop"]: raise RuntimeError("Abgebrochen.")
             bs_set(96, "Speichern …")
             if len(cache) > 20000: cache = dict(list(cache.items())[-10000:])
@@ -1179,12 +1393,15 @@ def bs_run(force=False):
             raw = json.dumps(out, ensure_ascii=False, separators=(",", ":"))
             open(BS_LIST + ".new", "w", encoding="utf-8").write(raw); os.replace(BS_LIST + ".new", BS_LIST)
             m = {"stand": out["stand"], "ref": ref, "n": len(act), "n_c": sum(1 for x in act if x["k"] == "c"), "geom": ok, "geprueft": int(time.time()), "lm": lm,
-                 "fehler": "", "bytes": len(raw.encode("utf-8")), "quelle": q}
+                 "fehler": "", "bytes": len(raw.encode("utf-8")), "quelle": q, "v": BS_VER, "gv": BS_VER}
             json.dump(m, open(BS_META, "w", encoding="utf-8"))
+            try:
+                if BSM.RAW_SAMPLES: open(f"{BSD}/rohbeispiel.xml", "w", encoding="utf-8").write("<beispiele>\n" + "\n".join(BSM.RAW_SAMPLES) + "\n</beispiele>\n")
+            except Exception: pass
             if q == "live":
                 try: os.remove(src)
                 except Exception: pass
-            log(f"Baustellen: {len(act)} Meldungen ({m['n_c']} Sperrungen), Straße gefunden bei {ok}, gerade Linie bei {fail}, {round(time.time() - t0)} s, Quelle {q}", cat="karte")
+            log(f"Baustellen: {len(act)} Meldungen ({m['n_c']} Sperrungen), Straße gefunden bei {ok} (davon {getattr(BSM.add_geometry, 'ref_ok', 0)} über die Straßennummer, {getattr(BSM.add_geometry, 'any_ok', 0)} über alle Wege), nur Luftlinie bei {fail}, herabgestuft: {BSM.STAT['spur']} Fahrstreifen, {BSM.STAT['ausweich']} Ausweichverkehr, {round(time.time() - t0)} s, Quelle {q}", cat="karte")
             bs_set(100, "Fertig.")
         except Exception as ex:
             m = bs_meta(); m["fehler"] = str(ex)[:300]; m["geprueft"] = int(time.time())
@@ -1229,6 +1446,44 @@ def notify_tick():
             if n is not None and n <= 30: NOTES.add("zertifikat", ("Das Mobilithek-Zertifikat läuft in %d Tagen ab. Bitte ein neues anfordern." % n) if n >= 0 else "Das Mobilithek-Zertifikat ist abgelaufen.", cool=7 * 86400)
     except Exception as ex: log("Meldungs-Prüfung:", ex)
 
+def export_text():
+    """Alles Wichtige als Klartext für den Admin (zum Speichern und Weitergeben): Zustand, Einstellungen, Routing-Leistung, Regionen, Baustellen, Protokoll.
+    Enthält keine Passwörter oder Zugangscodes."""
+    now = datetime.datetime.now(); out = []
+    def h(t): out.extend(["", "=" * 70, t, "=" * 70])
+    out.append("HUDPilot Updater – Protokoll-Export"); out.append("Erstellt: " + now.strftime("%F %T") + "   Version: " + VERSION)
+    out.append("Server läuft seit: " + datetime.datetime.fromtimestamp(STARTED).strftime("%F %T") + "   (%d min)" % ((time.time() - STARTED) // 60))
+    h("ZUSTAND")
+    out.append("state=%s current=%s done=%s/%s detail=%s" % (S["state"], S["current"], S["done"], S["total"], S["detail"]))
+    for k, v in S["errors"].items(): out.append("Fehler %s: %s" % (k, v))
+    try: out.append("Speicher: " + json.dumps(disk(), ensure_ascii=False))
+    except Exception as e: out.append("Speicher: ?" + str(e)[:60])
+    h("EINSTELLUNGEN")
+    for k in sorted(CFG): out.append("%s = %s" % (k, json.dumps(CFG[k], ensure_ascii=False)[:300]))
+    h("ROUTING-LEISTUNG")
+    ri = routing_info()
+    out.append("Heute: " + json.dumps(ri["heute"], ensure_ascii=False)); out.append("BRouter: " + json.dumps(ri["br"], ensure_ascii=False))
+    out.append("Zwischenspeicher: " + json.dumps(ri["cache"], ensure_ascii=False)); out.append("Einstellung: " + json.dumps(ri["cfg"], ensure_ascii=False))
+    out.append("Aktive Berechnungen: %s   langsam ab %s ms" % (ri["aktiv"], ri["langsam_ab_ms"]))
+    out.append(""); out.append("Letzte Berechnungen (neueste oben): Zeit | Profil | Punkte | km | Dauer ms | Code | Sperrungen prüfen | Vermeiden")
+    with RT_LOCK: rows = list(RT_LOG)[::-1]
+    for e in rows:
+        out.append("%s | %s | %s | %s | %s | %s | %s | %s" % (datetime.datetime.fromtimestamp(e["ts"]).strftime("%F %T"), e["prof"], e["punkte"], e["km"], e["ms"], e["code"],
+                                                          "ja" if e.get("sperr") else "nein", e.get("avoid", "") or "-"))
+    if not rows: out.append("(noch keine Berechnung seit dem Start)")
+    h("REGIONEN")
+    try:
+        for r in status()["regionen"]:
+            out.append("%-28s %-3s angehakt=%s Karte=%s MB Routen=%s MB Straßen=%s MB %s" % (r["name"], r["land"], "ja" if r["aktiv"] else "nein", r["karte_bytes"] // 1048576,
+                       r["routen_bytes"] // 1048576, r["strassen_bytes"] // 1048576, ("FEHLER: " + r["fehler"]) if r["fehler"] else ""))
+    except Exception as e: out.append("Regionen: " + str(e)[:100])
+    h("BAUSTELLEN")
+    try: out.append(json.dumps(bs_status(), ensure_ascii=False))
+    except Exception as e: out.append("?" + str(e)[:100])
+    h("PROTOKOLL (älteste zuerst, höchstens 2000 Zeilen)")
+    with _LOG_LOCK: out.extend(list(LOG))
+    return "\n".join(out) + "\n"
+
 def selftest():
     """Einmal kurz nach dem Start: antworten Routing, Karten und Baustellen-Liste? Gibt eine Liste mit Problemen zurück (leer = alles ok)."""
     prob = []
@@ -1253,11 +1508,19 @@ def selftest_run():
         else: log("Selbsttest: alles in Ordnung", cat="karte")
     except Exception as ex: log("Selbsttest-Fehler:", ex)
 
+def bs_due(now=None, hour=None, meta=None):
+    """Ist der automatische Baustellen-Abruf fällig? Schalter an, genug Zeit seit dem letzten Abruf und im eigenen Zeitfenster."""
+    if not CFG.get("bs_aktiv", True): return False
+    now = time.time() if now is None else now
+    hour = datetime.datetime.now().hour if hour is None else hour
+    last = (bs_meta() if meta is None else meta).get("geprueft", 0)
+    every = max(1, int(CFG.get("bs_every_h", 24))) * 3600
+    return now - last >= every and in_window(hour, CFG.get("bs_win_start"), CFG.get("bs_win_end"))
 def bs_daily():
-    """Einmal pro Tag, nur mit echter Quelle (die Testdatei ändert sich nicht)."""
+    """Automatischer Abruf nach den Einstellungen (Standard: einmal pro Tag nachts), nur mit echter Quelle (die Testdatei ändert sich nicht)."""
     q, _ = bs_source()
     if q != "live" or BSS["state"] != "idle": return
-    if time.time() - bs_meta().get("geprueft", 0) >= 86400 and in_window(datetime.datetime.now().hour): bs_run()
+    if bs_due(): bs_run()
 
 # ---------- Profile (jede Person hat eigene Touren, Fahrten und Ablage) ----------
 CUR = threading.local()
@@ -1331,6 +1594,38 @@ def build_status():
 NOTES.status_fn = build_status
 
 def new_code(n=8): return "".join(secrets.choice(CODE_CHARS) for _ in range(n))
+# Passwörter liegen nur noch als Hash in profiles.json (PBKDF2). Alte (vom Server erzeugte) Passwörter ignorieren die Groß-/Kleinschreibung (ci), selbst gewählte neue beachten sie.
+HASH_ITER = 120_000
+CODE_MIN, CODE_MAX = 8, 64
+def code_hash(code, ci, salt=None, iters=HASH_ITER):
+    code = str(code).strip(); code = code.upper() if ci else code
+    salt = salt or secrets.token_bytes(16)
+    h = hashlib.pbkdf2_hmac("sha256", code.encode("utf-8"), salt, iters)
+    return f"pbkdf2${iters}${salt.hex()}${h.hex()}"
+def code_check(code, ci, stored):
+    try:
+        _, it, salt, h = stored.split("$")
+        return hmac.compare_digest(code_hash(code, ci, bytes.fromhex(salt), int(it)), stored)
+    except Exception: return False
+def code_set(v, code, ci=True, eigen=False):
+    """Speichert den neuen Code (nur als Hash) und vergisst alle gemerkten Prüfungen. eigen = vom Nutzer selbst gewählt."""
+    v["hash"] = code_hash(code, ci); v["ci"] = bool(ci); v["eigen"] = bool(eigen); v.pop("code", None); VERIFIED.clear()
+VERIFIED = {}   # (Name, Code) -> Hash, für den der Code schon geprüft wurde (die App schickt den Code bei jeder Anfrage; PBKDF2 ist absichtlich langsam)
+def code_ok(name, v, code):
+    key = (name.lower(), hashlib.sha256(str(code).encode("utf-8")).hexdigest())
+    if VERIFIED.get(key) == v.get("hash"): return True
+    if not v.get("hash") or not code_check(code, v.get("ci", True), v["hash"]): return False
+    if len(VERIFIED) >= 500: VERIFIED.clear()
+    VERIFIED[key] = v["hash"]; return True
+def migrate_codes():
+    """Einmalig: Klartext-Codes (bis v1.37) in Hashes umwandeln. Vorher bleibt eine Kopie der alten Datei liegen."""
+    todo = [v for v in PST["profiles"].values() if "code" in v and not v.get("hash")]
+    if not todo: return
+    try:
+        if os.path.exists(PFILE) and not os.path.exists(PFILE + ".vor-hash"): shutil.copy2(PFILE, PFILE + ".vor-hash")
+    except OSError as ex: log("Sicherung der Profildatei:", ex)
+    for v in todo: code_set(v, v["code"], True)
+    save_profiles(); log(f"Zugangscodes von {len(todo)} Profil(en) verschlüsselt gespeichert (Kopie: profiles.json.vor-hash)")
 def save_profiles():
     os.makedirs(DATA, exist_ok=True)
     json.dump(PST, open(PFILE + ".new", "w", encoding="utf-8"), ensure_ascii=False, indent=1); os.replace(PFILE + ".new", PFILE)
@@ -1339,6 +1634,7 @@ def load_profiles():
     except Exception: pass
     if not PST.get("invite"):
         PST["invite"] = os.environ.get("INVITE_CODE", "") or new_code(6); log("Einladungscode für neue Profile:", PST["invite"]); save_profiles()
+    migrate_codes()
 def slugify(name):
     t = name.lower()
     for a, b in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")): t = t.replace(a, b)
@@ -1403,11 +1699,22 @@ def find_profile(name):
     return None, None
 def profile_login(name, code):
     k, v = find_profile(name)
-    if not v or v.get("disabled") or not hmac.compare_digest(str(code).strip().upper(), v["code"]): return None
+    if not v or v.get("disabled") or not code_ok(k, v, code): return None
     now = int(time.time())
     if now - v.get("seen", 0) > 60:
         with PLOCK: v["seen"] = now; save_profiles()
     return k, v["slug"]
+def profile_set_code(name, alt, neu):
+    """Nutzer ändert sein Passwort selbst. Danach müssen alle seine Handys einmal neu angemeldet werden. Neue Passwörter unterscheiden Groß- und Kleinschreibung (ab App 0.39.0)."""
+    k, v = find_profile(name)
+    if not v or v.get("disabled") or not code_ok(k, v, alt): raise PermissionError("Das bisherige Passwort stimmt nicht.")
+    neu = str(neu).strip()
+    if len(neu) < CODE_MIN: raise ValueError(f"Das neue Passwort braucht mindestens {CODE_MIN} Zeichen.")
+    if len(neu) > CODE_MAX: raise ValueError(f"Das neue Passwort darf höchstens {CODE_MAX} Zeichen haben.")
+    if any(not 32 <= ord(ch) < 127 or ch in "|;" for ch in neu): raise ValueError("Das neue Passwort darf nur normale Zeichen ohne Umlaute enthalten (kein | und kein ;).")
+    if neu == str(alt).strip(): raise ValueError("Das neue Passwort ist gleich dem alten.")
+    with PLOCK: code_set(v, neu, False, True); save_profiles()
+    log("Passwort geändert:", k)
 def profile_create(name, invite):
     name = str(name).strip()
     if not NAME_RE.match(name): raise ValueError("Name: 2 bis 24 Zeichen (Buchstaben, Zahlen, Leerzeichen, - und _).")
@@ -1418,7 +1725,7 @@ def _profile_add(name):
         k, _ = find_profile(name); slug = slugify(name)
         if k or any(v["slug"] == slug for v in PST["profiles"].values()): raise ValueError("Diesen Namen gibt es schon.")
         code = new_code(); now = int(time.time())
-        PST["profiles"][name] = {"slug": slug, "code": code, "created": now, "seen": now, "disabled": False}; save_profiles()
+        PST["profiles"][name] = {"slug": slug, "created": now, "seen": now, "disabled": False}; code_set(PST["profiles"][name], code, True); save_profiles()
     os.makedirs(profile_dir(slug), exist_ok=True); log("Profil angelegt:", name)
     try: NOTES.add("profil", f"Neues Profil angelegt: {name}")
     except Exception: pass
@@ -1447,7 +1754,7 @@ def profile_info():
             for x in fs:
                 try: size += os.path.getsize(os.path.join(root, x))
                 except OSError: pass
-        out.append({"name": k, "code": v["code"], "created": v.get("created", 0), "seen": v.get("seen", 0), "disabled": bool(v.get("disabled")), "handys": dev_count(k), "geraete": dev_list(k), "touren": n_t, "fahrten": n_r, "bytes": size})
+        out.append({"name": k, "eigener_code": bool(v.get("eigen")), "created": v.get("created", 0), "seen": v.get("seen", 0), "disabled": bool(v.get("disabled")), "handys": dev_count(k), "geraete": dev_list(k), "touren": n_t, "fahrten": n_r, "bytes": size})
     return sorted(out, key=lambda x: x["name"].lower())
 def count_all():
     t = r = 0
@@ -1561,14 +1868,50 @@ def aktiv_info():
     return {"downloads": out, "geraete": geraete}
 
 def _tour_path(i): return f"{tours_dir()}/{i}.json"
+def _route_path(i): return f"{tours_dir()}/{i}.rt"
+MAX_ROUTE_PTS = 80000
+def route_clean(co, pts):
+    """Gespeicherte Strecke prüfen und runden: [[lon, lat, höhe?], ...]. Anfang und Ende müssen zu den Tourpunkten passen, sonst None."""
+    if not isinstance(co, list) or len(co) < 2 or len(co) > MAX_ROUTE_PTS or not pts: return None
+    out = []
+    try:
+        for c in co:
+            lo, la = float(c[0]), float(c[1])
+            if not (-180 <= lo <= 180 and -90 <= la <= 90): return None
+            row = [round(lo, 5), round(la, 5)]
+            if len(c) > 2 and c[2] is not None: row.append(int(round(float(c[2]))))
+            out.append(row)
+    except (TypeError, ValueError, IndexError): return None
+    near = lambda a, b: _hav(a[1], a[0], b[0], b[1]) < 3000   # Strecke [lon, lat], Punkt [lat, lon]
+    if not near(out[0], pts[0]) or not near(out[-1], pts[-1]): return None
+    return out
+def route_get(tid):
+    if not str(tid).isalnum(): return None
+    try: return json.load(open(_route_path(tid), encoding="utf-8"))
+    except Exception: return None
 def tour_list():
     os.makedirs(tours_dir(), exist_ok=True); out = []
     for n in os.listdir(tours_dir()):
         if not n.endswith(".json"): continue
         try:
-            t = json.load(open(f"{tours_dir()}/{n}", encoding="utf-8")); out.append({"id": t["id"], "name": t["name"], "profile": t.get("profile"), "avoid": t.get("avoid", []), "points": len(t.get("points", [])), "updated": t.get("updated", 0)})
+            t = json.load(open(f"{tours_dir()}/{n}", encoding="utf-8"))
+            out.append({"id": t["id"], "name": t["name"], "profile": t.get("profile"), "avoid": t.get("avoid", []), "cityw": t.get("cityw"), "points": len(t.get("points", [])),
+                        "km": t.get("km"), "min": t.get("min"), "asc": t.get("asc"), "updated": t.get("updated", 0)})
         except Exception: pass
     return sorted(out, key=lambda x: -x["updated"])
+class TourNameTaken(Exception):
+    def __init__(self, info): super().__init__("Name vergeben"); self.info = info
+def tour_by_name(name, ausser=""):
+    """Eine andere Tour mit demselben Namen (Groß-/Kleinschreibung egal) oder None."""
+    n = str(name).strip().casefold()
+    for t in tour_list():
+        if t["id"] != ausser and str(t["name"]).strip().casefold() == n: return t
+    return None
+def _num(v, lo, hi, nd=None):
+    try: x = float(v)
+    except (TypeError, ValueError): return None
+    if not (lo <= x <= hi): return None
+    return round(x, nd) if nd is not None else int(round(x))
 MAX_TOUR_PTS = 300   # gefahrene Fahrten werden mit vielen Punkten übernommen, damit die Route genau der Spur folgt
 def clean_points(pts):
     out = []
@@ -1579,12 +1922,34 @@ def clean_points(pts):
     if len(out) < 2 or len(out) > MAX_TOUR_PTS: raise ValueError(f"2 bis {MAX_TOUR_PTS} Punkte (Start, Zwischenpunkte, Ziel)")
     return out
 def tour_save(body):
+    """Tour speichern. Planer (pruefen=true): gibt es schon eine andere Tour mit dem Namen, kommt TourNameTaken (der Planer fragt nach); mit ueberschreiben=<id> wird diese ersetzt.
+    Alle anderen (z. B. die App) bekommen bei gleichem Namen automatisch " (2)", " (3)" ..."""
     pts = clean_points(body.get("points")); name = str(body.get("name") or "Tour").strip()[:80] or "Tour"
     prof = body.get("profile") if body.get("profile") in PROFILES else PROFILES[0]
     tid = str(body.get("id") or "")
-    if not tid.isalnum(): tid = f"t{int(time.time() * 1000)}"
+    if not tid.isalnum():
+        n = int(time.time() * 1000); tid = f"t{n}"
+        while tour_get(tid): n += 1; tid = f"t{n}"   # nie dieselbe Nummer zweimal (zwei Speicherungen in derselben Millisekunde)
+    ow = str(body.get("ueberschreiben") or "")
+    if ow.isalnum() and tour_get(ow): tid = ow
+    other = tour_by_name(name, tid)
+    if other:
+        if body.get("pruefen"): raise TourNameTaken(other)
+        base, k = name[:74], 2
+        while tour_by_name(f"{base} ({k})", tid): k += 1
+        name = f"{base} ({k})"
     os.makedirs(tours_dir(), exist_ok=True)
-    json.dump({"id": tid, "name": name, "profile": prof, "avoid": avoid_clean(body.get("avoid")), "points": pts, "updated": int(time.time())}, open(_tour_path(tid), "w", encoding="utf-8"), ensure_ascii=False)
+    t = {"id": tid, "name": name, "profile": prof, "avoid": avoid_clean(body.get("avoid")), "points": pts, "updated": int(time.time())}
+    if "city" in t["avoid"]: t["cityw"] = city_w(body.get("cityw"))
+    km, mi, asc = _num(body.get("km"), 0, 20000, 1), _num(body.get("min"), 0, 100000), _num(body.get("asc"), 0, 100000)
+    if km is not None and mi is not None: t["km"], t["min"] = km, mi
+    if asc is not None: t["asc"] = asc
+    json.dump(t, open(_tour_path(tid), "w", encoding="utf-8"), ensure_ascii=False)
+    co = route_clean(body.get("route"), pts) if "km" in t else None   # die Strecke gehört nur dazu, wenn sie zu Start und Ziel passt und Länge/Zeit mitkamen
+    try:
+        if co: json.dump(co, open(_route_path(tid), "w"), separators=(",", ":"))
+        elif os.path.exists(_route_path(tid)): os.remove(_route_path(tid))   # Punkte können sich geändert haben: alte Strecke wäre falsch
+    except OSError: pass
     return tid
 def tour_get(tid):
     if not str(tid).isalnum(): return None
@@ -1593,7 +1958,8 @@ def tour_get(tid):
 def outbox_set(body):
     os.makedirs(cur_dir(), exist_ok=True)
     pts = clean_points(body.get("points")); prof = body.get("profile") if body.get("profile") in PROFILES else PROFILES[0]
-    json.dump({"ts": int(time.time()), "name": str(body.get("name") or "Tour").strip()[:80] or "Tour", "profile": prof, "avoid": avoid_clean(body.get("avoid")), "points": pts},
+    av = avoid_clean(body.get("avoid"))
+    json.dump({"ts": int(time.time()), "name": str(body.get("name") or "Tour").strip()[:80] or "Tour", "profile": prof, "avoid": av, "points": pts, **({"cityw": city_w(body.get("cityw"))} if "city" in av else {})},
               open(outbox_file(), "w", encoding="utf-8"), ensure_ascii=False)
 def outbox_get():
     try: return json.load(open(outbox_file(), encoding="utf-8"))
@@ -1784,7 +2150,9 @@ def ride_delete(rid):
 def tour_rename(tid, name):
     t = tour_get(tid)
     if not t: return False
-    t["name"] = str(name).strip()[:80] or t["name"]; json.dump(t, open(_tour_path(tid), "w", encoding="utf-8"), ensure_ascii=False); return True
+    nn = str(name).strip()[:80] or t["name"]
+    if tour_by_name(nn, tid): return False   # Name schon vergeben
+    t["name"] = nn; json.dump(t, open(_tour_path(tid), "w", encoding="utf-8"), ensure_ascii=False); return True
 
 # ---------- Webserver ----------
 def disk():
@@ -1843,7 +2211,7 @@ def stats():
             "laender": len({r["land"] for r in REGIONS if os.path.exists(f"{PUB}/maps/{r['id']}.pmtiles")})}
 
 PROF_GET = ("/api/poi", "/api/tours", "/api/tour", "/api/outbox", "/api/rides", "/api/ride", "/api/ride/gpx", "/api/ride/csv", "/api/ride/preview", "/api/me", "/api/settings", "/api/favs", "/api/baustellen", "/api/laender", "/api/friends", "/api/friends/live", "/api/notify")
-PROF_POST = ("/api/tour/save", "/api/tour/delete", "/api/tour/rename", "/api/phone", "/api/ride/upload", "/api/ride/delete", "/api/ride/rename", "/api/ride/demo", "/api/settings/save", "/api/favs/save", "/api/friends/request", "/api/friends/respond", "/api/friends/remove", "/api/friends/permit", "/api/live", "/api/live/stop")
+PROF_POST = ("/api/tour/save", "/api/tour/delete", "/api/tour/rename", "/api/phone", "/api/ride/upload", "/api/ride/delete", "/api/ride/rename", "/api/ride/demo", "/api/settings/save", "/api/favs/save", "/api/friends/request", "/api/friends/respond", "/api/friends/remove", "/api/friends/permit", "/api/live", "/api/live/stop", "/api/profile/code")
 EXT_PAGES = ("/", "/index.html", "/logo.png", "/favicon.ico", "/mein", "/mein.html", "/planer", "/planer.html", "/touren", "/touren.html", "/api/route", "/api/snap")
 KARTEN_PFADE = ("/manifest.json", "/maps/", "/pois/", "/limits/", "/rd5/", "/cameras.csv", "/api/need")   # große Dateien: von außen nur mit Schalter "Karten extern ladbar"
 DENYLOG = {}
@@ -1984,10 +2352,16 @@ class H(BaseHTTPRequestHandler):
                 hits, n = poi_search(q.get("cat", [""])[0], float(q.get("lat", ["0"])[0]), float(q.get("lon", ["0"])[0]), float(q.get("km", ["15"])[0]))
                 self.send_json({"orte": hits, "regionen": n})
             except ValueError as ex: self.send_json({"fehler": str(ex)}, 400)
-        elif path == "/api/laender": self.send_json({"regionen": laender_boxen()})
+        elif path == "/api/laender":
+            threading.Thread(target=lambda: grenzen_laden(), daemon=True).start()   # fehlende Grenzlinien im Hintergrund holen (höchstens alle 30 min je Region)
+            self.send_json({"regionen": laender_boxen()})
         elif path == "/api/tours": self.send_json({"touren": tour_list()})
         elif path == "/api/tour":
-            t = tour_get(urllib.parse.parse_qs(self.path.partition("?")[2]).get("id", [""])[0])
+            tid = urllib.parse.parse_qs(self.path.partition("?")[2]).get("id", [""])[0]
+            t = tour_get(tid)
+            if t:
+                co = route_get(tid)
+                if co: t["route"] = co
             self.send_json(t if t else {"fehler": "nicht gefunden"}, 200 if t else 404)
         elif path == "/api/outbox": self.send_json(outbox_get())
         elif path in ("/touren", "/touren.html"): self.send_page("touren.html")
@@ -2009,6 +2383,13 @@ class H(BaseHTTPRequestHandler):
         elif path == "/api/status":
             if not self.authed(): return self.send_json({"fehler": "Bitte anmelden."}, 401)
             self.send_json(status())
+        elif path == "/api/export":
+            if not self.authed(): return self.send_json({"fehler": "Bitte anmelden."}, 401)
+            b = export_text().encode("utf-8"); self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="hudpilot-protokoll-%s.txt"' % datetime.datetime.now().strftime("%Y%m%d-%H%M"))
+            self.send_header("Content-Length", str(len(b))); self.end_headers()
+            if self.command != "HEAD": self.wfile.write(b)
         elif path == "/api/need":
             q = urllib.parse.parse_qs(self.path.partition("?")[2]); ids = [x for v in q.get("ids", []) for x in v.split(",") if x in BYID]
             if self.command != "HEAD" and ids:
@@ -2064,6 +2445,7 @@ class H(BaseHTTPRequestHandler):
         if self.extern(): b = re.sub(rb"<!--(ADMIN|NEWPROF)-->.*?<!--/\1-->", b"", b, flags=re.S)   # von außen kein Verwaltungs-Link und kein "Neu anlegen"
         else: b = re.sub(rb"<!--EXT-->.*?<!--/EXT-->", b"", b, flags=re.S)   # nur von außen sichtbarer Text (zuhause steht dort etwas anderes)
         if b"<!--NAV-->" in b: b = b.replace(b"<!--NAV-->", open(os.path.join(HERE, "static", "nav.html"), "rb").read())
+        if name != "landing.html": b = b.replace(b"<head>", b"<head>" + open(os.path.join(HERE, "static", "theme.html"), "rb").read(), 1)   # Hell/Dunkel/Auto-Schalter (die Startseite ist immer dunkel)
         self.send_response(code); self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(b))); self.send_header("Cache-Control", "no-store"); self.end_headers()
         if self.command != "HEAD": self.wfile.write(b)
@@ -2103,6 +2485,11 @@ class H(BaseHTTPRequestHandler):
             except (ValueError, TypeError) as ex: return self.send_json({"fehler": str(ex)}, 400)
             return self.send_json({"ok": True, "sicht": FRI.viewers(CUR.name)})
         if p == "/api/live/stop": FRI.stop(CUR.name); return self.send_json({"ok": True})
+        if p == "/api/profile/code":
+            try: profile_set_code(CUR.name, body.get("alt", ""), body.get("neu", ""))
+            except PermissionError as ex: fail(self.ipkey()); return self.send_json({"fehler": str(ex)}, 403)
+            except ValueError as ex: return self.send_json({"fehler": str(ex)}, 400)
+            return self.send_json({"ok": True})
         if p.startswith("/api/friends/"):
             who = str(body.get("name", "")).strip(); k, v = find_profile(who)
             if not v or v.get("disabled"): return self.send_json({"fehler": "Dieses Profil gibt es nicht."}, 404)
@@ -2130,8 +2517,9 @@ class H(BaseHTTPRequestHandler):
                 if act == "create": return self.send_json({"ok": True, "code": _profile_add(name.strip()) if NAME_RE.match(name.strip()) else (_ for _ in ()).throw(ValueError("Name: 2 bis 24 Zeichen."))})
                 if not v: return self.send_json({"fehler": "Profil nicht gefunden."}, 404)
                 if act == "resetcode":
-                    with PLOCK: v["code"] = new_code(); save_profiles()
-                    return self.send_json({"ok": True, "code": v["code"]})
+                    c = new_code()
+                    with PLOCK: code_set(v, c, True); save_profiles()
+                    return self.send_json({"ok": True, "code": c})
                 if act in ("disable", "enable"):
                     with PLOCK: v["disabled"] = act == "disable"; save_profiles()
                     return self.send_json({"ok": True})
@@ -2236,6 +2624,10 @@ class H(BaseHTTPRequestHandler):
                     for k in ("win_start", "win_end"):
                         if k in body: CFG[k] = int(body[k]) % 24
                     if "every_days" in body: CFG["every_days"] = max(1, int(body["every_days"]))
+                    for k in ("bs_win_start", "bs_win_end"):
+                        if k in body: CFG[k] = int(body[k]) % 24
+                    if "bs_every_h" in body: CFG["bs_every_h"] = max(1, min(168, int(body["bs_every_h"])))
+                    if "bs_aktiv" in body: CFG["bs_aktiv"] = bool(body["bs_aktiv"])
                     if "br_mem_mb" in body: CFG["br_mem_mb"] = max(512, min(16384, int(body["br_mem_mb"])))
                     if "br_threads" in body: CFG["br_threads"] = max(1, min(32, int(body["br_threads"])))
                     if "extern_karten" in body:
@@ -2250,10 +2642,13 @@ class H(BaseHTTPRequestHandler):
             return self.send_json({"ok": True})
         if p == "/api/tour/save":
             try: return self.send_json({"ok": True, "id": tour_save(body)})
+            except TourNameTaken as ex:
+                o = ex.info; return self.send_json({"fehler": f"Es gibt schon eine Tour „{o['name']}“.", "vorhanden": {"id": o["id"], "name": o["name"], "km": o.get("km"), "min": o.get("min")}}, 409)
             except (ValueError, TypeError, KeyError, IndexError) as ex: return self.send_json({"fehler": f"Ungültige Tour: {ex}"}, 400)
         if p == "/api/tour/delete":
             tid = str(body.get("id", ""))
             if tid.isalnum() and os.path.exists(_tour_path(tid)): os.remove(_tour_path(tid))
+            if tid.isalnum() and os.path.exists(_route_path(tid)): os.remove(_route_path(tid))
             return self.send_json({"ok": True})
         if p == "/api/tour/rename": return self.send_json({"ok": tour_rename(str(body.get("id", "")), body.get("name", ""))})
         if p == "/api/ride/upload":
@@ -2292,6 +2687,28 @@ def main():
         except Exception as ex: log("BRouter-Start-Fehler:", ex)
     threading.Thread(target=br_boot, daemon=True).start()
     threading.Thread(target=selftest_run, daemon=True).start()
+    def grenzen_boot():
+        time.sleep(30)
+        try: grenzen_laden()
+        except Exception as ex: log("Grenzlinien-Fehler:", ex)
+    threading.Thread(target=grenzen_boot, daemon=True).start()
+    def touren_boot():
+        for wait in (200, 1800, 7200):   # BRouter braucht nach dem Start etwas; bei Misserfolg später noch zweimal
+            time.sleep(wait)
+            try:
+                tours_nachrechnen()
+                if not _alte_touren(): return
+            except Exception as ex: log("Tour-Nachrechnen-Fehler:", ex)
+    threading.Thread(target=touren_boot, daemon=True).start()
+    def bs_boot():
+        for wait in (20, 600, 3600):   # sofort neu einstufen; die Straßensuche braucht BRouter, bei Misserfolg später noch zweimal
+            time.sleep(wait)
+            try:
+                bs_nachbessern()
+                m = bs_meta()
+                if m.get("v") == BS_VER and m.get("gv") == BS_VER: return
+            except Exception as ex: log("Baustellen-Nachbessern-Fehler:", ex)
+    threading.Thread(target=bs_boot, daemon=True).start()
     log(f"Statusseite auf Port {PORT}", "(Änderungen aus)" if not ADMIN_PW else "")
     class Srv(ThreadingHTTPServer): daemon_threads = True
     Srv(("0.0.0.0", PORT), H).serve_forever()

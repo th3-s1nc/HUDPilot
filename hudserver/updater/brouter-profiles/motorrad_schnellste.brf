@@ -22,6 +22,7 @@ assign avoid_motorway = 0
 assign avoid_ferry    = 0
 assign avoid_toll     = 0
 assign avoid_unpaved  = 0
+assign avoid_city     = 0
 # Kostenfaktor der Autobahn in diesem Profil (hoch = nur zur Not, 1.0 = bevorzugt)
 assign motorwaycost   = 1.0
 

@@ -3,7 +3,7 @@
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mu:#667;--ac:#ff7a00;--ok:#1a8f3c;--er:#c62828;--bd:#dde1e6}
-@media(prefers-color-scheme:dark){:root{--bg:#14171a;--card:#1d2125;--tx:#e8eaed;--mu:#9aa;--bd:#2d3339}}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171a;--card:#1d2125;--tx:#e8eaed;--mu:#9aa;--bd:#2d3339}}:root[data-theme="dark"]{--bg:#14171a;--card:#1d2125;--tx:#e8eaed;--mu:#9aa;--bd:#2d3339}
 html,body{height:100%;margin:0}body{background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,sans-serif;display:flex}
 #side{width:340px;max-width:44vw;overflow:auto;padding:12px;box-sizing:border-box;border-right:1px solid var(--bd)}#mapw{flex:1;position:relative;min-width:0}#map{position:absolute;inset:0}
 #big{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:5;display:none;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:14px;box-shadow:0 4px 18px rgba(0,0,0,.25);padding:8px 20px;text-align:center;pointer-events:none;white-space:nowrap}
@@ -16,7 +16,7 @@ input,select{padding:6px;border:1px solid var(--bd);border-radius:6px;background
 .row{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--bd)}.row a{cursor:pointer}
 .maplibregl-popup-content{background:var(--card);color:var(--tx);border-radius:10px;padding:12px 10px 8px}.maplibregl-popup-tip{display:none}
 .pin{width:26px;height:26px;border-radius:50%;background:#ff7a00;color:#fff;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.5);font:700 12px/22px system-ui;text-align:center;cursor:grab}
-.pin.s{background:#1a8f3c}.pin.z{background:#c62828}.pop button{display:block;width:100%;margin:3px 0;text-align:left}
+.pin.s,.pb.s{background:#1a8f3c}.pin.z,.pb.z{background:#c62828}.pb{display:inline-block;width:24px;height:24px;border-radius:50%;background:#ff7a00;color:#fff;font:700 12px/24px system-ui;text-align:center;margin-right:8px;vertical-align:middle}#pts{list-style:none;padding-left:0}#pts li{display:flex;align-items:center;gap:0}.pop button{display:block;width:100%;margin:3px 0;text-align:left}
 #rtDlg{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center}
 .rt{width:min(400px,94vw);background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:16px;padding:18px 22px 20px;box-shadow:0 10px 36px rgba(0,0,0,.35)}
 .rt h2{margin:0 0 2px;font-size:18px;color:var(--tx);text-transform:none;letter-spacing:0}.rt .x{float:right;color:var(--mu);font-size:20px;cursor:pointer;line-height:1}
@@ -29,7 +29,8 @@ input,select{padding:6px;border:1px solid var(--bd);border-radius:6px;background
 .acc{background:var(--card);border:1px solid var(--bd);border-radius:10px;margin-bottom:10px}.acc summary{cursor:pointer;padding:10px 12px;font-weight:600;list-style:none}.acc summary::-webkit-details-marker{display:none}.acc[open] summary{border-bottom:1px solid var(--bd)}.acc .b{padding:4px 12px 12px}
 .sub{font-size:12px;color:var(--ac);letter-spacing:.06em;text-transform:uppercase;margin:10px 0 4px}.chips{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 2px}
 .res{padding:6px 4px;border-bottom:1px solid var(--bd);cursor:pointer}.res:hover{background:var(--bg)}.res span{display:block;font-size:12px}.fav.q i{border-color:var(--ac)}
-li span.m{cursor:pointer;margin-left:6px;color:var(--mu)}
+li span.m{cursor:pointer;margin-left:6px;color:var(--mu);font-size:16px;padding:2px 5px}
+li span.gr{cursor:grab;color:var(--mu);margin-right:6px;padding:2px 4px;touch-action:none;user-select:none}li.drag{opacity:.6}li.dt{box-shadow:0 -2px 0 var(--ac,#f80)}li.db{box-shadow:0 2px 0 var(--ac,#f80)}li.fl{animation:flo 1.5s}@keyframes flo{0%,60%{background:#ffe3c2}100%{background:none}}.pin.fl{outline:3px solid #f80;outline-offset:2px}
 .fav{display:flex;align-items:center;gap:5px;cursor:pointer;transform:translateY(-2px)}.fav i{font-style:normal;width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid #7a4cff;box-shadow:0 1px 4px rgba(0,0,0,.45);text-align:center;font:14px/20px system-ui;flex:none}.fav.h i{border-color:#1a8f3c}
 .fav b{font:600 12px system-ui;color:#222;background:rgba(255,255,255,.88);border-radius:5px;padding:1px 5px;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}.nolab .fav b{display:none}
 @media(max-width:700px){body{flex-direction:column}#side{width:auto;max-width:none;height:46%;border-right:0}#mapw{height:54%;flex:none}#big b{font-size:24px}}
@@ -42,19 +43,21 @@ li span.m{cursor:pointer;margin-left:6px;color:var(--mu)}
 <div class="chips"><button class="g" data-poi="fuel">⛽ Tanken</button><button class="g" data-poi="food">🍴 Essen</button><button class="g" data-poi="hotel">🏨 Hotel</button><button class="g" data-poi="parking">🅿 Parken</button></div>
 <div id="poires"></div>
 <div class="mu" style="margin:8px 0 2px">Klick auf die Karte: Start, Zwischenpunkt oder Ziel setzen. Marker ziehen oder anklicken. Reihenfolge mit ▲ ▼.</div>
+<div style="display:flex;gap:8px;margin:6px 0"><button class="g" id="bUndo" disabled title="Rückgängig (Strg+Z)">↶ Rückgängig</button><button class="g" id="bRedo" disabled title="Wiederholen (Strg+Y)">↷ Wiederholen</button></div>
 <ol id="pts"></ol><div id="info" class="mu">Noch keine Punkte.</div><div id="err" class="er"></div>
 <button class="g" id="bRev">⇄ Umkehren</button><button class="g" id="bUndo">Letzten Punkt entfernen</button><button class="g" id="bClear">Alles löschen</button></div>
 <div class="card">
 <input type="text" id="name" placeholder="Name der Tour">
-<button id="bSave">Speichern</button><button class="g" id="bGpx">GPX speichern</button>
+<button id="bSave">Speichern</button><button class="g" id="bGpx">GPX speichern</button><button class="g" id="bRecalc" title="Strecke neu rechnen (z. B. wegen neuer Baustellen)">↻ Neu berechnen</button>
 <div id="msg" class="mu"></div></div>
-<button id="bRt" style="width:100%;padding:10px;font-weight:600;margin:0 0 10px">⟳ Rundtour erstellen …</button><button class="g" id="bRtAgain" style="display:none;width:100%;margin:-4px 0 10px">🎲 Andere Variante</button>
+<button id="bRt" style="width:100%;padding:10px;font-weight:600;margin:0 0 10px">⟳ Rundtour erstellen …</button><button class="g" id="bBack" style="display:none;width:100%;margin:0 0 10px" title="Start und Ziel sind gleich und Hin- und Rückweg liegen größtenteils auf denselben Straßen">↩ Hin- und Rückweg gleich: anderen Rückweg suchen</button><button class="g" id="bSpike" style="display:none;width:100%;margin:0 0 10px" title="Stellen, an denen die Route zu einem Punkt hin- und auf derselben Straße wieder zurückfährt">✂ Zacken entfernen</button><button class="g" id="bRtAgain" style="display:none;width:100%;margin:-4px 0 10px">🎲 Andere Variante</button>
 <details class="acc" id="accFav" open><summary>★ Favoriten</summary><div class="b"><label style="display:block;margin-bottom:6px"><input type="checkbox" id="favShow" checked> Auf der Karte zeigen</label><div id="favs"><span class="mu">…</span></div></div></details>
 <details class="acc" id="accSet"><summary>⚙ Einstellungen <span class="mu" id="setSum"></span></summary><div class="b">
 <div class="sub">Profil</div>
 <select id="prof"><option value="motorrad_landstrasse">Landstraße (Motorrad)</option><option value="motorrad_kurvig">Kurvig (Motorrad)</option><option value="motorrad_schnell">Schnell (Motorrad)</option><option value="motorrad_schnellste">Schnellste (mit Autobahn)</option><option value="auto">Auto</option></select>
 <div class="sub">Vermeiden</div>
-<div id="avoid" style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-bottom:4px"><label><input type="checkbox" value="motorway"> Autobahn</label><label><input type="checkbox" value="ferry"> Fähren</label><label><input type="checkbox" value="toll"> Maut</label><label><input type="checkbox" value="unpaved"> Unbefestigt</label></div>
+<div id="avoid" style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-bottom:4px"><label><input type="checkbox" value="motorway"> Autobahn</label><label><input type="checkbox" value="ferry"> Fähren</label><label><input type="checkbox" value="toll"> Maut</label><label><input type="checkbox" value="unpaved"> Unbefestigt</label><label title="Wohnstraßen und Straßen mit Tempo 50 oder weniger bekommen einen Aufschlag: Umgehungen und Landstraßen werden bevorzugt"><input type="checkbox" value="city"> Ortsdurchfahrten</label></div>
+<div id="cityRow" class="mu" style="display:none;margin:0 0 6px">Stärke der Ortsmeidung: <input type="range" id="cityW" min="0" max="5" step="1" value="2" style="vertical-align:middle;width:140px"> <b id="cityWv">1,5</b> <span>(schwach … sehr stark)</span></div>
 <div class="sub">Sperrungen</div>
 <label style="display:block;margin-bottom:4px"><input type="checkbox" id="sperr" checked> Sperrungen umfahren</label>
 <label style="display:block"><input type="checkbox" id="bszeig" checked> Baustellen zeigen <span class="mu" id="bsinfo"></span></label>
@@ -66,6 +69,7 @@ li span.m{cursor:pointer;margin-left:6px;color:var(--mu)}
 <div class="km"><span id="rtKmv"></span> <span>km</span></div><input type="range" id="rtKm" min="50" max="500" step="10"><div class="sc"><span>50</span><span>500 km</span></div>
 <div style="font-weight:600;text-align:center">Richtung <span class="mu" style="font-weight:400" id="rtDirTxt"></span></div>
 <div class="rose" id="rtRose"></div><div class="mu" id="rtHint" style="text-align:center"></div>
+<div class="mu" style="text-align:center;margin-top:8px">Form <select id="rtShape"><option value="mix">Gemischt (3 verschiedene)</option><option value="weit">Weit hinaus, schmal</option><option value="mittel">Ausgewogen</option><option value="breit">Breite Schleife</option></select></div>
 <label class="mu" style="display:block;text-align:center;margin-top:8px"><input type="checkbox" id="rtLand"> Länderübergreifend erlauben</label>
 <div id="rtMsg" class="mu" style="text-align:center;margin-top:8px;min-height:18px"></div>
 <div class="rb"><button class="g" id="rtCancel">Abbrechen</button><button id="rtGo">Rundtour erstellen</button></div></div></div>
@@ -74,19 +78,21 @@ li span.m{cursor:pointer;margin-left:6px;color:var(--mu)}
 const $=id=>document.getElementById(id);
 const OSM="© OpenStreetMap-Mitwirkende";
 const DEM={type:"raster-dem",tiles:["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],encoding:"terrarium",tileSize:256,maxzoom:14,attribution:"Höhendaten: Mapzen/AWS Terrain Tiles"};
-const ras=(tiles,mz,att)=>({version:8,sources:{r:{type:"raster",tiles,tileSize:256,maxzoom:mz,attribution:att}},layers:[{id:"r",type:"raster",source:"r"}]});
-const rasT=(tiles,mz,att,ex)=>({version:8,sources:{r:{type:"raster",tiles,tileSize:256,maxzoom:mz,attribution:att},dem:DEM,dem2:DEM},
- layers:[{id:"r",type:"raster",source:"r"},{id:"hs",type:"hillshade",source:"dem2",paint:{"hillshade-exaggeration":.35,"hillshade-shadow-color":"#3a3a3a"}}],terrain:{source:"dem",exaggeration:ex}});
+const ras=(tiles,mz,att,lab)=>{const st={version:8,sources:{r:{type:"raster",tiles,tileSize:256,maxzoom:mz,attribution:att}},layers:[{id:"r",type:"raster",source:"r"}]};
+ if(lab){st.sources.lab={type:"raster",tiles:[lab],tileSize:256,maxzoom:Math.min(mz,16)};st.layers.push({id:"lab",type:"raster",source:"lab"})}return st};   // lab: Beschriftungsebene (Esri liefert Namen getrennt)
+const rasT=(tiles,mz,att,ex,lab)=>{const st={version:8,sources:{r:{type:"raster",tiles,tileSize:256,maxzoom:mz,attribution:att},dem:DEM,dem2:DEM},
+ layers:[{id:"r",type:"raster",source:"r"},{id:"hs",type:"hillshade",source:"dem2",paint:{"hillshade-exaggeration":.35,"hillshade-shadow-color":"#3a3a3a"}}],terrain:{source:"dem",exaggeration:ex}};
+ if(lab){st.sources.lab={type:"raster",tiles:[lab],tileSize:256,maxzoom:Math.min(mz,16)};st.layers.push({id:"lab",type:"raster",source:"lab"})}return st};
 const ESRI="https://server.arcgisonline.com/ArcGIS/rest/services/";
 const STYLES={
  "Standard":{s:()=>ras(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],19,OSM),p:0},
- "Hell (ruhig)":{s:()=>ras([ESRI+"Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"],16,"Tiles © Esri, "+OSM),p:0},
- "Dunkel":{s:()=>ras([ESRI+"Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"],16,"Tiles © Esri, "+OSM),p:0},
+ "Hell (ruhig)":{s:()=>ras([ESRI+"Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"],16,"Tiles © Esri, "+OSM,ESRI+"Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"),p:0},
+ "Dunkel":{s:()=>ras([ESRI+"Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"],16,"Tiles © Esri, "+OSM,ESRI+"Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"),p:0},
  "Straßen (Esri)":{s:()=>ras([ESRI+"World_Street_Map/MapServer/tile/{z}/{y}/{x}"],19,"Tiles © Esri"),p:0},
  "Topografie (Höhenlinien)":{s:()=>ras(["https://a.tile.opentopomap.org/{z}/{x}/{y}.png","https://b.tile.opentopomap.org/{z}/{x}/{y}.png"],17,OSM+' © OpenTopoMap'),p:0},
- "Satellit":{s:()=>ras([ESRI+"World_Imagery/MapServer/tile/{z}/{y}/{x}"],19,"Tiles © Esri"),p:0},
+ "Satellit":{s:()=>ras([ESRI+"World_Imagery/MapServer/tile/{z}/{y}/{x}"],19,"Tiles © Esri",ESRI+"Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"),p:0},
  "3D Gelände (Karte)":{s:()=>rasT(["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],19,OSM,1.5),p:62,hint:"Gelände in 3D. Neigen/Drehen: rechte Maustaste halten und ziehen (oder Strg + ziehen)."},
- "3D Gelände (Satellit)":{s:()=>rasT([ESRI+"World_Imagery/MapServer/tile/{z}/{y}/{x}"],19,"Tiles © Esri",1.5),p:62,hint:"Satellitenbild auf 3D-Gelände. Neigen/Drehen: rechte Maustaste halten und ziehen."},
+ "3D Gelände (Satellit)":{s:()=>rasT([ESRI+"World_Imagery/MapServer/tile/{z}/{y}/{x}"],19,"Tiles © Esri",1.5,ESRI+"Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"),p:62,hint:"Satellitenbild auf 3D-Gelände. Neigen/Drehen: rechte Maustaste halten und ziehen."},
  "3D Gebäude (Stadt)":{s:()=>"https://tiles.openfreemap.org/styles/liberty",p:60,hint:"Städte mit 3D-Gebäuden (OpenFreeMap). Nah heranzoomen, rechte Maustaste zum Neigen."}};
 let sty="Standard";try{sty=localStorage.getItem("hudstyle")||sty}catch(e){}if(!STYLES[sty])sty="Standard";
 Object.keys(STYLES).forEach(k=>{const o=document.createElement("option");o.value=o.textContent=k;$("sty").appendChild(o)});$("sty").value=sty;
@@ -97,7 +103,12 @@ let pts=[],markers=[],last=null,tid=null,timer=null,seq=0,routeGeo=null;
 try{$("prof").value=localStorage.getItem("hudprof")||"motorrad_landstrasse"}catch(e){}
 const avoidBoxes=()=>[...document.querySelectorAll("#avoid input")];
 const getAvoid=()=>avoidBoxes().filter(c=>c.checked).map(c=>c.value);
-const setAvoid=a=>avoidBoxes().forEach(c=>c.checked=(a||[]).includes(c.value));
+const CITYW=[.5,1,1.5,2,3,4];   // Stufen des Reglers "Ortsmeidung"
+const cityWval=()=>CITYW[+$("cityW").value]||1.5;
+const cityQ=()=>getAvoid().includes("city")?"&cityw="+cityWval():"";
+function cityUi(){const on=getAvoid().includes("city");$("cityRow").style.display=on?"block":"none";$("cityWv").textContent=String(cityWval()).replace(".",",")}
+function setCityW(w){const i=CITYW.indexOf(+w);if(i>=0)$("cityW").value=i;cityUi()}
+const setAvoid=(a,w)=>{avoidBoxes().forEach(c=>c.checked=(a||[]).includes(c.value));if(w!=null)setCityW(w);cityUi()};
 try{setAvoid(JSON.parse(localStorage.getItem("hudavoid")||"[]"))}catch(e){}
 try{if(localStorage.getItem("hudsperr")==="0")$("sperr").checked=false}catch(e){}
 $("sperr").onchange=()=>{try{localStorage.setItem("hudsperr",$("sperr").checked?"1":"0")}catch(e){}route()};
@@ -107,24 +118,31 @@ $("sty").onchange=()=>{sty=$("sty").value;try{localStorage.setItem("hudstyle",st
  $("styhint").textContent=STYLES[sty].hint||"";map.setStyle(STYLES[sty].s());map.easeTo({pitch:STYLES[sty].p,duration:800})};
 let bsGeo={type:"FeatureCollection",features:[]},bsItems=[];
 const BSCOL=["match",["get","k"],"c","#e53935","r","#ff8f00","#ffb300"],BSW=["match",["get","k"],"c",7,"r",5,3.5];
-function ensureBs(){try{
- if(!map.getSource("bs"))map.addSource("bs",{type:"geojson",data:bsGeo});
- if(!map.getLayer("bs-line"))map.addLayer({id:"bs-line",type:"line",source:"bs",minzoom:8,layout:{"line-cap":"round","line-join":"round","visibility":$("bszeig").checked?"visible":"none"},paint:{"line-color":BSCOL,"line-width":BSW,"line-opacity":.85}});
-}catch(e){}}
+function ensureBs(){
+ const vis=$("bszeig").checked?"visible":"none";
+ try{if(!map.getSource("bs"))map.addSource("bs",{type:"geojson",data:bsGeo})}catch(e){console.warn("bs",e);return}
+ // Eine Ebene für alle Meldungen: genaue Linien dick, Luftlinien (keine Straße gefunden, z=1) dünner. So ist immer etwas zu sehen.
+ try{if(!map.getLayer("bs-line"))map.addLayer({id:"bs-line",type:"line",source:"bs",minzoom:8,layout:{"line-cap":"round","line-join":"round","visibility":vis},
+  paint:{"line-color":BSCOL,"line-width":["case",["==",["get","z"],1],4,BSW],"line-opacity":["case",["==",["get","f"],1],.38,["==",["get","z"],1],.8,.85]}})}catch(e){console.warn("bs-line",e)}
+ // Darüber ein weißes Strichmuster nur auf den Luftlinien: "gestrichelt" = Lage ungefähr
+ try{if(!map.getLayer("bs-dash"))map.addLayer({id:"bs-dash",type:"line",source:"bs",minzoom:8,filter:["==",["get","z"],1],layout:{"line-cap":"butt","visibility":vis},
+  paint:{"line-color":"#ffffff","line-width":2,"line-opacity":["case",["==",["get","f"],1],.4,.9],"line-dasharray":[2,2]}})}catch(e){console.warn("bs-dash",e)}
+}
 async function loadBs(){try{const r=await fetch("/api/baustellen");if(!r.ok)return;const j=await r.json();const t=j.test&&j.ref?j.ref:Math.floor(Date.now()/1000);
- bsItems=[];const fs=[];(j.items||[]).forEach((x,i)=>{if((x.e&&x.e<t)||(x.s&&x.s>t))return;bsItems.push(x);
-  fs.push({type:"Feature",properties:{k:x.k,n:bsItems.length-1},geometry:{type:"LineString",coordinates:(x.g&&x.g.length>=2?x.g:[x.a,x.b]).map(q=>[q[1],q[0]])}})});
+ bsItems=[];const fs=[];let nf=0;(j.items||[]).forEach((x,i)=>{if(x.e&&x.e<t)return;const fu=!!(x.s&&x.s>t);if(fu&&x.s>t+7*86400)return;if(fu)nf++;bsItems.push(x);
+  fs.push({type:"Feature",properties:{k:x.k,n:bsItems.length-1,z:(x.g&&x.g.length>=2)?0:1,f:fu?1:0},geometry:{type:"LineString",coordinates:(x.g&&x.g.length>=2?x.g:[x.a,x.b]).map(q=>[q[1],q[0]])}})});
  bsGeo={type:"FeatureCollection",features:fs};ensureBs();const src=map.getSource("bs");if(src)src.setData(bsGeo);
- $("bsinfo").textContent=fs.length?"("+fs.length+(j.test?", Testdaten":"")+")":"(keine Daten)"}catch(e){}}
+ $("bsinfo").textContent=fs.length?"("+fs.length+(nf?", davon "+nf+" ab später":"")+(j.test?", Testdaten":"")+")":"(keine Daten)"}catch(e){}}
 const BSN={c:"Gesperrt",r:"Eingeschränkt",w:"Arbeiten"};
 function bsPopup(i,ll){const x=bsItems[i];if(!x)return;const d=document.createElement("div");d.style.fontSize="13px";
- const h=document.createElement("b");h.textContent=(BSN[x.k]||"Baustelle")+(x.r?" · "+x.r:"");d.appendChild(h);
+ const h=document.createElement("b");h.textContent=(BSN[x.k]||"Baustelle")+(x.r?" · "+x.r:"")+((x.g&&x.g.length>=2)?"":" · Lage ungefähr");d.appendChild(h);
  const t=document.createElement("div");t.style.whiteSpace="pre-line";t.style.marginTop="4px";t.textContent=x.t||"";d.appendChild(t);
+ if(x.s&&x.s>Math.floor(Date.now()/1000)){const v=document.createElement("div");v.style.marginTop="4px";v.style.fontWeight="700";v.textContent="Gilt erst ab "+new Date(x.s*1000).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})+" Uhr";d.appendChild(v)}
  if(x.e){const u=document.createElement("div");u.className="mu";u.style.marginTop="4px";u.textContent="Bis "+new Date(x.e*1000).toLocaleDateString("de-DE");d.appendChild(u)}
  popup(ll,d)}
-$("bszeig").onchange=()=>{try{localStorage.setItem("hudbs",$("bszeig").checked?"1":"0")}catch(e){}if(map.getLayer("bs-line"))map.setLayoutProperty("bs-line","visibility",$("bszeig").checked?"visible":"none")};
+$("bszeig").onchange=()=>{try{localStorage.setItem("hudbs",$("bszeig").checked?"1":"0")}catch(e){}["bs-line","bs-dash"].forEach(l=>{if(map.getLayer(l))map.setLayoutProperty(l,"visibility",$("bszeig").checked?"visible":"none")})};
 try{if(localStorage.getItem("hudbs")==="0")$("bszeig").checked=false}catch(e){}
-map.on("mouseenter","bs-line",()=>map.getCanvas().style.cursor="pointer");map.on("mouseleave","bs-line",()=>map.getCanvas().style.cursor="");
+["bs-line","bs-dash"].forEach(l=>{map.on("mouseenter",l,()=>map.getCanvas().style.cursor="pointer");map.on("mouseleave",l,()=>map.getCanvas().style.cursor="")});
 function ensureRoute(){
  ensureBs();
  if(!map.isStyleLoaded&&!map.getStyle())return;
@@ -137,7 +155,7 @@ map.on("style.load",ensureRoute);map.on("load",loadBs);
 function drawRoute(coords){
  routeGeo=coords?{type:"Feature",geometry:{type:"LineString",coordinates:coords.map(q=>[q[0],q[1]])}}:null;
  ensureRoute();const src=map.getSource("route");if(src)src.setData(routeGeo||{type:"FeatureCollection",features:[]})}
-const lab=(i,n)=>i==0?"Start":i==n-1?"Ziel":"Via "+i;
+const lab=(i,n)=>i==0?"Start":i==n-1?"Ziel":"Punkt "+i;
 function say(t,c){$("msg").className=c||"mu";$("msg").textContent=t}
 function popup(lnglat,node){new maplibregl.Popup({closeButton:true,maxWidth:"260px"}).setLngLat(lnglat).setDOMContent(node).addTo(map)}
 function closePopups(){document.querySelectorAll(".maplibregl-popup").forEach(p=>p.remove())}
@@ -147,17 +165,51 @@ function markerMenu(i){const d=document.createElement("div");d.className="pop";
  add("Punkt löschen",()=>{pts.splice(i,1);redraw();route()});
  if(i>0)add("Als Start",()=>{const p=pts.splice(i,1)[0];pts.unshift(p);redraw();route()});
  if(i<pts.length-1)add("Als Ziel",()=>{const p=pts.splice(i,1)[0];pts.push(p);redraw();route()});return d}
-function redraw(){
- markers.forEach(m=>m.remove());markers=[];
- pts.forEach((p,i)=>{const el=pinEl(i,pts.length);
+/* Rückgängig / Wiederholen: jede Änderung an den Punkten (alles läuft über redraw) wird als Schritt gemerkt, höchstens 50 */
+let histCur="[]",histUndo=[],histRedo=[];
+function histTrack(){const t=JSON.stringify(pts);if(t===histCur)return;histUndo.push(histCur);if(histUndo.length>50)histUndo.shift();histRedo=[];histCur=t}
+function histBtns(){$("bUndo").disabled=!histUndo.length;$("bRedo").disabled=!histRedo.length}
+function undo(){if(!histUndo.length)return;histRedo.push(histCur);histCur=histUndo.pop();pts=JSON.parse(histCur);redraw();route();say("Rückgängig gemacht ("+histUndo.length+" weitere möglich).","ok")}
+function redo(){if(!histRedo.length)return;histUndo.push(histCur);histCur=histRedo.pop();pts=JSON.parse(histCur);redraw();route();say("Wiederholt.","ok")}
+document.addEventListener("keydown",e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const t=e.target,k=(e.key||"").toLowerCase();
+ if(t&&(/^(input|textarea|select)$/i.test(t.tagName)||t.isContentEditable))return;
+ if(k==="z"&&!e.shiftKey){e.preventDefault();undo()}else if(k==="y"||(k==="z"&&e.shiftKey)){e.preventDefault();redo()}});
+function redraw(){histTrack();histBtns();
+ markers.forEach(m=>{try{m.remove()}catch(e){}});markers=[];
+ document.querySelectorAll(".pin").forEach(e=>e.remove());   // auch Pins, die nicht mehr zur Liste gehören (Geisterpins)
+ try{pts.forEach((p,i)=>{const el=pinEl(i,pts.length);
   const m=new maplibregl.Marker({element:el,draggable:true}).setLngLat([p[1],p[0]]).addTo(map);
   m.on("dragend",async()=>{const ll=m.getLngLat();const q=await snapTo([ll.lat,ll.lng]);if(!q)return redraw();pts[i]=q;redraw();route()});
-  el.addEventListener("click",e=>{e.stopPropagation();closePopups();popup(m.getLngLat(),markerMenu(i))});markers.push(m)});
- $("pts").innerHTML="";pts.forEach((p,i)=>{const li=document.createElement("li");li.textContent=lab(i,pts.length)+": "+p[0].toFixed(4)+", "+p[1].toFixed(4);
-  const mv=(t,d)=>{const x=document.createElement("span");x.className="m";x.textContent=t;x.onclick=()=>{const j=i+d;if(j<0||j>=pts.length)return;const q=pts.splice(i,1)[0];pts.splice(j,0,q);redraw();route()};li.appendChild(x)};
+  el.addEventListener("click",e=>{e.stopPropagation();closePopups();popup(m.getLngLat(),markerMenu(i))});markers.push(m)})}catch(e){say("Karte konnte nicht neu gezeichnet werden: "+(e&&e.message||e),"er")}
+ $("pts").innerHTML="";pts.forEach((p,i)=>{const li=document.createElement("li");if(i===flashIdx)li.className="fl";
+  const gr=document.createElement("span");gr.className="gr";gr.textContent="⋮⋮";gr.title="Festhalten und verschieben";gr.onpointerdown=e=>dragStart(e,i,li);li.appendChild(gr);
+  const n=pts.length,bd=document.createElement("span");bd.className="pb "+(i==0?"s":i==n-1?"z":"");bd.textContent=i==0?"S":i==n-1?"Z":i;li.appendChild(bd);   // dasselbe Symbol wie der Pin auf der Karte
+  const tx=document.createElement("span");tx.style.flex="1";tx.textContent=(i==0?"Start: ":i==n-1?"Ziel: ":"")+p[0].toFixed(4)+", "+p[1].toFixed(4);li.appendChild(tx);
+  const mv=(t,d)=>{const x=document.createElement("span");x.className="m";x.textContent=t;x.onclick=()=>{const j=i+d;if(j<0||j>=pts.length)return;movePt(i,j)};li.appendChild(x)};
   mv("▲",-1);mv("▼",1);
   const x=document.createElement("span");x.className="x";x.textContent="✕";x.onclick=()=>{pts.splice(i,1);redraw();route()};li.appendChild(x);$("pts").appendChild(li)});
+ flashIdx=-1;saveDraft();
 }
+let flashIdx=-1;
+/* Entwurf im Browser mitschreiben: nach F5 oder versehentlichem Schließen ist die Planung wieder da */
+function saveDraft(){try{if(!pts.length){localStorage.removeItem("hudplan_draft");return}
+ localStorage.setItem("hudplan_draft",JSON.stringify({pts,tid,name:$("name").value,prof:$("prof").value,avoid:getAvoid(),cityw:cityWval()}))}catch(e){}}
+function restoreDraft(){try{const d=JSON.parse(localStorage.getItem("hudplan_draft")||"null");if(!d||!Array.isArray(d.pts)||!d.pts.length||pts.length)return;
+ pts=d.pts.filter(p=>Array.isArray(p)&&isFinite(p[0])&&isFinite(p[1]));if(!pts.length)return;tid=d.tid||null;$("name").value=d.name||"";if(d.prof)$("prof").value=d.prof;setAvoid(d.avoid,d.cityw);sumUpdate();
+  const fit=()=>{redraw();route();try{const b=new maplibregl.LngLatBounds();pts.forEach(p=>b.extend([p[1],p[0]]));map.fitBounds(b,{padding:60,maxZoom:14,duration:0})}catch(e){}say("Entwurf wiederhergestellt ("+pts.length+" Punkte).","ok")};
+  if(map.loaded())fit();else map.once("load",fit)}catch(e){}}
+function movePt(i,j){if(i===j||!pts[i])return;const q=pts.splice(i,1)[0];pts.splice(j,0,q);flashIdx=j;redraw();route();
+ if(markers[j]){const e=markers[j].getElement();e.classList.add("fl");setTimeout(()=>e.classList.remove("fl"),1500)}
+ say("Punkt ist jetzt "+lab(j,pts.length)+".","ok")}
+/* Zeile mit der Maus oder dem Finger packen und beliebig weit verschieben */
+function dragStart(e,from,li){e.preventDefault();const lis=[...$("pts").children];let to=from;const gr=e.currentTarget;
+ try{gr.setPointerCapture(e.pointerId)}catch(_){}
+ li.classList.add("drag");
+ const mark=()=>{lis.forEach((l,k)=>l.classList.remove("dt","db"));if(to!==from)lis[to].classList.add(to<from?"dt":"db")};
+ gr.onpointermove=ev=>{let k=lis.length-1;for(let n=0;n<lis.length;n++){const r=lis[n].getBoundingClientRect();if(ev.clientY<r.top+r.height/2){k=n;break}}
+  if(ev.clientY<lis[0].getBoundingClientRect().top)k=0;to=k;mark()};
+ const end=ev=>{gr.onpointermove=gr.onpointerup=gr.onpointercancel=null;lis.forEach(l=>l.classList.remove("drag","dt","db"));if(ev.type!=="pointercancel")movePt(from,to)};
+ gr.onpointerup=end;gr.onpointercancel=end}
 const hav=(a,b)=>{const R=6371000,r=Math.PI/180,dl=(b[0]-a[0])*r,dn=(b[1]-a[1])*r,x=Math.sin(dl/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(x))};
 /* Einfügeposition (Index in pts) für einen neuen Zwischenpunkt: mit Route entlang der Linie, sonst günstigste Einfügung */
 function insertIndex(p){
@@ -179,7 +231,7 @@ async function snapTo(p){
 const PT_MAX=300;
 function full(){if(pts.length>=PT_MAX){say("Höchstens "+PT_MAX+" Punkte.","er");return true}return false}
 map.on("click",e=>{const p=[e.lngLat.lat,e.lngLat.lng];if(full())return;closePopups();
- if($("bszeig").checked&&map.getLayer("bs-line")){const f=map.queryRenderedFeatures([[e.point.x-8,e.point.y-8],[e.point.x+8,e.point.y+8]],{layers:["bs-line"]});if(f.length){bsPopup(f[0].properties.n,e.lngLat);return}}
+ if($("bszeig").checked&&map.getLayer("bs-line")){const f=map.queryRenderedFeatures([[e.point.x-8,e.point.y-8],[e.point.x+8,e.point.y+8]],{layers:["bs-line","bs-dash"].filter(l=>map.getLayer(l))});if(f.length){bsPopup(f[0].properties.n,e.lngLat);return}}
  const d=document.createElement("div");d.className="pop";
  const add=(t,f)=>{const b=document.createElement("button");b.className="g";b.textContent=t;b.onclick=async()=>{closePopups();const q=await snapTo(p);if(!q)return;f(q);redraw();route()};d.appendChild(b)};
  if(pts.length<2){add(pts.length?"Ziel":"Start",q=>pts.push(q))}
@@ -246,37 +298,53 @@ function mergeRoutes(js){if(js.length==1)return js[0];
   if(j.sperrung){sp=sp||{n:0,umfahren:0,bleibt:[]};sp.n+=j.sperrung.n||0;sp.umfahren=(sp.umfahren<0||j.sperrung.umfahren<0)?-1:sp.umfahren+(j.sperrung.umfahren||0);(j.sperrung.bleibt||[]).forEach(t=>{if(!sp.bleibt.includes(t))sp.bleibt.push(t)})}});
  return{features:[{geometry:{coordinates:co},properties:{"track-length":tl,"total-time":tt,"filtered ascend":asc}}],sperrung:sp||undefined}}
 const segCache=new Map();
+let lastStats=null,lastKey="";
+const keyNow=()=>JSON.stringify([pts,$("prof").value,getAvoid(),cityWval(),$("sperr").checked]);   // Stand der Eingaben, zu dem die Strecke gehört
 async function doRoute(keep){
- if(!keep){drawRoute(null);last=null;bigInfo(null)}$("err").textContent="";
- if(pts.length<2){$("info").textContent=pts.length?"Noch ein Punkt für das Ziel setzen.":"Noch keine Punkte.";return}
- const my=++seq;if(!keep)$("info").textContent="Berechne …";
+ lastStats=null;if(!keep){last=null;bigInfo(null);$("bBack").style.display="none";$("bSpike").style.display="none"}$("err").textContent="";   // alte Linie bleibt stehen, bis die neue da ist
+ if(pts.length<2){drawRoute(null);$("info").textContent=pts.length?"Noch ein Punkt für das Ziel setzen.":"Noch keine Punkte.";return}
+ const my=++seq;if(!keep)$("info").textContent="Berechne … (alte Linie bleibt, bis die neue fertig ist)";
  const one=async ps=>{const ll=ps.map(p=>p[1].toFixed(6)+","+p[0].toFixed(6)).join("|");
-  const url="/api/route?lonlats="+encodeURIComponent(ll)+"&profile="+$("prof").value+"&avoid="+getAvoid().join(",")+($("sperr").checked?"&sperr=1":"");
+  const url="/api/route?lonlats="+encodeURIComponent(ll)+"&profile="+$("prof").value+"&avoid="+getAvoid().join(",")+cityQ()+($("sperr").checked?"&sperr=1":"");
   const hit=segCache.get(url);if(hit&&Date.now()-hit.t<600000)return hit.v;   // unveränderte Stücke nicht nochmal rechnen
   const r=await fetch(url);const v={ok:r.ok,j:await r.json()};
-  if(v.ok){if(segCache.size>=200)segCache.delete(segCache.keys().next().value);segCache.set(url,{t:Date.now(),v})}return v};
- try{const rs=await poolMap(chunkPts(pts),q=>one(q.p),6);if(my!=seq)return;
+  if(v.ok){if(segCache.size>=400)segCache.delete(segCache.keys().next().value);segCache.set(url,{t:Date.now(),v})}return v};
+ try{const t0=Date.now(),legs=pts.slice(0,-1).map((p,i)=>[p,pts[i+1]]);   // jede Etappe einzeln und gleichzeitig; unveränderte kommen aus dem Speicher
+  const rs=await poolMap(legs,q=>one(q),8);if(my!=seq)return;
   const bad=rs.find(x=>!x.ok),r={ok:!bad},j=bad?bad.j:mergeRoutes(rs.map(x=>x.j));
-  if(!r.ok){$("info").textContent="";$("err").textContent=(j.fehler||"Fehler")+(/datafile .* not found/.test(j.fehler||"")?" – für diesen Bereich fehlen Routendaten auf dem Server (Region dort bauen lassen).":"");return}
+  if(!r.ok){drawRoute(null);$("info").textContent="";$("err").textContent=(j.fehler||"Fehler")+(/datafile .* not found/.test(j.fehler||"")?" – für diesen Bereich fehlen Routendaten auf dem Server (Region dort bauen lassen).":"");return}
   const f=j.features[0],c=f.geometry.coordinates;last=c;drawRoute(c);
   const km=(+f.properties["track-length"]/1000),min=Math.round(+f.properties["total-time"]/60);
-  $("info").textContent=km.toFixed(1)+" km · "+Math.floor(min/60)+" h "+String(min%60).padStart(2,"0")+" min · Anstieg "+(f.properties["filtered ascend"]||"?")+" m";
-  bigInfo(km,min,f.properties["filtered ascend"]);
+  window.lastCalcMs=Date.now()-t0;$("info").textContent=km.toFixed(1)+" km · "+Math.floor(min/60)+" h "+String(min%60).padStart(2,"0")+" min · Anstieg "+(f.properties["filtered ascend"]||"?")+" m · "+((Date.now()-t0)/1000).toFixed(1)+" s";
+  lastStats={km:Math.round(km*10)/10,min,asc:Math.round(+f.properties["filtered ascend"]||0)};lastKey=keyNow();bigInfo(km,min,f.properties["filtered ascend"]);bkOffer();spikeOffer();
   const sp=j.sperrung;if(sp){if(sp.umfahren>0)$("info").textContent+=" · ✓ "+sp.umfahren+(sp.umfahren==1?" Sperrung umfahren":" Sperrungen umfahren");
    if(sp.n)$("err").textContent=(sp.umfahren<0?"Keine Umfahrung gefunden. ":"")+"Sperrung auf der Route: "+sp.bleibt.join("; ")}}
- catch(e){if(my==seq){$("info").textContent="";$("err").textContent="Server nicht erreichbar."}}}
+ catch(e){if(my==seq){drawRoute(null);$("info").textContent="";$("err").textContent="Server nicht erreichbar."}}}
 async function post(p,b){
  const r=await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});
  const j=await r.json().catch(()=>({}));if(!r.ok)say(j.fehler||"Fehler","er");return r.ok?j:null}
-const body=()=>({id:tid,name:$("name").value||"Tour",profile:$("prof").value,avoid:getAvoid(),points:pts});
-$("bSave").onclick=async()=>{if(pts.length<2)return say("Erst Start und Ziel setzen.","er");const j=await post("/api/tour/save",body());if(j){tid=j.id;say("Gespeichert.","ok")}};
+const body=()=>({id:tid,name:$("name").value||"Tour",profile:$("prof").value,avoid:getAvoid(),cityw:cityWval(),points:pts,...(lastStats||{}),...(lastStats&&last&&lastKey===keyNow()?{route:last}:{})});   // Strecke nur mitsenden, wenn sie zu den aktuellen Punkten und Einstellungen gehört
+const kmMin=(km,m)=>Math.round(km)+" km | "+Math.floor(m/60)+" h "+String(m%60).padStart(2,"0")+" min";
+$("bSave").onclick=async()=>{if(pts.length<2)return say("Erst Start und Ziel setzen.","er");
+ const b={...body(),pruefen:true},send=async x=>{const r=await fetch("/api/tour/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(x)});return{r,j:await r.json().catch(()=>({}))}};
+ let {r,j}=await send(b);
+ if(r.status===409&&j.vorhanden){const v=j.vorhanden;   // Name schon vergeben: nachfragen
+  if(confirm("Es gibt schon eine Tour „"+v.name+"“"+(v.km!=null?" ("+kmMin(v.km,v.min)+")":"")+".\n\nOK = diese Tour überschreiben\nAbbrechen = anderen Namen wählen")){({r,j}=await send({...b,ueberschreiben:v.id}))}
+  else{say("Bitte einen anderen Namen eintragen.","er");$("name").focus();$("name").select();return}}
+ if(!r.ok)return say(j.fehler||"Fehler","er");tid=j.id;say("Gespeichert.","ok")};
+$("bRecalc").onclick=()=>{if(pts.length<2)return say("Erst Start und Ziel setzen.","er");segCache.clear();doRoute(true)};
 $("bGpx").onclick=()=>{if(!last)return say("Erst eine Route berechnen.","er");
  const n=($("name").value||"Tour").replace(/[<>&]/g,"");let x='<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="HUDPilot Planer" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>'+n+'</name><trkseg>\n';
  last.forEach(q=>{x+='<trkpt lat="'+q[1]+'" lon="'+q[0]+'">'+(q[2]!=null?'<ele>'+q[2]+'</ele>':'')+'</trkpt>\n'});x+='</trkseg></trk></gpx>';
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([x],{type:"application/gpx+xml"}));a.download=n.replace(/[^\w\- äöüÄÖÜß]/g,"_")+".gpx";a.click()};
 async function openTour(id){const t=await(await fetch("/api/tour?id="+id)).json();if(!t.points)return;
- tid=t.id;pts=t.points;$("name").value=t.name;$("prof").value=t.profile||"motorrad_landstrasse";setAvoid(t.avoid);sumUpdate();redraw();
- const b=new maplibregl.LngLatBounds();pts.forEach(p=>b.extend([p[1],p[0]]));map.fitBounds(b,{padding:60,maxZoom:14});route()}
+ tid=t.id;pts=t.points;$("name").value=t.name;$("prof").value=t.profile||"motorrad_landstrasse";setAvoid(t.avoid,t.cityw);sumUpdate();redraw();
+ const b=new maplibregl.LngLatBounds();pts.forEach(p=>b.extend([p[1],p[0]]));map.fitBounds(b,{padding:60,maxZoom:14});
+ if(Array.isArray(t.route)&&t.route.length>1&&t.km!=null){   // gespeicherte Strecke zeigen, nicht neu rechnen
+  last=t.route;drawRoute(last);lastStats={km:t.km,min:t.min,asc:t.asc||0};lastKey=keyNow();$("err").textContent="";
+  $("info").textContent=t.km.toFixed(1)+" km · "+Math.floor(t.min/60)+" h "+String(t.min%60).padStart(2,"0")+" min"+(t.asc!=null?" · Anstieg "+t.asc+" m":"")+" · gespeichert";
+  bigInfo(t.km,t.min,t.asc);bkOffer();spikeOffer()}
+ else route()}
 /* Gefahrene Fahrt als Route übernehmen: Punkte alle paar Kilometer, dazu überall dort Punkte, wo die berechnete Route von der Spur abweicht (bis 300 Punkte) */
 const TRK_TOL_M=70, TRK_STEP_M=3000;
 function devM(track,coords){ // Abstand jedes Spurpunkts zur berechneten Route in Metern
@@ -288,7 +356,7 @@ function devM(track,coords){ // Abstand jedes Spurpunkts zur berechneten Route i
   return best})}
 let routeErr="";
 async function routeOf(points,nogos){routeErr="";try{const ll=points.map(p=>p[1].toFixed(6)+","+p[0].toFixed(6)).join("|");
- const r=await fetch("/api/route?lonlats="+encodeURIComponent(ll)+"&profile="+$("prof").value+"&avoid="+getAvoid().join(",")+(nogos?"&nogos="+encodeURIComponent(nogos):""));const j=await r.json();
+ const r=await fetch("/api/route?lonlats="+encodeURIComponent(ll)+"&profile="+$("prof").value+"&avoid="+getAvoid().join(",")+cityQ()+(nogos?"&nogos="+encodeURIComponent(nogos):""));const j=await r.json();
  if(r.ok)return j.features[0].geometry.coordinates;routeErr=String(j.fehler||"");return null}catch(e){routeErr="Server nicht erreichbar.";return null}}
 /* Lange Punktlisten in Stücke zu höchstens 25 Punkten teilen (Nachbarstücke teilen sich den Randpunkt); s = Index des ersten Punkts */
 function chunkPts(points,n){n=n||25;const out=[];let i=0;while(i<points.length-1){const j=Math.min(points.length-1,i+n-1);out.push({s:i,p:points.slice(i,j+1)});i=j}return out}
@@ -352,9 +420,9 @@ async function openRide(id){
  say(ok?(near?"Fahrt genau als Route übernommen ("+pts.length+" Punkte). Profil: "+$("prof").selectedOptions[0].textContent+"."+(nDrop?" "+nDrop+" Stelle(n) ohne befahrbaren Weg wurden übersprungen.":""):"Fahrt als Näherung übernommen ("+pts.length+" Punkte). An einzelnen Stellen kann die Route abweichen."):"Berechnung nicht möglich: "+(failTxt||"unbekannter Fehler")+" Es wurden nur Start und Ziel übernommen.",ok?"ok":"er")}
 
 /* ---------- Rundtour: Hinweg und ANDERER Rückweg (Rückweg wird um den Hinweg herum gerechnet) ---------- */
-const RT={km:250,dir:null},RTD=["N","NO","O","SO","S","SW","W","NW"],RTL={N:"Norden",NO:"Nordosten",O:"Osten",SO:"Südosten",S:"Süden",SW:"Südwesten",W:"Westen",NW:"Nordwesten"};
+const RT={km:250,dir:null,shape:"mix"},RTD=["N","NO","O","SO","S","SW","W","NW"],RTL={N:"Norden",NO:"Nordosten",O:"Osten",SO:"Südosten",S:"Süden",SW:"Südwesten",W:"Westen",NW:"Nordwesten"};
 let rtBusy=false,rtCancel=false,rtLast=null;
-try{const o=JSON.parse(localStorage.getItem("hudrt")||"{}");if(o.km>=50&&o.km<=500)RT.km=o.km;if(o.dir===null||(o.dir>=0&&o.dir<360))RT.dir=o.dir===undefined?null:o.dir;RT.cross=!!o.cross}catch(e){}
+try{const o=JSON.parse(localStorage.getItem("hudrt")||"{}");if(o.km>=50&&o.km<=500)RT.km=o.km;if(o.dir===null||(o.dir>=0&&o.dir<360))RT.dir=o.dir===undefined?null:o.dir;RT.cross=!!o.cross;if(["mix","weit","mittel","breit"].includes(o.shape))RT.shape=o.shape}catch(e){}
 function rtLen(c){let s=0;for(let i=1;i<c.length;i++)s+=hav([c[i-1][1],c[i-1][0]],[c[i][1],c[i][0]]);return s/1000}
 /* Anteil der Strecke, der nahe an früher schon befahrener Strecke liegt (mehr als 3 km davor): Hin- und Rückweg auf derselben Straße */
 function rtDup(c){const cell=new Map();let d=0,dup=0,n=0;for(let i=0;i<c.length;i++){if(i)d+=hav([c[i-1][1],c[i-1][0]],[c[i][1],c[i][0]]);
@@ -386,25 +454,33 @@ async function rtRoute(wps,fixed,nogos){
 /* Länder (Rahmen der gebauten Regionen) – für "nicht über die Grenze". Unsicher bei überlappenden Rahmen: dort zählt der Punkt nicht. */
 let LANDS=null;
 async function rtLandsLoad(){if(LANDS)return;try{const j=await(await fetch("/api/laender")).json();LANDS=j.regionen||[]}catch(e){LANDS=[]}}
-function rtLandAt(lat,lon){let l=null;for(const r of LANDS||[]){const b=r.bbox;if(lon>=b[0]&&lon<=b[2]&&lat>=b[1]&&lat<=b[3]){if(l&&l!==r.land)return null;l=r.land}}return l}
+/* Land eines Punkts: erst mit den echten Grenzlinien (wenn der Server sie hat), sonst nur mit den Rahmen der Regionen (bei Überlappung "unbekannt") */
+function rtInRing(lat,lon,ring){let in_=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a[1]>lat)!==(b[1]>lat)&&lon<(b[0]-a[0])*(lat-a[1])/(b[1]-a[1])+a[0])in_=!in_}return in_}
+function rtLandAt(lat,lon){let l=null,anyPoly=false;
+ for(const r of LANDS||[]){const b=r.bbox;if(!(lon>=b[0]&&lon<=b[2]&&lat>=b[1]&&lat<=b[3]))continue;
+  if(r.poly){anyPoly=true;if(r.poly.some(g=>rtInRing(lat,lon,g))){if(l&&l!==r.land)return null;l=r.land}}}
+ if(l||anyPoly)return l;
+ for(const r of LANDS||[]){const b=r.bbox;if(!r.poly&&lon>=b[0]&&lon<=b[2]&&lat>=b[1]&&lat<=b[3]){if(l&&l!==r.land)return null;l=r.land}}return l}
 function rtCrosses(c){if(!LANDS||!LANDS.length)return false;const cnt={};let d=0,nx=0;
- for(let i=0;i<c.length;i++){if(i)d+=hav([c[i-1][1],c[i-1][0]],[c[i][1],c[i][0]]);if(d>=nx){nx=d+2000;const l=rtLandAt(c[i][1],c[i][0]);if(l)cnt[l]=(cnt[l]||0)+1}}
+ for(let i=0;i<c.length;i++){if(i)d+=hav([c[i-1][1],c[i-1][0]],[c[i][1],c[i][0]]);if(d>=nx){nx=d+1000;const l=rtLandAt(c[i][1],c[i][0]);if(l)cnt[l]=(cnt[l]||0)+1}}
  const v=Object.values(cnt).sort((a,b)=>b-a);return v.length>1&&v[1]>=3}
 /* Ein Versuch. Form A (ohne Ziel): Start -> seitlicher Punkt W -> Wendepunkt T -> seitlicher Punkt V (andere Seite) -> Start, Rückweg mit gesperrter Hinfahrt.
    f = wie weit der Wendepunkt liegt (klein = breite Schleife), k = Gesamtgröße. Form B (eigenes Ziel): Hinweg zum Ziel, Rückweg über seitlichen Punkt V. */
-async function rtAttempt(x,k,f,side){
+async function rtAttempt(x,k,sh,side){
  if(x.run.stop)return{err:"stop",fatal:true};
  let T,outV=[],fixed,h;
- if(x.mode==="A"){const D0=x.km*1000/2.6*f,H0=Math.max(.2*D0,Math.sqrt(Math.max(0,Math.pow(x.km*1000/5.2,2)-D0*D0/4)));
-  T=rtMove(x.st,D0*k*(.95+Math.random()*.1),x.dir+(Math.random()-.5)*20);h=Math.min(H0*k,120000);
-  const mid=[(x.st[0]+T[0])/2,(x.st[1]+T[1])/2];outV=[rtMove(mid,h,rtBear(x.st,T)-side*90)];fixed=[true,false,false]}
+ if(x.mode==="A"){const D0=x.km*1000/(1.3*4*Math.sqrt(.25+sh.asp*sh.asp)),H0=sh.asp*D0;   // Form: asp = Breite zu Länge der Raute, 1,3 = Umweg der Straßen
+  T=rtMove(x.st,D0*k*(.95+Math.random()*.1),x.dir);h=Math.min(H0*k,120000);
+  const al=.35+.3*Math.random(),mid=[x.st[0]+(T[0]-x.st[0])*al,x.st[1]+(T[1]-x.st[1])*al];outV=[rtMove(mid,h*sh.m1,rtBear(x.st,T)-side*90)];fixed=[true,false,false]
+  if(rtOutside(x,T)||rtOutside(x,outV[0]))return{err:"Eckpunkt läge im anderen Land"}}
  else{T=x.dest;outV=x.vias;fixed=[true,...outV.map(()=>true),true]}
  const o=await rtRoute([x.st,...outV,T],fixed);if(o.err)return o;
  T=o.wps[o.wps.length-1];outV=o.wps.slice(1,-1);
  const outLen=rtLen(o.c),dST=Math.max(2000,hav(x.st,T));
  if(x.mode==="B"){const R=(x.km*k-outLen)*1000/2.6,base=R>dST/2?Math.sqrt(R*R-dST*dST/4):0;h=Math.max(.25*dST,base)}
- h=Math.min(Math.max(h,.2*dST),150000);
- const mid=[(x.st[0]+T[0])/2,(x.st[1]+T[1])/2],V=rtMove(mid,h,rtBear(x.st,T)+side*90);
+ h=Math.min(Math.max(h,(x.mode==="A"?.1:.2)*dST),150000);
+ const mid=[(x.st[0]+T[0])/2,(x.st[1]+T[1])/2],V=rtMove(mid,h*(x.mode==="A"?sh.m2:1),rtBear(x.st,T)+side*90);
+ if(rtOutside(x,V))return{err:"Eckpunkt läge im anderen Land"};
  let r=null;
  for(const l of [{r:350,step:1500},{r:200,step:2500},null]){
   if(x.run.stop)return{err:"stop",fatal:true};
@@ -414,10 +490,10 @@ async function rtAttempt(x,k,f,side){
  const c=o.c.concat(r.c);
  return{c,len:rtLen(c),dup:rtDup(c),st:x.st,T,outV,back:r.c,backLen:rtLen(r.c)}}
 /* Ein Arbeiter: erster Versuch, bei zu falscher Länge ein Korrekturversuch mit gemessenem Verhältnis */
-async function rtWorker(x,f,side){
+async function rtWorker(x,sh,side){
  let cur=null,k=1;
- for(let it=0;it<2;it++){
-  const r=await rtAttempt(x,k,f,side);if(r.err)return cur?{ok:cur}:{err:r};
+ for(let it=0;it<3;it++){
+  const r=await rtAttempt(x,k,sh,side);if(r.err)return cur?{ok:cur}:{err:r};
   cur=r;const ratio=r.len/x.km;
   if(x.mode==="A"?Math.abs(ratio-1)<=.1:ratio>=.9)break;
   k*=x.mode==="A"?Math.max(.5,Math.min(2,x.km/r.len)):Math.max(1.1,Math.min(2,x.km/r.len))}
@@ -426,7 +502,7 @@ function rtCtx(){const n=pts.length;
  if(n>=2&&hav(pts[0],pts[n-1])>1500)return{mode:"B",st:pts[0],dest:pts[n-1],vias:pts.slice(1,n-1),km:RT.km,dir:null};
  return{mode:"A",st:rtStartPoint().p,km:RT.km,dir:RT.dir}}
 function rtStartPoint(){if(pts.length)return{p:pts[0],t:"erster Punkt der Route"};const h=FAVS.find(x=>x.id=="home");if(h)return{p:[h.lat,h.lon],t:h.name};const c=map.getCenter();return{p:[c.lat,c.lng],t:"Kartenmitte"}}
-function rtShow(){const x=rtCtx();$("rtKmv").textContent=RT.km;$("rtKm").value=RT.km;$("rtLand").checked=!!RT.cross;
+function rtShow(){const x=rtCtx();$("rtShape").value=RT.shape;$("rtKmv").textContent=RT.km;$("rtKm").value=RT.km;$("rtLand").checked=!!RT.cross;
  $("rtStart").textContent=x.mode==="B"?"Start: erster Punkt · Ziel: letzter Punkt der Route":"Start: "+rtStartPoint().t;
  $("rtHint").textContent=x.mode==="B"?"Ziel ist gesetzt: Hinweg dorthin, anderer Rückweg. Die Länge gilt als „mindestens“, die Richtung ergibt sich aus dem Ziel.":"🎲 Mitte = Richtung zufällig · Hin- und Rückweg sind verschiedene Straßen · Profil und Vermeiden wie im Planer";
  $("rtRose").style.opacity=x.mode==="B"?".3":"1";$("rtRose").style.pointerEvents=x.mode==="B"?"none":"";
@@ -436,31 +512,111 @@ function rtShow(){const x=rtCtx();$("rtKmv").textContent=RT.km;$("rtKm").value=R
  const c=document.createElement("div");c.className="c";c.textContent="🎲";c.onclick=()=>{RT.dir=null;rtShow()};ro.appendChild(c)}
 $("rtKm").oninput=()=>{RT.km=+$("rtKm").value;rtShow()};
 $("rtLand").onchange=()=>{RT.cross=$("rtLand").checked};
+$("rtShape").onchange=()=>{RT.shape=$("rtShape").value};
 function rtOpen(){if(rtBusy)return;$("rtMsg").textContent="";$("rtMsg").className="mu";rtShow();$("rtDlg").style.display="flex"}
 function rtClose(){$("rtDlg").style.display="none"}
 $("bRt").onclick=rtOpen;$("rtX").onclick=$("rtCancel").onclick=()=>{if(rtBusy){rtCancel=true;$("rtMsg").textContent="Wird abgebrochen …"}else rtClose()};
+/* ---------- Anderen Rückweg suchen: Start = Ziel, dazwischen mindestens ein Punkt, Hin- und Rückweg liegen größtenteils auf denselben Straßen ----------
+   Der Hinweg bleibt. Der Rückweg wird um den Hinweg herum gerechnet (wie bei der Rundtour). Damit die App (ohne Sperren) dieselbe Strecke fährt,
+   setzt der Planer auf dem neuen Rückweg Zwischenpunkte und prüft mit einer Berechnung ohne Sperren, ob die Strecke gleich bleibt (wie beim Übernehmen einer Fahrt). */
+const BK_TOL_M=70,BK_STEP_M=12000;let bkBusy=false;
+function bkApplicable(){const n=pts.length;return n>=3&&hav(pts[0],pts[n-1])<=1500&&!!last&&last.length>10&&rtDup(last)>=.3}
+function bkOffer(){$("bBack").style.display=!bkBusy&&bkApplicable()?"block":"none"}
+async function bkRun(){
+ if(bkBusy||!bkApplicable())return;bkBusy=true;rtCancel=false;$("bBack").disabled=true;
+ const fin=(t,c)=>{bkBusy=false;$("bBack").disabled=false;say(t,c);bkOffer()};
+ try{
+  const n=pts.length,end=pts[n-1],out=pts.slice(0,n-1),T=out[out.length-1],oldKm=rtLen(last);
+  say("Suche anderen Rückweg … (Hinweg berechnen)");
+  const o=await rtRoute(out,out.map(()=>true));
+  if(!o.c)return fin("Hinweg nicht berechenbar: "+(o.err||"unbekannter Fehler"),"er");
+  let best=null;
+  for(const l of [{r:350,step:1500},{r:200,step:2500},{r:120,step:3500}]){
+   say("Suche anderen Rückweg … (mindestens "+l.r+" m neben dem Hinweg)");
+   const r=await rtRoute([T,end],[true,true],rtNogos(o.c,l));
+   if(r.c){const dup=rtDup(o.c.concat(r.c));if(!best||dup<best.dup)best={r,dup};if(dup<.12)break}
+   else if(r.fatal)return fin(r.err,"er")}
+  if(!best||best.dup>=.25)return fin("Kein wirklich anderer Rückweg gefunden: Hier gibt es offenbar nur diese Straße. Die Route bleibt, wie sie ist.","er");
+  // Rückweg als Spur (verdünnt), darauf Punkte setzen
+  const rc=best.r.c,stp=Math.max(1,Math.floor(rc.length/900));let tr=[];for(let i=0;i<rc.length;i+=stp)tr.push([rc[i][1],rc[i][0]]);
+  tr.push([rc[rc.length-1][1],rc[rc.length-1][0]]);
+  const cum=[0];for(let i=1;i<tr.length;i++)cum.push(cum[i-1]+hav(tr[i-1],tr[i]));
+  const gap=Math.max(BK_STEP_M,cum[cum.length-1]/Math.max(5,PT_MAX-out.length-10));let inner=[],nx=gap;
+  for(let i=1;i<tr.length-1;i++)if(cum[i]>=nx){inner.push(i);nx=cum[i]+gap}
+  const ord=i=>i<=-1000?-1e6-(i+1000):(i==-1?1e9:i);
+  let items=[...out.map((p,k)=>({i:-1000-k,p})),...inner.map(i=>({i,p:tr[i]})),{i:-1,p:end}],c=null,near=false;const banned=new Set();
+  for(let it=0;it<6;it++){
+   say("Rückweg prüfen … ("+items.length+" Punkte)");
+   const res=await routeOfBig(items);
+   if(!res.c)return fin("Berechnung nicht möglich: "+(res.err||"unbekannter Fehler")+" Die Route bleibt, wie sie ist.","er");
+   res.drop.forEach(i=>banned.add(i));items=res.list;c=res.c;
+   inner=items.map(x=>x.i).filter(i=>i>=0);
+   const dv=devM(tr,c),b=[0,...inner,tr.length-1],cand=[];
+   for(let k=0;k<b.length-1;k++){let bi=-1,bd=0;for(let i=b[k]+1;i<b[k+1];i++)if(dv[i]>bd){bd=dv[i];bi=i}if(bi>=0&&bd>BK_TOL_M&&!banned.has(bi))cand.push([bd,bi])}
+   if(!cand.length){near=true;break}
+   if(it==5)break;
+   cand.sort((x,y)=>y[0]-x[0]);const room=PT_MAX-items.length;if(room<=0)break;
+   cand.slice(0,Math.min(room,40)).forEach(x=>items.push({i:x[1],p:tr[x[1]]}));items.sort((x,y)=>ord(x.i)-ord(y.i))}
+  pts=items.map(x=>[+x.p[0].toFixed(6),+x.p[1].toFixed(6)]);redraw();drawRoute(c);last=c;doRoute(true);
+  const nNew=items.length-n;
+  fin("Anderer Rückweg: "+rtLen(c).toFixed(0)+" km (vorher "+oldKm.toFixed(0)+" km), "+Math.max(0,nNew)+" Zwischenpunkte gesetzt."+(near?"":" An einzelnen Stellen kann die App abweichen."),near?"ok":"mu")
+ }catch(e){fin("Das hat nicht geklappt: "+(e&&e.message||e),"er")}}
+$("bBack").onclick=bkRun;
 $("bRtAgain").onclick=()=>rtRun(true);$("rtGo").onclick=()=>rtRun(false);
 const rtSay=(t,c)=>{$("rtMsg").className=c||"mu";$("rtMsg").textContent=t};
+const RTS={weit:{asp:.28},mittel:{asp:.45},breit:{asp:.7}};
+const RT_DUP_MAX=.15;   // mehr als 15 % gleiche Straße: Tour wird nicht gezeigt
+const rtOutside=(x,p)=>{if(!x.check||!x.land0)return false;const l=rtLandAt(p[0],p[1]);return !!l&&l!==x.land0};   // Formen der Rundtour: schmal und weit hinaus bis breite Schleife
+let rtSeen=[];
+/* Anteil der Strecke a, der auf Zellen (etwa 100 m) der Strecke b liegt */
+function rtOverlap(a,b){const cells=new Set(b.map(q=>Math.round(q[0]*700)+","+Math.round(q[1]*1000)));let n=0;for(const q of a)if(cells.has(Math.round(q[0]*700)+","+Math.round(q[1]*1000)))n++;return n/Math.max(1,a.length)}
+const rtSimilar=cur=>rtSeen.some(s=>hav(cur.T,s.T)<.25*Math.max(hav(cur.st,cur.T),hav(s.st,s.T))||rtOverlap(cur.c,s.c)>.5);
+/* Zacken: an einem Zwischenpunkt fährt die Route auf derselben Straße hin und zurück (mindestens 450 m, höchstens 15 km) */
+function rtSpikes(c,P){const n=c.length;if(n<10||P.length<3)return[];
+ const d=[0];for(let i=1;i<n;i++)d.push(d[i-1]+hav([c[i-1][1],c[i-1][0]],[c[i][1],c[i][0]]));
+ const at=[];let from=0;for(const q of P){let bi=from,bd=1e18;for(let k=from;k<n;k++){const e=hav(q,[c[k][1],c[k][0]]);if(e<bd){bd=e;bi=k}}at.push(bi);from=bi}
+ const out=[],STEP=150;
+ for(let i=1;i<P.length-1;i++){const k=at[i];let m=0,jb=k,jf=k;
+  for(let s=STEP;s<=15000;s+=STEP){while(jb>0&&d[k]-d[jb]<s)jb--;while(jf<n-1&&d[jf]-d[k]<s)jf++;
+   if(d[k]-d[jb]<s||d[jf]-d[k]<s)break;
+   if(hav([c[jb][1],c[jb][0]],[c[jf][1],c[jf][0]])<70)m++;else break}
+  if(m>=3)out.push({i,len:m*STEP})}
+ return out}
+async function spikeRun(auto){   // einmal, nie den am weitesten entfernten Punkt, und nur wenn die Strecke dadurch höchstens 15 % kürzer wird
+ if(!last||pts.length<3)return 0;const sp=rtSpikes(last,pts);if(!sp.length)return 0;
+ let far=1,fd=-1;pts.forEach((p,i)=>{const e=hav(pts[0],p);if(i>0&&i<pts.length-1&&e>fd){fd=e;far=i}});
+ const drop=new Set(sp.map(x=>x.i).filter(i=>i!==far));if(!drop.size)return 0;
+ const keepPts=pts,len0=rtLen(last);
+ pts=pts.filter((p,i)=>!drop.has(i));redraw();await doRoute(true);
+ if(!last||rtLen(last)<len0*.85){pts=keepPts;redraw();await doRoute(true);return 0}   // zu viel verloren: zurück
+ return drop.size}
+function spikeOffer(){const n=$("bSpike");if(!last||pts.length<3){n.style.display="none";return}const k=rtSpikes(last,pts).length;n.style.display=k?"block":"none";if(k)n.textContent="✂ Zacken entfernen ("+k+")"}
+$("bUndo").onclick=undo;$("bRedo").onclick=redo;
+$("bSpike").onclick=async()=>{$("bSpike").disabled=true;try{const k=await spikeRun(false);say(k?k+(k==1?" Zacken entfernt.":" Zacken entfernt.")+" Die Punkte dort sind weg, die Route fährt durch.":"Keine Zacken gefunden.","ok")}finally{$("bSpike").disabled=false;spikeOffer()}};
 async function rtRun(again){
- if(rtBusy)return;try{localStorage.setItem("hudrt",JSON.stringify({km:RT.km,dir:RT.dir,cross:!!RT.cross}))}catch(e){}
+ if(rtBusy)return;try{localStorage.setItem("hudrt",JSON.stringify({km:RT.km,dir:RT.dir,cross:!!RT.cross,shape:RT.shape}))}catch(e){}
  const x=again&&rtLast?{...rtLast}:rtCtx(),km=x.km,run={stop:false};x.run=run;
  rtBusy=true;rtCancel=false;$("rtGo").disabled=true;if(again){$("rtDlg").style.display="flex";$("rtMsg").textContent=""}
  rtSay("Berechne Rundtour …");
  const okLen=l=>x.mode==="A"?Math.abs(l/km-1)<=.15:l/km>=.9;
- let best=null,fb=null,fatal="",lastErr="",nCross=0;
+ let best=null,fb=null,sim=null,fatal="",lastErr="",nCross=0,nDup=0;if(!again)rtSeen=[];
  try{
-  await rtLandsLoad();
-  const check=!RT.cross&&(x.mode==="A"||(()=>{const a=rtLandAt(x.st[0],x.st[1]);return a&&a===rtLandAt(x.dest[0],x.dest[1])})());
-  for(let round=0;round<2&&!run.stop&&!rtCancel&&!fatal;round++){
+  await rtLandsLoad();x.land0=rtLandAt(x.st[0],x.st[1]);
+  const check=!RT.cross&&(x.mode==="A"||(()=>{const a=rtLandAt(x.st[0],x.st[1]);return a&&a===rtLandAt(x.dest[0],x.dest[1])})());x.check=check;
+  for(let round=0;round<3&&!run.stop&&!rtCancel&&!fatal;round++){
    let pending=3;
+   const shapes=RT.shape!=="mix"&&RTS[RT.shape]?[RTS[RT.shape],RTS[RT.shape],RTS[RT.shape]]:Object.values(RTS).sort(()=>Math.random()-.5),dir0=Math.random()*360;
    for(let i=0;i<3;i++){
-    const f=.35+.55*((i+Math.random())/3),side=Math.random()>.5?1:-1,xx={...x,dir:x.dir===null?Math.random()*360:x.dir};
-    rtWorker(xx,f,side).then(r=>{
+    const sh={...shapes[i],m1:.8+.4*Math.random(),m2:.8+.4*Math.random()},side=Math.random()>.5?1:-1,
+     xx={...x,dir:x.dir===null?(dir0+i*120+(Math.random()-.5)*50+360)%360:(x.dir+(Math.random()-.5)*50+360)%360};
+    rtWorker(xx,sh,side).then(r=>{
      pending--;
      if(r.err){if(r.err.fatal&&r.err.err!=="cancel"&&r.err.err!=="stop")fatal=r.err.err;else if(!r.err.fatal)lastErr=r.err.err;return}
      const cur=r.ok;if(!cur||run.stop)return;
      if(check&&rtCrosses(cur.c)){nCross++;return}
-     if(okLen(cur.len)){if(!best||cur.dup<best.dup)best=cur;if(cur.dup<.15)run.stop=true}
+     if(cur.dup>RT_DUP_MAX){nDup++;return}   // größtenteils dieselbe Straße: nie zeigen
+     if(okLen(cur.len)){if(rtSimilar(cur)){if(!sim||cur.dup<sim.dup)sim=cur;return}   // fast dieselbe Tour wie ein früherer Vorschlag: nur als Notlösung
+      if(!best||cur.dup<best.dup)best=cur;if(cur.dup<.15)run.stop=true}
      else if(!fb||Math.abs(cur.len/km-1)<Math.abs(fb.len/km-1))fb=cur}).catch(e=>{pending--;lastErr=String(e)});
    }
    await new Promise(res=>{const iv=setInterval(()=>{if(run.stop||rtCancel||pending<=0||fatal){clearInterval(iv);res()}},120)});
@@ -468,15 +624,21 @@ async function rtRun(again){
   run.stop=true;
   if(rtCancel){rtSay("Abgebrochen.");return}
   if(fatal&&!best&&!fb){rtSay("Rundtour nicht möglich: "+fatal,"er");return}
-  const off=!best;if(off)best=fb;
+  if(!best&&sim)best=sim;
+  const off=!best;if(off&&fb&&Math.abs(fb.len/km-1)<=.3)best=fb;
+  if(!best&&nDup&&!nCross){rtSay("Keine Rundtour ohne gleiche Straße gefunden ("+nDup+" Versuche verworfen). Anderen Start, andere Richtung oder andere Länge probieren, oder „Form“ auf „Breite Schleife“ stellen.","er");return}
   if(!best){rtSay(nCross?"Alle Vorschläge führten über eine Landesgrenze. „Länderübergreifend erlauben“ ankreuzen oder anderen Start, andere Richtung bzw. Länge versuchen.":"Rundtour nicht möglich: "+(lastErr||"keine passende Strecke gefunden")+". Anderen Start, andere Richtung oder andere Länge probieren.","er");return}
   const nb=Math.max(1,Math.min(Math.ceil(best.backLen/15)-1,24-best.outV.length));
   pts=[best.st,...best.outV,best.T,...rtSample(best.back,nb),best.st];tid=null;{const y={...x};delete y.run;rtLast=y}
   $("name").value="Rundtour "+Math.round(best.len)+" km";redraw();
   const b=new maplibregl.LngLatBounds();pts.forEach(p=>b.extend([p[1],p[0]]));map.fitBounds(b,{padding:60,maxZoom:12});
   drawRoute(best.c);last=best.c;$("err").textContent="";$("info").textContent=best.len.toFixed(1)+" km · Fahrzeit wird berechnet …";bigInfo(best.len,Math.round(best.len/50*60),null);
-  doRoute(true);$("bRtAgain").style.display="block";rtClose();
-  say("Rundtour: etwa "+Math.round(best.len)+" km"+(off?" (gewünscht "+(x.mode==="B"?"mindestens ":"")+Math.round(km)+" km, mit den Straßen hier nicht genauer möglich)":"")+(best.dup>=.15?". Ein Stück führt zwangsläufig auf derselben Straße, mit „Andere Variante“ gibt es eine neue.":". Hin- und Rückweg sind verschiedene Strecken."),"ok")
+  rtSeen.push({T:best.T,st:best.st,c:best.c});if(rtSeen.length>6)rtSeen.shift();
+  doRoute(true);const nz=0;$("bRtAgain").style.display="block";rtClose();
+  say("Rundtour: etwa "+Math.round(best.len)+" km"+(off?" (gewünscht "+(x.mode==="B"?"mindestens ":"")+Math.round(km)+" km, mit den Straßen hier nicht genauer möglich)":"")+(nz?" "+nz+(nz==1?" Zacken":" Zacken")+" entfernt (Stellen, an denen die Route hin- und zurückfuhr).":"")+(best.dup>=.15?". Ein Stück führt zwangsläufig auf derselben Straße, mit „Andere Variante“ gibt es eine neue.":". Hin- und Rückweg sind verschiedene Strecken."),"ok")
  }finally{run.stop=true;rtBusy=false;$("rtGo").disabled=false;$("rtCancel").textContent="Abbrechen"}}
-{const u=new URLSearchParams(location.search),q=u.get("tour"),rd=u.get("ride");if(q)map.on("load",()=>openTour(q));else if(rd)map.on("load",()=>openRide(rd))}
+{const u=new URLSearchParams(location.search),q=u.get("tour"),rd=u.get("ride");if(q)map.on("load",()=>openTour(q));else if(rd)map.on("load",()=>openRide(rd));else restoreDraft()}
+$("name").addEventListener("input",saveDraft);$("prof").addEventListener("change",saveDraft);document.querySelectorAll("#avoid input").forEach(c=>c.addEventListener("change",()=>{cityUi();saveDraft()}));
+$("cityW").addEventListener("input",()=>{cityUi();try{localStorage.setItem("hudcityw",String(cityWval()))}catch(e){}});$("cityW").addEventListener("change",()=>{saveDraft();if(pts.length>1)route()});
+try{const w=localStorage.getItem("hudcityw");if(w)setCityW(+w)}catch(e){}cityUi();
 </script></body></html>

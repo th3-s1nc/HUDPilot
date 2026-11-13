@@ -41,7 +41,27 @@ def _point(e):
     except Exception: return None
 
 
+AUSWEICH_RE = re.compile(r"ausweichverkehr", re.I)
+LANE_RE = re.compile(r"fahrstreifen|fahrspur|standstreifen|linker|rechter|mittlerer", re.I)
+ALLLANES_RE = re.compile(r"(alle|beide|beiden|sämtliche)\s+(fahrstreifen|fahrspuren)|vollsperrung", re.I)
+RAW_SAMPLES = []   # ein paar Rohdaten-Beispiele (XML) vom letzten Lesen, falls die Quelle bessere Ortsangaben hat
+STAT = {"spur": 0, "ausweich": 0}   # wie viele Meldungen beim letzten Lesen herabgestuft wurden (fürs Protokoll)
+
+
+def reklass(x):
+    """Eine schon gespeicherte Meldung nur nach ihrem Text neu einstufen (gesperrt -> eingeschränkt bei Spur/Ausweichverkehr). Gibt True zurück, wenn sie geändert wurde."""
+    if x.get("k") != "c": return False
+    t = x.get("t", "")
+    if AUSWEICH_RE.search(t) or (LANE_RE.search(t) and not ALLLANES_RE.search(t) and re.search(r"gesperrt|sperrung", t, re.I)):
+        x["k"] = "r"; return True
+    return False
+
+
 def _kind(rec, text):
+    # "Gesperrt für Ausweichverkehr bei Stau auf der Autobahn" (nur an Wochenenden, nur Umleiter) und "linker Fahrstreifen gesperrt"
+    # sind keine Sperrung der Straße: nur eingeschränkt (Hinweis, kein Umfahren).
+    if AUSWEICH_RE.search(text): STAT["ausweich"] += 1; return "r"
+    if LANE_RE.search(text) and not ALLLANES_RE.search(text) and re.search(r"gesperrt|sperrung", text, re.I): STAT["spur"] += 1; return "r"
     if re.search(r"vollsperrung|gesperrt|sperrung", text, re.I) and not re.search(r"keine sperrung|aufgehoben", text, re.I): return "c"
     for t in rec.iter(D2 + "roadOrCarriagewayOrLaneManagementType"):
         if t.text == "roadClosed": return "c"
@@ -52,9 +72,13 @@ def _kind(rec, text):
     return "w"
 
 
+def m_has_road(text): return bool(ROAD_RE.match(text))
+
+
 def parse(src, progress=None):
     """XML lesen. Gibt (liste, publikationszeit) zurück; liste = alle Datensätze mit Ort, noch ungefiltert."""
     size = os.path.getsize(src) if isinstance(src, str) else 0
+    STAT["spur"] = STAT["ausweich"] = 0; RAW_SAMPLES.clear()
     out = []; pub = 0; seen = set(); n = 0
     f = open(src, "rb") if isinstance(src, str) else src
     try:
@@ -76,6 +100,9 @@ def parse(src, progress=None):
                 s = _iso(_txt(v, "overallStartTime")) if v is not None and _txt(v, "overallStartTime") else 0
                 e = _iso(_txt(v, "overallEndTime")) if v is not None and _txt(v, "overallEndTime") else 0
                 k = _kind(rec, text)
+                if k == "c" and len(RAW_SAMPLES) < 5 and m_has_road(text):
+                    try: RAW_SAMPLES.append(ET.tostring(rec, encoding="unicode")[:9000])
+                    except Exception: pass
                 key = (tuple(sorted((tuple(a), tuple(b)))), k, s, e)   # beide Fahrtrichtungen derselben Meldung zählen einmal
                 if key in seen: continue
                 seen.add(key)
@@ -125,35 +152,124 @@ def simplify(pts, tol=6.0):
     return [p for p, k in zip(pts, keep) if k]
 
 
-GEOM_V = "v2|"   # Schlüssel-Version im Zwischenspeicher: alte Linien (vom schnellsten statt kürzesten Weg) werden nicht mehr benutzt
+GEOM_V = "v3|"   # Schlüssel-Version im Zwischenspeicher: alte Linien (vom schnellsten statt kürzesten Weg) werden nicht mehr benutzt
 
 
-def plausible(g, a, b):
-    """Folgt die gefundene Straße wirklich der Strecke zwischen den Punkten? Höchstens 1,3-fache Luftlinie plus 100 m."""
+def plausible(g, a, b, faktor=1.3, extra=100):
+    """Folgt die gefundene Straße wirklich der Strecke zwischen den Punkten? Höchstens 1,3-fache Luftlinie plus 100 m
+    (mit Straßennummer in kurvigem Gelände großzügiger: faktor/extra)."""
     if not g or len(g) < 2: return False
     d = hav(a, b)
-    return sum(hav(g[i], g[i + 1]) for i in range(len(g) - 1)) <= 1.3 * d + 100
+    return sum(hav(g[i], g[i + 1]) for i in range(len(g) - 1)) <= faktor * d + extra
 
 
-def add_geometry(items, route_fn, cache, progress=None, stop=lambda: False):
+SHORT_OK_M = 300   # ohne Straße gilt eine kurze Luftlinie bis zu dieser Länge noch als brauchbar (liegt meist nah an der Straße)
+
+
+def usable(x):
+    """Darf die Meldung zum Prüfen und Umfahren benutzt werden? Mit echter Straße ja; nur Luftlinie nur, wenn sie kurz ist."""
+    return bool(x.get("g")) or hav(x["a"], x["b"]) <= SHORT_OK_M
+
+
+# Straßenklassen (OSM highway) zur Straßennummer: B 15 ist eine Bundesstraße (primary), St 2129 eine Staatsstraße (secondary) und so weiter.
+ROAD_CLASSES = {"A": {"motorway", "trunk"}, "B": {"trunk", "primary", "motorway"}, "ST": {"secondary", "primary", "trunk"}, "S": {"secondary", "primary", "trunk"}}
+KREIS_CLASSES = {"tertiary", "secondary", "unclassified", "primary"}
+
+
+def ref_classes(ref):
+    m = re.match(r"([A-Za-zÜü]+)", ref or "")
+    if not m: return None
+    p = m.group(1).upper()
+    return ROAD_CLASSES.get(p, KREIS_CLASSES)
+
+
+def class_share(messages, classes):
+    """Anteil der Strecke (nach Länge) auf Straßen der gesuchten Klassen. messages = BRouter-Tabelle (erste Zeile Überschrift)."""
+    try:
+        head = messages[0]; di = head.index("Distance"); wi = head.index("WayTags")
+    except Exception: return 0.0
+    tot = hit = 0.0
+    for row in messages[1:]:
+        try: dist = float(row[di])
+        except Exception: continue
+        m = re.search(r"highway=([a-z_]+)", row[wi] or "")
+        tot += dist
+        if m and m.group(1).replace("_link", "") in classes: hit += dist
+    return hit / tot if tot > 0 else 0.0
+
+
+ENDE_TOL_M = 80      # Anfang und Ende der gefundenen Linie dürfen höchstens so weit von den Meldungspunkten liegen (nur bei Zusatzversuchen)
+NEG_TTL = 7 * 86400  # Meldungen, für die nichts gefunden wurde, so lange nicht erneut versuchen
+
+
+def suspicious(x):
+    """Hat die Meldung eine Linie, die auffällig länger ist als die Luftlinie (Umweg über Parallelstraßen) oder ist es eine Autobahn-Meldung? Dann neu suchen."""
+    g = x.get("g")
+    if not g or len(g) < 2: return False
+    if re.match(r"A\d", x.get("r", "") or ""): return True
+    d = hav(x["a"], x["b"])
+    return d >= 25 and sum(hav(g[i], g[i + 1]) for i in range(len(g) - 1)) > 1.12 * d
+
+
+def _ends_ok(g, a, b):
+    return hav(g[0], a) <= ENDE_TOL_M and hav(g[-1], b) <= ENDE_TOL_M
+
+
+def add_geometry(items, route_fn, cache, progress=None, stop=lambda: False, ref_fn=None, any_fn=None, max_misses=25, now=None):
     """Zu jedem Eintrag die echte Straße zwischen Anfang und Ende holen (route_fn(a, b) -> [[lat, lon], ...] oder None).
-    Ist der Weg länger als 1,3 x Luftlinie + 100 m, bleibt es bei der geraden Linie (Luftlinie zwischen den beiden Punkten)."""
-    ok = fail = misses = 0
+    Reihenfolge: (1) kürzester Fahrzeugweg (höchstens 1,3 x Luftlinie + 100 m), (2) über alle Wege mit ignorierter Einbahn
+    (any_fn, höchstens 1,4 x + 150 m; wichtig bei Straßen mit getrennten Fahrbahnen), (3) mit Straßennummer auf Straßen der
+    passenden Klasse (ref_fn, höchstens 2,5 x + 400 m). Zusatzversuche müssen an Anfang und Ende zu den Meldungspunkten passen.
+    Sonst bleibt es bei der Luftlinie. max_misses: so viele Fehlschläge in Folge, dann gilt die Routensuche als nicht verfügbar."""
+    now = time.time() if now is None else now
+    ok = fail = misses = ref_misses = ref_ok = any_misses = any_ok = 0
+    failed = []
+    fmt = lambda g: [[round(p[0], 5), round(p[1], 5)] for p in simplify(g)]
     for n, x in enumerate(items):
         if stop(): break
         key = GEOM_V + f"{x['a'][0]},{x['a'][1]}|{x['b'][0]},{x['b'][1]}"
         d = hav(x["a"], x["b"])
         if d >= 25:
+            nk = "x|" + key
+            if cache.get(nk) and now - cache[nk] < NEG_TTL and not cache.get(key): fail += 1; continue   # vor kurzem schon vergeblich versucht
             g = cache.get(key)
-            if not g and misses < 25:
+            autobahn = bool(any_fn and re.match(r"A\d", x.get("r", "") or ""))   # Autobahn: das Fahrzeugprofil würde auf Parallelstraßen ausweichen, deshalb zuerst alle Wege (Autobahn nicht teurer)
+            if autobahn: g = None
+            if not g and not autobahn and misses < max_misses:
                 try: g = route_fn(x["a"], x["b"])
                 except Exception: g = None
-                if g: cache[key] = g; misses = 0   # nur Erfolge merken, Misserfolge werden beim nächsten Mal wieder versucht
-                else: misses += 1                  # 25 Fehlschläge hintereinander: keine Routendaten da, der Rest bleibt gerade
+                if g: cache[key] = g; misses = 0   # Erfolge werden gemerkt
+                else: misses += 1
             if g and plausible(g, x["a"], x["b"]):
-                x["g"] = [[round(p[0], 5), round(p[1], 5)] for p in simplify(g)]; ok += 1
-            else: fail += 1
+                x["g"] = fmt(g); ok += 1
+            else:
+                done = False
+                if any_fn and not stop():
+                    ak = f"v3a|{x.get('r', '')}|{x['a'][0]},{x['a'][1]}|{x['b'][0]},{x['b'][1]}"
+                    g3 = cache.get(ak)
+                    if not g3 and any_misses < max_misses:
+                        try: g3 = any_fn(x["a"], x["b"], x.get("r", ""))
+                        except Exception: g3 = None
+                        if g3: cache[ak] = g3; any_misses = 0
+                        else: any_misses += 1
+                    if g3 and plausible(g3, x["a"], x["b"], 1.4, 150) and _ends_ok(g3, x["a"], x["b"]):
+                        x["g"] = fmt(g3); ok += 1; any_ok += 1; done = True
+                if not done and ref_fn and x.get("r") and not stop():
+                    rk = f"v3r|{x['r']}|{x['a'][0]},{x['a'][1]}|{x['b'][0]},{x['b'][1]}"
+                    g2 = cache.get(rk)
+                    if not g2 and ref_misses < max_misses:
+                        try: g2 = ref_fn(x["a"], x["b"], x["r"])
+                        except Exception: g2 = None
+                        if g2: cache[rk] = g2; ref_misses = 0
+                        else: ref_misses += 1
+                    if g2 and plausible(g2, x["a"], x["b"], 2.5, 400) and _ends_ok(g2, x["a"], x["b"]):
+                        x["g"] = fmt(g2); ok += 1; ref_ok += 1; done = True
+                if not done: fail += 1; failed.append(nk)
         if progress and n % 10 == 0: progress((n + 1) / max(1, len(items)))
+    if ok > 0:   # nur wenn die Routensuche überhaupt etwas geliefert hat, sind Fehlschläge echt (und nicht ein noch nicht bereiter BRouter)
+        for nk in failed: cache[nk] = int(now)
+    add_geometry.any_ok = any_ok
+    add_geometry.ref_ok = ref_ok   # wie viele erst durch Zusatzversuche gefunden wurden (fürs Protokoll)
     return ok, fail
 
 
@@ -192,7 +308,7 @@ def fetch_live(cfg, out_path, last_modified=""):
 
 def closed_now(items, ref):
     """Gesperrte Meldungen, die zum Zeitpunkt ref gelten."""
-    return [x for x in items if x.get("k") == "c" and (x["e"] == 0 or x["e"] >= ref) and (x["s"] == 0 or x["s"] <= ref)]
+    return [x for x in items if x.get("k") == "c" and usable(x) and (x["e"] == 0 or x["e"] >= ref) and (x["s"] == 0 or x["s"] <= ref)]
 
 
 def _line(x):

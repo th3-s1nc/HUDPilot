@@ -2,7 +2,7 @@
 <title>Anmelden · HUDPilot</title><link rel="icon" href="/logo.png" type="image/png">
 <style>
 :root{--bg:#f3f4f7;--card:#fff;--tx:#1b1f24;--mu:#667;--ac:#ff7a00;--er:#c62828;--bd:#dde1e6}
-@media(prefers-color-scheme:dark){:root{--bg:#0f1217;--card:#1a1e26;--tx:#e8eaed;--mu:#9aa;--bd:#2b313b}}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1217;--card:#1a1e26;--tx:#e8eaed;--mu:#9aa;--bd:#2b313b}}:root[data-theme="dark"]{--bg:#0f1217;--card:#1a1e26;--tx:#e8eaed;--mu:#9aa;--bd:#2b313b}
 body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,sans-serif}
 .box{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:28px;width:min(340px,86vw);text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.15)}
 img{width:84px;height:84px;border-radius:20px}h1{font-size:20px;margin:10px 0 2px}p{color:var(--mu);margin:0 0 16px;font-size:14px}

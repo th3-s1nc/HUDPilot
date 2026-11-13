@@ -1,11 +1,34 @@
 <style>:root{--nvbg:#fff;--nvbd:#dde1e6;--nvtx:#667;--nvac:#ff7a00}
-@media(prefers-color-scheme:dark){:root{--nvbg:#14171d;--nvbd:#2a2f3a;--nvtx:#9aa}}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--nvbg:#14171d;--nvbd:#2a2f3a;--nvtx:#9aa}}:root[data-theme="dark"]{--nvbg:#14171d;--nvbd:#2a2f3a;--nvtx:#9aa}
 body{padding-top:52px!important;box-sizing:border-box}
 #hpnav{position:fixed;top:0;left:0;right:0;height:52px;z-index:5000;display:flex;align-items:center;gap:4px;padding:0 12px;background:var(--nvbg);border-bottom:1px solid var(--nvbd);font:600 14px system-ui,sans-serif;overflow-x:auto;white-space:nowrap}
 #hpnav img{width:28px;height:28px;border-radius:8px;margin-right:4px}#hpnav b{color:var(--nvtx);margin-right:8px;font-weight:700}
 #hpnav a{padding:7px 12px;border-radius:10px;color:var(--nvtx);text-decoration:none;cursor:pointer}#hpnav a:hover{background:rgba(255,122,0,.10)}
 #hpnav a.on{background:var(--nvac);color:#fff}#hpnav .sp{flex:1}
+#hpnav a.hpk{border:1px solid var(--nvbd);color:var(--nvtx)}#hpnav a.hpk:hover{border-color:var(--nvac)}
+#hpcw{position:fixed;inset:0;z-index:5100;background:rgba(0,0,0,.35);display:none;align-items:flex-start;justify-content:flex-end;padding:60px 16px 0}#hpcw.on{display:flex}
+#hpcd{width:380px;max-width:100%;background:var(--nvbg);color:#1f2937;border:1px solid var(--nvbd);border-radius:16px;padding:18px 20px;box-shadow:0 12px 30px rgba(0,0,0,.25);font:14px/1.4 system-ui,sans-serif}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) #hpcd{color:#e6e8ec}}:root[data-theme="dark"] #hpcd{color:#e6e8ec}
+#hpcd h3{margin:0 0 4px;font-size:17px}#hpcd p{margin:0 0 12px;color:var(--nvtx);font-size:13px}
+#hpcd input{width:100%;padding:11px 12px;border:1px solid var(--nvbd);border-radius:10px;background:transparent;color:inherit;font:inherit;margin:0 0 9px}
+#hpcd .r{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}#hpcd button{border:1px solid var(--nvbd);background:transparent;color:inherit;border-radius:10px;padding:10px 16px;font:inherit;cursor:pointer}
+#hpcd button.pr{background:var(--nvac);border-color:var(--nvac);color:#fff;font-weight:700}#hpcm{min-height:18px;font-size:13px;margin-bottom:6px}
 html.nonav #hpnav{display:none}html.nonav body{padding-top:0!important}</style>
-<nav id="hpnav"><img src="/logo.png" alt=""><b>HUDPilot</b><a href="/mein" data-p="/mein">Übersicht</a><a href="/planer" data-p="/planer">Planer</a><a href="/touren" data-p="/touren">Touren</a><span class="sp"></span><a id="hpnout">Abmelden</a></nav>
+<nav id="hpnav"><img src="/logo.png" alt=""><b>HUDPilot</b><a href="/mein" data-p="/mein">Übersicht</a><a href="/planer" data-p="/planer">Planer</a><a href="/touren" data-p="/touren">Touren</a><span class="sp"></span><a id="hptheme" class="hpk"></a><a id="hpcode" class="hpk" title="Passwort ändern">🔑 Passwort ändern</a><a id="hpnout">Abmelden</a></nav>
+<div id="hpcw"><div id="hpcd"><h3>Passwort ändern</h3><p>Mit dem Passwort meldest du dich hier und in der App an. Danach musst du dich auf deinen Handys einmal neu anmelden. Mindestens 8 Zeichen (Buchstaben, Zahlen, Satzzeichen; keine Umlaute). Groß- und Kleinschreibung zählt. Ältere App-Versionen (vor 0.39.0) schicken alles groß: erst die App aktualisieren.</p>
+<input id="hpca" type="password" placeholder="Bisheriges Passwort" autocomplete="current-password"><input id="hpcn" type="password" placeholder="Neues Passwort" autocomplete="new-password"><input id="hpcn2" type="password" placeholder="Neues Passwort wiederholen" autocomplete="new-password">
+<div id="hpcm"></div><div class="r"><button id="hpcx">Schließen</button><button class="pr" id="hpcg">Passwort ändern</button></div></div></div>
 <script>(function(){var p=location.pathname.replace(/\.html$/,"");document.querySelectorAll("#hpnav a[data-p]").forEach(function(a){if(a.dataset.p==p)a.className="on"});
-document.getElementById("hpnout").onclick=function(){document.cookie="hudprof=; path=/; max-age=0";location.href="/"}})();</script>
+document.getElementById("hpnout").onclick=function(){document.cookie="hudprof=; path=/; max-age=0";location.href="/"};
+var g=function(i){return document.getElementById(i)},W=g("hpcw"),M=g("hpcm");
+g("hpcode").onclick=function(){M.textContent="";["hpca","hpcn","hpcn2"].forEach(function(i){g(i).value=""});W.className="on";setTimeout(function(){g("hpca").focus()},50)};
+g("hpcx").onclick=function(){W.className=""};W.onclick=function(e){if(e.target===W)W.className=""};
+g("hpcg").onclick=async function(){var a=g("hpca").value,n=g("hpcn").value;M.style.color="";
+ if(!a||!n){M.textContent="Bitte alle Felder ausfüllen.";return}
+ if(n!==g("hpcn2").value){M.textContent="Die beiden neuen Passwörter sind nicht gleich.";return}
+ try{var me=await(await fetch("/api/me")).json().catch(function(){return{}});
+  var r=await fetch("/api/profile/code",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({alt:a,neu:n})}),j=await r.json().catch(function(){return{}});
+  if(!r.ok){M.style.color="#c62828";M.textContent=j.fehler||"Das hat nicht geklappt.";return}
+  document.cookie="hudprof="+encodeURIComponent((me.name||"")+"|"+n.trim())+"; path=/; max-age=31536000; SameSite=Strict";
+  M.style.color="#22a05a";M.textContent="Passwort geändert. Melde dich auf deinen Handys einmal mit dem neuen Passwort an.";["hpca","hpcn","hpcn2"].forEach(function(i){g(i).value=""})
+ }catch(e){M.style.color="#c62828";M.textContent="Server nicht erreichbar."}}})();</script>

@@ -2,7 +2,7 @@
 <title>HUDPilot Updater</title><link rel="icon" href="/logo.png" type="image/png">
 <style>
 :root{--bg:#f4f5f7;--card:#fff;--soft:#f8f9fb;--tx:#1b1f24;--mu:#6b7280;--ac:#ff7a00;--ac2:#fff1e3;--ok:#1a8f3c;--okbg:#e8f6ec;--okbd:#bfe3c9;--okt:#14612b;--er:#c62828;--erbg:#fdecec;--erbd:#f3c0c0;--bd:#e3e6ea;--bd2:#eef0f2}
-@media(prefers-color-scheme:dark){:root{--bg:#121518;--card:#1b1f23;--soft:#22272c;--tx:#e8eaed;--mu:#9aa3ad;--ac2:#3a2a18;--okbg:#14301e;--okbd:#245a37;--okt:#8fd5a6;--erbg:#3a1b1b;--erbd:#6b2d2d;--bd:#2d3339;--bd2:#262b30}}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121518;--card:#1b1f23;--soft:#22272c;--tx:#e8eaed;--mu:#9aa3ad;--ac2:#3a2a18;--okbg:#14301e;--okbd:#245a37;--okt:#8fd5a6;--erbg:#3a1b1b;--erbd:#6b2d2d;--bd:#2d3339;--bd2:#262b30}}:root[data-theme="dark"]{--bg:#121518;--card:#1b1f23;--soft:#22272c;--tx:#e8eaed;--mu:#9aa3ad;--ac2:#3a2a18;--okbg:#14301e;--okbd:#245a37;--okt:#8fd5a6;--erbg:#3a1b1b;--erbd:#6b2d2d;--bd:#2d3339;--bd2:#262b30}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,Segoe UI,sans-serif}
 header{background:var(--card);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:30}
 .top{max-width:980px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:12px 20px}
@@ -25,13 +25,28 @@ h2{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mu
 .bar i.ind{width:35%;animation:ind 1.4s ease-in-out infinite}@keyframes ind{0%{margin-left:-35%}100%{margin-left:100%}}
 .bar.sl{height:6px;margin-top:6px}.bl{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--mu);margin-top:10px}.bl b{color:var(--tx)}
 .tp{max-width:980px;margin:0 auto;padding:0 20px 8px;font-size:12.5px;color:var(--mu)}.tp .bar{margin-top:4px;height:5px}.tp b{color:var(--tx)}
-tr.phrow td{background:var(--soft);padding:6px 12px;font-size:13.5px}.dl{color:var(--er)}
+tr.phrow td{background:var(--soft);padding:6px 12px;font-size:13.5px}
+.hpill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--bd);border-radius:99px;padding:4px 11px;font-size:13px;background:var(--card);color:var(--tx);text-decoration:none}.hpill:hover{border-color:var(--ac)}
+#pf td{vertical-align:middle;white-space:nowrap}#pf .newc{flex-wrap:nowrap}#pf .nm small{display:block;color:#b85c00;font-size:11.5px;font-weight:600}.pwd{color:var(--mu);letter-spacing:3px}
+#pf tr.neu td{background:var(--ac2)}.newc{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.newc code{font:700 16px ui-monospace,Consolas,monospace;letter-spacing:2px;background:var(--card);border:1px dashed var(--ac);color:#b85c00;border-radius:9px;padding:5px 11px}
+.newc+small{display:block;color:#8a4500;font-size:12px;margin-top:3px}.dl{color:var(--er)}.dl{color:var(--er)}
 tr.land td{background:var(--soft);cursor:pointer;padding:9px 8px;border-top:1px solid var(--bd);user-select:none}tr.land .mu{font-weight:400;font-size:12.5px;margin-left:6px}
 tr.sep td{background:var(--soft);color:var(--mu);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:7px 8px}
 .chk{display:flex;flex-wrap:wrap;gap:6px 18px;margin:8px 0}.chk label{display:flex;gap:7px;align-items:center;font-size:13.5px;cursor:pointer}
 .lv{display:inline-flex;border:1px solid var(--bd);border-radius:10px;overflow:hidden}.lv button{border:0;background:var(--card);color:var(--tx);font:inherit;font-size:13px;padding:6px 14px;cursor:pointer}.lv button.on{background:var(--ac);color:#fff}
 #lg div{padding:2px 0;border-bottom:1px solid var(--bd2)}#lg .t{color:var(--mu)}#lg .e{color:var(--er);font-weight:600}#lg .o{color:var(--ok)}#lg .a{color:#b85c00}
 .scope{color:var(--mu);font-size:13.5px;margin-top:10px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.chip{display:flex;align-items:center;gap:7px;border:1px solid var(--bd);border-radius:99px;padding:6px 12px;font-size:13px;background:var(--card)}
+.chip .dot{width:9px;height:9px;border-radius:50%;background:var(--ok)}.chip.off .dot{background:var(--er)}.chip small{color:var(--mu);font-size:13px}
+#rlk{grid-template-columns:repeat(6,1fr)}@media(max-width:820px){#rlk{grid-template-columns:repeat(3,1fr)}}
+.kpi.warn2 b{color:#b85c00}.kpi.err2 b{color:var(--er)}
+.rlblk{border:1px solid var(--bd);border-radius:12px;padding:14px 16px;background:var(--soft);display:flex;gap:14px;align-items:center;flex-wrap:wrap}.rlblk h3{margin:0;font-size:15px}.rlblk .d{font-size:12.5px;color:var(--mu)}.rlblk .sp{flex:1}
+select{padding:7px 9px;border:1px solid var(--bd);border-radius:9px;background:var(--card);color:var(--tx);font:inherit}
+.lbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.lbar .sp{flex:1}.lbar input[type=text]{min-width:220px;margin:0}
+#lg{border:1px solid var(--bd2);border-radius:12px;background:var(--soft);padding:0}
+#lg .ln{display:grid;grid-template-columns:3px 110px 1fr;gap:10px;padding:5px 12px 5px 0;border-top:1px solid var(--bd2)}#lg .ln:first-child{border-top:0}
+#lg .ln i{display:block}#lg .ln.w i{background:#f59e0b}#lg .ln.e i{background:var(--er)}#lg .ln.e .x{color:var(--er);font-weight:600}#lg .ln.w .x{color:#b85c00}
+#lg .ln .t{color:var(--mu)}#lg .ln .x.o{color:var(--ok)}#lg .ln .x.a{color:#b85c00}#lg .mu{padding:14px}
 .btns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
 @media(max-width:600px){.btns{grid-template-columns:1fr}}
 .btn{border:1px solid var(--bd);border-radius:14px;padding:13px 16px;background:var(--card);color:var(--tx);text-align:left;cursor:pointer;font:inherit}
@@ -44,10 +59,24 @@ td{padding:11px 6px;border-bottom:1px solid var(--bd2)}tr:last-child td{border:0
 .tag{display:inline-block;font-size:12px;padding:2px 9px;border-radius:99px;background:var(--okbg);color:var(--ok);font-weight:600;white-space:nowrap}.tag.w{background:var(--soft);color:var(--mu)}.tag.b{background:var(--ac2);color:#b85c00}.tag.e{background:var(--erbg);color:var(--er)}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px}.stats div{background:var(--soft);border-radius:12px;padding:11px 13px}.stats b{display:block;font-size:20px}.stats span{font-size:12.5px;color:var(--mu)}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0}
+.sub{color:var(--mu);font-size:13px;margin:-2px 0 14px}
+.f{display:grid;grid-template-columns:1fr 92px 86px;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--bd2)}.blk .d+.f{border-top:0}
+.f label b{display:block;font-weight:600;font-size:14px}.f label small{display:block;color:var(--mu);font-size:12px}.f input[type=number]{width:100%;text-align:right;margin:0}.f .u{color:var(--mu);font-size:13.5px}
+.bhd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:2px}.bhd h3{margin:0;font-size:16px}.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}@media(max-width:820px){.g2{grid-template-columns:1fr}}
+.blk{border:1px solid var(--bd);border-radius:12px;padding:14px 16px;background:var(--soft)}.blk h3{margin:0 0 2px;font-size:15px}.blk .d{font-size:12.5px;color:var(--mu);margin-bottom:6px}
+.blk .row label{min-width:0;flex:1 1 200px}.hint{background:var(--ac2);border:1px solid #ffd7b0;border-radius:10px;padding:9px 12px;font-size:13px;color:#8a4500;margin-top:10px}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .hint{color:#ffc58a;border-color:#6b4a24}}:root[data-theme="dark"] .hint{color:#ffc58a;border-color:#6b4a24}
+.tg{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--bd2);cursor:pointer}.blk .tg:first-of-type{border-top:0}
+.tg b{font-weight:600;font-size:14px}.tg small{display:block;color:var(--mu);font-size:12px;font-weight:400}
+input[type=checkbox].swc{appearance:none;-webkit-appearance:none;flex:none;width:38px;height:22px;accent-color:auto;border-radius:99px;background:#c5cad3;position:relative;cursor:pointer;transition:background .15s}
+input[type=checkbox].swc:after{content:"";position:absolute;left:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s}input[type=checkbox].swc:checked{background:var(--ac)}input[type=checkbox].swc:checked:after{left:18px}
+.ntop{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.ntop a{font-size:13px;color:var(--ac);font-weight:600;cursor:pointer;text-decoration:none}
+.bh{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-bottom:2px}.bh .hd{font-weight:700;font-size:15px}
+tr.geh td{background:var(--soft);padding:9px 8px;border-top:1px solid var(--bd)}tr.geh .mu{font-weight:400;font-size:12.5px;margin-left:6px}
 input[type=number],input[type=text],input[type=password]{padding:7px 9px;border:1px solid var(--bd);border-radius:9px;background:var(--soft);color:var(--tx);font:inherit}input[type=number]{width:84px}
 input[type=checkbox]{width:17px;height:17px;accent-color:var(--ac)}
 .warn{background:var(--ac2);border:1px solid #ffd7b0;border-radius:12px;padding:11px 14px;color:#8a4500}
-@media(prefers-color-scheme:dark){.warn{color:#ffc58a;border-color:#6b4a24}}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .warn{color:#ffc58a;border-color:#6b4a24}}:root[data-theme="dark"] .warn{color:#ffc58a;border-color:#6b4a24}
 .pane{display:none}.pane.on{display:block}
 details.menu{position:relative;display:inline-block}details.menu summary{list-style:none;cursor:pointer}details.menu summary::-webkit-details-marker{display:none}
 details.menu .dd{position:absolute;right:0;top:34px;z-index:10;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:6px;min-width:230px;box-shadow:0 8px 24px rgba(0,0,0,.14)}
@@ -60,7 +89,7 @@ pre,.logbox{margin:0;max-height:560px;overflow:auto;font:12px/1.5 ui-monospace,C
 .pill.ok{border-left-color:var(--ok)}.pill.run{border-left-color:var(--ac);background:var(--ac2)}.pill.bad{border-left-color:var(--er);background:var(--erbg)}.pill.off{border-left-color:var(--bd)}
 .pill .bar{margin-top:6px;height:4px}
 </style></head><body>
-<header><div class="top"><img src="/logo.png" alt=""><b>HUDPilot Updater</b><span class="mu" id="ver" style="font-size:12.5px"></span><span class="sp"></span><a href="/">Startseite</a><a href="#" id="logout">Abmelden</a></div>
+<header><div class="top"><img src="/logo.png" alt=""><b>HUDPilot Updater</b><span class="mu" id="ver" style="font-size:12.5px"></span><span class="sp"></span><a href="#" id="hptheme"></a><a href="/">Startseite</a><a href="#" id="logout">Abmelden</a></div>
 <nav class="tabs" id="tabs"><a data-t="t1">Übersicht</a><a data-t="t2">Regionen</a><a data-t="t3">Blitzer</a><a data-t="t4">Profile</a><a data-t="t5">Einstellungen</a><a data-t="t6">Protokoll</a></nav>
 <div class="tp" id="tp" style="display:none"><span id="tpt"></span><div class="bar"><i id="tpi" style="width:0"></i></div></div></header>
 <main><input type="hidden" id="pw">
@@ -72,10 +101,10 @@ pre,.logbox{margin:0;max-height:560px;overflow:auto;font:12px/1.5 ui-monospace,C
  <div class="card" id="upc"><h2>Update</h2><div id="res"></div><div class="scope" id="scope"></div>
   <div class="btns"><button class="btn p" id="bAll"><b>Markierte neu erstellen</b><span>Karte, Routen, Orte, Straßendaten. Dauert Stunden.</span></button>
   <button class="btn" id="bPoi"><b>Nur Straßen und Orte</b><span>Schnell, Karte bleibt.</span></button></div><div id="msg" class="er" style="margin-top:8px"></div></div>
- <div class="card" id="bsc"><h2>Roadworks</h2><div id="bsx"></div>
+ <div class="card" id="bsc"><h2>Baustellen</h2><div id="bsx"></div>
   <div class="bar" id="bsbar" style="display:none;margin-top:8px"><i id="bsi" style="width:0"></i></div>
   <div class="row" style="margin-top:10px"><button class="sm p" id="bsGo">Jetzt abrufen</button><button class="sm" id="bsStop" style="display:none">Abbrechen</button><span id="bsm" class="er"></span></div>
-  <div class="note">Quelle: Mobilithek Bayern, täglich. Ohne Abo: Testdatei <b>test.xml</b>.</div></div>
+  <div class="note">Quelle: Mobilithek Bayern. Wann automatisch abgerufen wird, stellst du im Tab Einstellungen ein. Ohne Abo: Testdatei <b>test.xml</b>.</div></div>
  <div class="card" id="dkc"><h2>Storage</h2><div class="bar"><i id="dkb" style="width:0"></i></div><div class="note" id="dk" style="margin-top:8px"></div></div>
 </section>
 <section class="pane" id="t2"><div class="card"><h2>Regionen</h2><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0"><input type="text" id="rq" placeholder="Land oder Region suchen …" style="flex:1;min-width:180px"><button class="sm" id="bGf">Europa-Liste holen</button></div><div class="note" id="gfi" style="margin:0 0 4px"></div><div class="note" id="gfm" style="margin:0 0 8px"></div><div class="tw"><table><thead><tr><th></th><th>Region</th><th class="r">Karte</th><th class="r">Straßen</th><th class="r">Orte</th><th>Stand</th><th>Status</th><th></th></tr></thead><tbody id="rg"></tbody></table></div>
@@ -86,18 +115,27 @@ pre,.logbox{margin:0;max-height:560px;overflow:auto;font:12px/1.5 ui-monospace,C
  <div class="note">In der SCDB: Download → Format <b>GPX</b> → <b>Trennung nach einzelnen Kategorien</b>. Dateien oder ZIP hochladen. Der Server führt sie zusammen und verteilt sie an alle Handys. Erinnerung alle 30 Tage.</div></div></section>
 <section class="pane" id="t4"><div class="card"><h2>Profile</h2><div class="note" style="margin:-4px 0 10px">Jedes Profil hat eigene Touren und Fahrten, nur für sich sichtbar. Neue Profile entstehen in der App oder im Planer mit dem Einladungscode.</div>
  <div class="row">Einladungscode: <input type="text" id="inv" size="10"> <button class="sm" id="bInv">Speichern</button></div>
- <div class="tw"><table><thead><tr><th>Name</th><th>Code</th><th class="r">Handys</th><th class="r">Größe</th><th>Zuletzt</th><th title="Dieses Profil bekommt die Admin-Meldungen in der App">Admin-Meldungen</th><th></th></tr></thead><tbody id="pf"></tbody></table></div>
+ <div class="tw"><table><thead><tr><th>Name</th><th>Passwort</th><th>Handys</th><th class="r">Größe</th><th>Zuletzt</th><th title="Dieses Profil bekommt die Admin-Meldungen in der App">Meldungen</th><th></th></tr></thead><tbody id="pf"></tbody></table></div>
  <div class="row"><input type="text" id="pn" placeholder="Neuer Name"> <button class="sm" id="bNew">Profil anlegen</button><span id="pm"></span></div></div>
  <div class="card" id="frc"><h2>Friends &amp; Live</h2><div class="kpis" id="frk" style="margin-bottom:10px"></div><div id="frn"></div>
   <div class="note" style="margin:10px 0 6px"><b>Geteilte Zeit</b></div><div class="kpis" id="frg" style="margin-bottom:4px"></div>
   <div class="note" style="margin:12px 0 4px"><b>Verbindungen</b> (Positionen sieht die Verwaltung nie)</div><div class="tw"><table><tbody id="frt"></tbody></table></div></div>
 </section>
-<section class="pane" id="t5"><div class="card"><h2>Einstellungen</h2>
- <div class="row">Download-Tempo im Zeitfenster: <input type="number" id="li" min="0" step="1"> Mbit/s <span class="mu">(0 = unbegrenzt)</span></div>
- <div class="row">Download-Tempo außerhalb: <input type="number" id="lo" min="0" step="1"> Mbit/s</div>
- <div class="row">Zeitfenster (Uhr): von <input type="number" id="ws" min="0" max="23"> bis <input type="number" id="we" min="0" max="23"> <span class="mu">(gleiche Zahl = immer)</span></div>
- <div class="row">Automatisch erneuern alle <input type="number" id="ed" min="1"> Tage <span class="mu">(nur im Zeitfenster)</span></div>
- <div class="row"><button class="sm p" id="bSave">Speichern</button><span id="sm"></span></div>
+<section class="pane" id="t5"><div class="card"><h2>Einstellungen · Zeitplan</h2><p class="sub">Wann der Server von selbst arbeitet. Karten und Baustellen haben je ein eigenes Zeitfenster.</p>
+ <div class="g2">
+  <div class="blk"><div class="bhd"><h3>🗺️ Karten bauen</h3></div><div class="d">Karten, Routen- und Straßendaten holen und neu bauen.</div>
+   <div class="f"><label><b>Zeitfenster von</b><small>nur in dieser Zeit (gleiche Zahl bei von und bis = immer)</small></label><input type="number" id="ws" min="0" max="23"><span class="u">Uhr</span></div>
+   <div class="f"><label><b>Zeitfenster bis</b></label><input type="number" id="we" min="0" max="23"><span class="u">Uhr</span></div>
+   <div class="f"><label><b>Automatisch erneuern</b><small>alle … Tage, nur im Zeitfenster</small></label><input type="number" id="ed" min="1"><span class="u">Tage</span></div>
+   <div class="f"><label><b>Download-Tempo im Zeitfenster</b><small>0 = unbegrenzt</small></label><input type="number" id="li" min="0" step="1"><span class="u">Mbit/s</span></div>
+   <div class="f"><label><b>Download-Tempo außerhalb</b></label><input type="number" id="lo" min="0" step="1"><span class="u">Mbit/s</span></div></div>
+  <div class="blk"><div class="bhd"><h3>🚧 Baustellen abrufen</h3><input type="checkbox" class="swc" id="bsa" title="Automatischen Abruf ein- oder ausschalten"></div><div class="d">Aktuelle Baustellen und Sperrungen von der Mobilithek holen. Von Hand geht es immer (Tab Übersicht).</div>
+   <div class="f"><label><b>Zeitfenster von</b><small>nur in dieser Zeit (gleiche Zahl bei von und bis = immer)</small></label><input type="number" id="bws" min="0" max="23"><span class="u">Uhr</span></div>
+   <div class="f"><label><b>Zeitfenster bis</b></label><input type="number" id="bwe" min="0" max="23"><span class="u">Uhr</span></div>
+   <div class="f"><label><b>Abrufen alle</b><small>frühestens so lange nach dem letzten Abruf</small></label><input type="number" id="bwh" min="1" max="168"><span class="u">Stunden</span></div>
+   <div class="note" id="bsl" style="margin-top:6px"></div></div>
+ </div>
+ <div class="row" style="margin-top:16px"><button class="sm p" id="bSave">Speichern</button><span id="sm"></span></div>
  <div class="note" id="verx"></div></div>
  <div class="card"><h2>Zugriff von außen</h2>
   <div class="row"><label style="display:flex;gap:9px;align-items:center;cursor:pointer"><input type="checkbox" id="xk"><b>Karten von außen laden</b></label><span id="xkt" class="tag w"></span></div>
@@ -105,24 +143,26 @@ pre,.logbox{margin:0;max-height:560px;overflow:auto;font:12px/1.5 ui-monospace,C
   <div class="note" id="ngn">Die App zeigt dann nur Regionen, die hier fertig gebaut sind. Einzelne Regionen blendest du in der Regionsliste unter „Neu bauen ▾“ aus. Was ein Handy schon geladen hat, bleibt dort sichtbar.</div>
   <div class="note" style="margin-top:2px">Aus (empfohlen): Von außen nur Anmeldung, Planer, Touren, Fahrten und Sync. Karten sind groß und belasten den Upload. An: Die App lädt sie auch unterwegs.</div>
   <div class="note" id="xn"></div>
-  <div class="note">Verwaltung, Passwort und neue Profile gibt es von außen nie. Nach 5 falschen Anmeldungen: 15 Minuten gesperrt.</div></div> <div class="card" id="nfc"><h2>Admin-Meldungen</h2><div class="note" style="margin:-4px 0 10px">Diese Ereignisse landen in der App bei Profilen mit gesetztem Haken (Tab „Profile“). Hier schaltest du einzelne Arten aus.</div>
-  <div class="note" style="margin:0 0 4px"><b>Diese Ereignisse melden</b></div><div id="nft" class="chk"></div>
-  <div class="note" style="margin:12px 0 4px"><b>Diese Status-Infos in der App zeigen</b> (über den Meldungen)</div><div id="nfi" class="chk"></div><div class="row"><button class="sm" id="nfTest">Testmeldung senden</button><button class="sm" id="nfClear">Liste leeren</button><span id="nfm" class="mu"></span></div>
+  <div class="note">Verwaltung, Passwort und neue Profile gibt es von außen nie. Nach 5 falschen Anmeldungen: 15 Minuten gesperrt.</div></div> <div class="card" id="nfc"><h2>Admin-Meldungen</h2><p class="sub">Was der Server dir in der App meldet. Die Meldungen sehen nur Profile mit gesetztem Haken (Tab „Profile“).</p>
+  <div class="g2" id="nfg"></div>
+  <div class="row" style="margin-top:14px"><button class="sm" id="nfTest">Testmeldung senden</button><button class="sm" id="nfClear">Liste leeren</button><span id="nfm" class="mu"></span></div>
   <div class="note" style="margin:12px 0 4px"><b>Letzte Meldungen</b></div><div id="nfe" style="font-size:13.5px"></div></div>
 </section>
 <section class="pane" id="t6"><div class="card" id="rlc"><h2>Routing-Leistung</h2>
- <div class="kpis" id="rlk" style="margin-bottom:10px"></div><div id="rlb" class="note" style="margin:0 0 10px"></div>
- <div class="row"><span class="mu">Rechenleistung für BRouter:</span><label>Arbeitsspeicher <select id="rlm"><option value="1024">1 GB</option><option value="2048">2 GB</option><option value="3072">3 GB</option><option value="4096">4 GB</option><option value="6144">6 GB</option><option value="8192">8 GB</option></select></label>
+ <p class="sub">Wie schnell der Server Strecken rechnet. Die Zähler gelten für heute und beginnen nach jedem Server-Neustart bei null.</p>
+ <div class="kpis" id="rlk" style="margin-bottom:0"></div><div id="rlb" class="chips"></div>
+ <div class="rlblk"><div><h3>⚙️ Rechenleistung</h3><div class="d">BRouter startet nach dem Übernehmen neu.</div></div><span class="sp"></span>
+  <label>Arbeitsspeicher <select id="rlm"><option value="1024">1 GB</option><option value="2048">2 GB</option><option value="3072">3 GB</option><option value="4096">4 GB</option><option value="6144">6 GB</option><option value="8192">8 GB</option></select></label>
   <label>Gleichzeitige Berechnungen <select id="rlt"><option>2</option><option>4</option><option>6</option><option>8</option><option>12</option><option>16</option></select></label>
   <button class="sm p" id="rlGo">Übernehmen</button><span id="rlx" class="mu"></span></div>
- <div class="note" style="margin:12px 0 4px"><b>Letzte Berechnungen</b> (langsame ab 5 Sekunden sind orange)</div>
+ <div style="margin:16px 0 4px"><b>Letzte Berechnungen</b> <span class="mu">· langsame ab 5 Sekunden sind orange</span></div>
  <div class="tw"><table><thead><tr><th>Zeit</th><th>Profil</th><th class="r">Punkte</th><th class="r">Strecke</th><th class="r">Dauer</th></tr></thead><tbody id="rlt2"></tbody></table></div></div>
-<div class="card"><h2>Protokoll</h2>
- <div class="row"><span class="mu">Ausführlichkeit:</span><span class="lv" id="lv"><button data-l="kurz">Kurz</button><button data-l="normal">Normal</button><button data-l="ausfuehrlich">Ausführlich</button></span><span id="lvx" class="mu"></span></div>
- <div class="chk" id="lc"></div>
- <div class="note" style="margin:0 0 12px">Start, Ende, Abbruch, Warnungen und Fehler stehen immer drin. Das Protokoll bleibt nach einem Neustart erhalten (etwa 1 MB, die ältesten Zeilen fallen weg).</div>
- <div class="row"><span class="lv" id="lf"><button data-f="">Alles</button><button data-f="fehler">Nur Fehler</button></span><span class="sp"></span><button class="sm" id="lClr">Protokoll leeren</button></div>
- <div class="logbox" id="lg"></div></div></section>
+<div class="card"><h2>Protokoll</h2><p class="sub">Was der Server getan hat. Start, Ende, Abbruch, Warnungen und Fehler stehen immer drin. Das Protokoll bleibt nach einem Neustart erhalten (etwa 1 MB, die ältesten Zeilen fallen weg).</p>
+ <div class="lbar"><span class="mu">Ausführlichkeit</span><span class="lv" id="lv"><button data-l="kurz">Kurz</button><button data-l="normal">Normal</button><button data-l="ausfuehrlich">Ausführlich</button></span><span id="lvx" class="mu"></span><span class="sp"></span><input type="text" id="lq" placeholder="Im Protokoll suchen …"><a href="/api/export" download><button class="sm" type="button" id="lExp">⬇ Alles als TXT speichern</button></a> <button class="sm" id="lClr">Protokoll leeren</button></div>
+ <div class="mu" style="margin-bottom:8px;font-size:13px">Das wird mitgeschrieben:</div><div class="g2" id="lc"></div>
+ <div class="lbar" style="margin-top:16px"><span class="lv" id="lf"><button data-f="">Alles</button><button data-f="warn">Warnungen</button><button data-f="fehler">Nur Fehler</button></span><span class="mu" id="lcnt"></span></div>
+ <div class="logbox" id="lg"></div></div>
+</section>
 </main>
 <div id="scpop"><div class="card" style="max-width:420px;margin:0"><h2>Blitzer-Liste auffrischen?</h2><p id="scpt" style="margin:0 0 12px"></p><div class="row"><a href="https://www.scdb.info/my/" target="_blank" rel="noopener" style="text-decoration:none"><button type="button" class="btn p" style="padding:9px 16px"><b>SCDB öffnen</b></button></a> <button class="sm" id="scLater">Später erinnern</button></div></div></div>
 <script>
@@ -133,6 +173,10 @@ const nf=n=>Number(n||0).toLocaleString("de-DE");
 const fd=t=>t?new Date(t*1000).toLocaleString("de-DE",{dateStyle:"short",timeStyle:"short"}):"–";
 const fday=t=>t?new Date(t*1000).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"2-digit"}):"–";
 const ft=t=>new Date(t*1000).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"});
+const fwann=t=>{const d=new Date(t*1000),n=new Date(),t0=x=>new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime(),dd=Math.round((t0(n)-t0(d))/864e5),uhr=ft(t);
+ const dm=d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"});
+ if(dd<=0)return"heute um "+uhr;if(dd==1)return"gestern, "+dm+" um "+uhr;return d.toLocaleDateString("de-DE",{weekday:"short"})+", "+dm+" um "+uhr};
+const fvor=t=>{const m=Math.max(0,Math.round((Date.now()/1000-t)/60));return m<90?"vor "+m+" Min":m<2880?"vor "+Math.round(m/60)+" Std.":"vor "+Math.round(m/1440)+" Tagen"};
 const fdur=s=>s<90?s+" Sek":Math.round(s/60)+" Min";
 try{$("pw").value=localStorage.getItem("hudpw")||""}catch(e){}
 // ---- Tabs ----
@@ -158,17 +202,20 @@ function result(){const s=S,e=s.ergebnis;
  if(!e)return'<div class="box"><span class="ic">•</span><div><b>Bereit</b><small>Noch kein Bau gelaufen. Nächster automatischer Lauf: '+(s.next_run?fd(s.next_run):"beim nächsten Zeitfenster")+'.</small></div></div>';
  const names=id=>(s.regionen.find(r=>r.id==id)||{name:id}).name;const errs=Object.entries(e.fehler||{});
  const art=e.nur=="poi"?"Straßendaten und Orte":"Alles";
- const sub=e.fertig+" von "+e.gesamt+" Regionen ("+art+"), Dauer "+fdur(e.dauer)+(s.next_run?" · nächster automatischer Lauf frühestens "+fday(s.next_run):"");
- if(e.abgebrochen)return'<div class="box"><span class="ic">■</span><div><b>Abgebrochen um '+ft(e.ende)+'</b><small>'+esc(sub)+'</small></div></div>';
- if(errs.length)return'<div class="box bad"><span class="ic">!</span><div><b>Fertig um '+ft(e.ende)+', aber mit Fehlern</b><small>'+esc(sub)+'</small>'+errs.map(x=>"<small><b>"+esc(x[0]=="_"?"Allgemein":names(x[0]))+":</b> "+esc(x[1])+"</small>").join("")+'</div></div>';
- return'<div class="box ok"><span class="ic">✓</span><div><b>Fertig um '+ft(e.ende)+'</b><small>'+esc(sub)+'</small></div></div>'}
+ const fertig=e.fertig+" von "+e.gesamt+" Regionen gebaut ("+art+"), Dauer "+fdur(e.dauer);
+ const nxt=s.next_run?"Nächster automatischer Lauf: frühestens "+fday(s.next_run):"";
+ const subs=(l1)=>'<small>'+esc(l1)+'</small><small>'+esc(fertig)+'</small>'+(nxt?'<small>'+esc(nxt)+'</small>':'');
+ const wann=fwann(e.ende);
+ if(e.abgebrochen)return'<div class="box"><span class="ic">■</span><div><b>Abgebrochen '+esc(wann)+'</b>'+subs("Der Lauf wurde vorzeitig beendet")+'</div></div>';
+ if(errs.length)return'<div class="box bad"><span class="ic">!</span><div><b>Fertig '+esc(wann)+', aber mit Fehlern</b>'+subs("Fehler bei "+errs.length+" Region"+(errs.length==1?"":"en")+":")+errs.map(x=>"<small><b>"+esc(x[0]=="_"?"Allgemein":names(x[0]))+":</b> "+esc(x[1])+"</small>").join("")+'</div></div>';
+ return'<div class="box ok"><span class="ic">✓</span><div><b>Fertig '+esc(wann)+'</b>'+subs("Alles in Ordnung ("+fvor(e.ende)+")")+'</div></div>'}
 function regionTag(r,s){const t=regionTag0(r,s);return r.versteckt?t+' <span class="tag w" title="In der App ausgeblendet">ausgeblendet</span>':t}
 function regionTag0(r,s){if(r.fehler)return'<span class="tag e" title="'+esc(r.fehler)+'">Fehler</span>';if(s.state=="running"&&s.current==r.name)return'<span class="tag b">baut …</span>';if(r.wartet)return'<span class="tag b">wartet</span>';
  if(!r.karte_bytes)return'<span class="tag w">nicht gebaut</span>';if(!r.strassen_bytes)return'<span class="tag b">Straßendaten noch nicht gebaut</span>';return'<span class="tag">aktuell</span>'}
 function render(){const s=S,c=s.cfg;
  const rh=result();if(rh!==resSig){resSig=rh;$("res").innerHTML=rh;const st=$("bStop");if(st)st.onclick=()=>{st.disabled=true;st.textContent="Abbruch läuft …";post("/api/stop").then(load)}}
  if(s.state=="running"){$("tp").style.display="block";$("tpt").innerHTML=(s.stop?"<b>Abbruch läuft …</b>":"<b>Läuft:</b> "+esc(s.current||"")+" · "+esc((s.detail||"").slice(0,70)))+" · "+s.gesamt_pct+" %";$("tpi").style.width=s.gesamt_pct+"%"}else $("tp").style.display="none";
- $("scope").textContent=c.regions.length+" Region"+(c.regions.length==1?"":"en")+" angehakt · Tempo jetzt "+(s.limit_jetzt_mbit>0?s.limit_jetzt_mbit+" Mbit/s":"unbegrenzt")+" ("+(s.im_fenster?"im Zeitfenster":"außerhalb")+")";
+ $("scope").textContent=c.regions.length+" Region"+(c.regions.length==1?"":"en")+" für Updates angehakt · Tempo jetzt "+(s.limit_jetzt_mbit>0?s.limit_jetzt_mbit+" Mbit/s":"unbegrenzt")+" ("+(s.im_fenster?"im Zeitfenster":"außerhalb des Zeitfensters")+")";
  const busy=s.state=="running"||!s.admin||!c.regions.length;$("bAll").disabled=busy;$("bPoi").disabled=busy;
  if(!s.admin)$("msg").textContent="Nur ansehen: ADMIN_PASSWORD fehlt im Container.";
  // Zahlen
@@ -180,7 +227,7 @@ function render(){const s=S,c=s.cfg;
  const sig=JSON.stringify([s.regionen,s.state,s.current,c.regions,s.regionsliste]);
  RGS=s;gfInfo(s);
  if(sig!=rgSig&&!document.querySelector("#rg details[open]")){rgSig=sig;drawRg()}
- if(!dirty){$("li").value=c.limit_in_mbit;$("lo").value=c.limit_out_mbit;$("ws").value=c.win_start;$("we").value=c.win_end;$("ed").value=c.every_days}
+ if(!dirty){$("li").value=c.limit_in_mbit;$("lo").value=c.limit_out_mbit;$("ws").value=c.win_start;$("we").value=c.win_end;$("ed").value=c.every_days;$("bws").value=c.bs_win_start??c.win_start;$("bwe").value=c.bs_win_end??c.win_end;$("bwh").value=c.bs_every_h;$("bsa").checked=c.bs_aktiv!==false}
  const xk=$("xk");xk.checked=!!c.extern_karten;$("xkt").textContent=c.extern_karten?"AN":"aus";$("xkt").className="tag "+(c.extern_karten?"b":"w");
  const ng=$("ng");ng.checked=c.nur_gebaute!==false;$("ngt").textContent=ng.checked?"AN":"aus";$("ngt").className="tag "+(ng.checked?"b":"w");
  $("xn").textContent="Als „extern“ gilt alles, was über den Proxy (z. B. Nginx Proxy Manager) oder mit einem Weiterleitungs-Kopf ankommt.";
@@ -189,28 +236,38 @@ function render(){const s=S,c=s.cfg;
 let RGS=null,landOpen={},phOpen={};
 function gfInfo(s){const i=s.regionsliste||{};$("gfi").textContent=i.extra?"Liste: "+i.gesamt+" Regionen ("+i.extra+" aus Geofabrik, Stand "+fday(i.stand)+")":"Liste: "+(i.gesamt||0)+" Regionen (mitgeliefert). „Europa-Liste holen“ ergänzt weitere Länder; es wird nichts geladen oder gebaut."}
 function drawRg(){const s=RGS;if(!s)return;const q=($("rq").value||"").trim().toLowerCase();
- const row=r=>{const has=r.karte_bytes>0;
-  return'<tr><td><input type="checkbox" class="ck" value="'+r.id+'"'+(r.aktiv?" checked":"")+'></td><td><b>'+esc(r.name)+'</b>'+(r.fehler?'<br><span class="er" style="font-size:12.5px">'+esc(r.fehler)+"</span>":"")+'</td><td class="r">'+fb(r.karte_bytes)+'</td><td class="r">'+fb(r.strassen_bytes)+'</td><td class="r">'+(r.poi_anzahl?nf(r.poi_anzahl):"–")+"</td><td>"+fday(r.stand)+"</td><td>"+regionTag(r,s)+'</td><td class="r">'+(has?'<details class="menu"><summary class="sm">Neu bauen ▾</summary><div class="dd"><button data-id="'+r.id+'" data-o="">Alles (Karte, Routen, Orte, Straßen)</button><button data-id="'+r.id+'" data-o="poi">Nur Straßendaten und Orte</button><button data-hide="'+r.id+'">'+(r.versteckt?"In der App wieder anzeigen":"In der App ausblenden")+'</button><button data-del="'+r.id+'" class="dl">Vom Server löschen …</button></div></details>':'<button class="sm" data-id="'+r.id+'" data-o="">Bauen</button>')+"</td></tr>"};
+ const row=(r,wl)=>{const has=r.karte_bytes>0;
+  return'<tr><td><input type="checkbox" class="ck" value="'+r.id+'"'+(r.aktiv?" checked":"")+'></td><td><b>'+esc(r.name)+'</b>'+(wl?' <span class="mu" style="font-size:12.5px">· '+esc(wl)+"</span>":"")+(r.fehler?'<br><span class="er" style="font-size:12.5px">'+esc(r.fehler)+"</span>":"")+'</td><td class="r">'+fb(r.karte_bytes)+'</td><td class="r">'+fb(r.strassen_bytes)+'</td><td class="r">'+(r.poi_anzahl?nf(r.poi_anzahl):"–")+"</td><td>"+fday(r.stand)+"</td><td>"+regionTag(r,s)+'</td><td class="r">'+(has?'<details class="menu"><summary class="sm">Neu bauen ▾</summary><div class="dd"><button data-id="'+r.id+'" data-o="">Alles (Karte, Routen, Orte, Straßen)</button><button data-id="'+r.id+'" data-o="poi">Nur Straßendaten und Orte</button><button data-hide="'+r.id+'">'+(r.versteckt?"In der App wieder anzeigen":"In der App ausblenden")+'</button><button data-del="'+r.id+'" class="dl">Vom Server löschen …</button></div></details>':'<button class="sm" data-id="'+r.id+'" data-o="">Bauen</button>')+"</td></tr>"};
  const building=r=>s.state=="running"&&s.current==r.name;
  const by={};s.regionen.forEach(r=>{(by[r.land]=by[r.land]||[]).push(r)});
  const nm=L=>by[L][0].landname||L;
  const lands=Object.keys(by).sort((a,b)=>a=="DE"?-1:b=="DE"?1:nm(a).localeCompare(nm(b),"de"));
  let h="",hits=0;
+ const loaded=r=>r.karte_bytes>0||building(r);
+ // Ganz oben: alles Angehakte (wird aktuell gehalten). Danach: Geladenes ohne Haken. Darunter die Länder (eingeklappt) mit dem Rest. Jede Region steht nur einmal.
+ const hit=(r,landName)=>!q||(r.name+" "+landName).toLowerCase().includes(q);
+ const cmp=(x,y)=>((building(y[0])?1:0)-(building(x[0])?1:0))||(x[1]==y[1]?0:x[1]=="Deutschland"?-1:y[1]=="Deutschland"?1:x[1].localeCompare(y[1],"de"))||x[0].name.localeCompare(y[0].name,"de");
+ const chk=[],lad=[];for(const L of lands)for(const r of by[L]){if(!hit(r,nm(L)))continue;if(r.aktiv)chk.push([r,nm(L)]);else if(loaded(r))lad.push([r,nm(L)])}
+ chk.sort(cmp);lad.sort(cmp);
+ const head=(t,n,x)=>'<tr class="geh"><td></td><td colspan="7"><b>'+t+'</b><span class="mu">'+n+" Region"+(n==1?"":"en")+(x||"")+"</span></td></tr>";
+ if(chk.length){h+=head("Angehakt",chk.length,q?"":" · werden aktuell gehalten");h+=chk.map(x=>row(x[0],x[1])).join("");hits+=chk.length}
+ if(lad.length){h+=head("Weitere geladene",lad.length,q?"":" · gebaut, aber nicht angehakt");h+=lad.map(x=>row(x[0],x[1])).join("");hits+=lad.length}
  for(const L of lands){
-  const all=by[L].slice().sort((a,b)=>((building(b)?1:0)-(building(a)?1:0))||((b.aktiv?1:0)-(a.aktiv?1:0))||a.name.localeCompare(b.name,"de"));
-  const shown=q?all.filter(r=>(r.name+" "+nm(L)).toLowerCase().includes(q)):all;
-  if(q&&!shown.length)continue;
-  const nAkt=all.filter(r=>r.aktiv).length,nGeb=all.filter(r=>r.karte_bytes>0).length,bld=all.some(building);
-  const open=q?true:(landOpen[L]!==undefined?landOpen[L]:(nAkt>0||nGeb>0||bld));
-  h+='<tr class="land" data-land="'+esc(L)+'"><td><input type="checkbox" class="lk" data-land="'+esc(L)+'" title="Alle Regionen dieses Landes an- oder abhaken"></td><td colspan="7"><b>'+(open?"▾ ":"▸ ")+esc(nm(L))+"</b><span class=\"mu\">"+nAkt+" von "+all.length+" angehakt · "+nGeb+" gebaut"+(bld?" · baut gerade":"")+"</span></td></tr>";
-  if(open){h+=shown.map(row).join("");hits+=shown.length}
+  const all=by[L].slice().sort((a,b)=>((b.aktiv?1:0)-(a.aktiv?1:0))||a.name.localeCompare(b.name,"de"));
+  const rest=all.filter(r=>!loaded(r)&&!r.aktiv);
+  const shown=q?rest.filter(r=>(r.name+" "+nm(L)).toLowerCase().includes(q)):rest;
+  if(q?!shown.length:!rest.length)continue;
+  const nAkt=all.filter(r=>r.aktiv).length,nGeb=all.filter(r=>loaded(r)||r.aktiv).length;
+  const open=q?true:landOpen[L]===true;
+  h+='<tr class="land" data-land="'+esc(L)+'"><td><input type="checkbox" class="lk" data-land="'+esc(L)+'" title="Alle Regionen dieses Landes an- oder abhaken"></td><td colspan="7"><b>'+(open?"▾ ":"▸ ")+esc(nm(L))+"</b><span class=\"mu\">"+rest.length+" weitere"+(nGeb?" · "+nGeb+" oben bei Angehakt/Geladen":"")+"</span></td></tr>";
+  if(open){h+=shown.map(r=>row(r)).join("");hits+=shown.length}
  }
  $("rg").innerHTML=h||'<tr><td colspan="8" class="mu" style="padding:14px">Keine passende Region.</td></tr>';
  document.querySelectorAll("#rg .ck").forEach(x=>x.onchange=saveRegions);
  document.querySelectorAll("#rg button[data-id]").forEach(b=>b.onclick=()=>run([b.dataset.id],b.dataset.o));
  document.querySelectorAll("#rg button[data-hide]").forEach(b=>b.onclick=()=>toggleHide(b.dataset.hide));
  document.querySelectorAll("#rg button[data-del]").forEach(b=>b.onclick=()=>delRegion(b.dataset.del));
- document.querySelectorAll("#rg tr.land").forEach(t=>t.onclick=()=>{const L=t.dataset.land,o=landOpen[L]!==undefined?landOpen[L]:(by[L].some(r=>r.aktiv||r.karte_bytes>0||building(r)));landOpen[L]=!o;drawRg()});
+ document.querySelectorAll("#rg tr.land").forEach(t=>t.onclick=()=>{const L=t.dataset.land;landOpen[L]=!(landOpen[L]===true);drawRg()});
  document.querySelectorAll("#rg .lk").forEach(x=>{const l=by[x.dataset.land],n=l.filter(r=>r.aktiv).length;x.checked=n==l.length;x.indeterminate=n>0&&n<l.length;x.onclick=ev=>ev.stopPropagation();
   x.onchange=async()=>{const ids=new Set(RGS.cfg.regions);l.forEach(r=>x.checked?ids.add(r.id):ids.delete(r.id));await post("/api/config",{regions:[...ids]});load()}})}
 async function saveRegions(){const ids=new Set(RGS.cfg.regions);document.querySelectorAll("#rg .ck").forEach(x=>x.checked?ids.add(x.value):ids.delete(x.value));await post("/api/config",{regions:[...ids]});load()}
@@ -223,13 +280,17 @@ $("ng").onchange=async()=>{await post("/api/config",{nur_gebaute:$("ng").checked
 function toggleHide(id){const v=new Set(RGS.cfg.versteckt||[]);v.has(id)?v.delete(id):v.add(id);return post("/api/config",{versteckt:[...v]}).then(()=>{rgSig="";load()})}
 $("xk").onchange=async()=>{const[ok,j]=await post("/api/config",{extern_karten:$("xk").checked});if(!ok)$("xkt").textContent=j.fehler||"Fehler";load()};
 $("bAll").onclick=()=>run(S.cfg.regions,"");$("bPoi").onclick=()=>run(S.cfg.regions,"poi");
-$("bSave").onclick=async()=>{const[ok,j]=await post("/api/config",{limit_in_mbit:+$("li").value,limit_out_mbit:+$("lo").value,win_start:+$("ws").value,win_end:+$("we").value,every_days:+$("ed").value});$("sm").innerHTML=ok?'<span class="ok">Gespeichert</span>':'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";if(ok)dirty=false;load()};
-document.querySelectorAll("#t5 input[type=number]").forEach(x=>x.oninput=()=>dirty=true);
+$("bSave").onclick=async()=>{const[ok,j]=await post("/api/config",{limit_in_mbit:+$("li").value,limit_out_mbit:+$("lo").value,win_start:+$("ws").value,win_end:+$("we").value,every_days:+$("ed").value,bs_win_start:+$("bws").value,bs_win_end:+$("bwe").value,bs_every_h:+$("bwh").value,bs_aktiv:$("bsa").checked});$("sm").innerHTML=ok?'<span class="ok">Gespeichert</span>':'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";if(ok)dirty=false;load()};
+document.querySelectorAll("#t5 input[type=number]").forEach(x=>x.oninput=()=>dirty=true);$("bsa").onchange=()=>{dirty=true};
 $("logout").onclick=async e=>{e.preventDefault();await fetch("/api/logout",{method:"POST",body:"{}"});location.href="/"};
 // ---- Profile ----
-async function papi(body,url){const[ok,j]=await post(url||"/api/admin/profile",body);$("pm").innerHTML=ok?'<span class="ok">OK'+(j.code?" · Code: <b>"+esc(j.code)+"</b>":"")+'</span>':'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";loadP();return ok}
+const NEWC={};   // frisch vergebene Passwörter (nur bis die Seite neu geladen wird; der Server kennt sie danach nicht mehr im Klartext)
+async function papi(body,url){const[ok,j]=await post(url||"/api/admin/profile",body);if(ok&&j.code&&body.name)NEWC[body.name.trim()]=j.code;$("pm").innerHTML=ok?'<span class="ok">'+(j.code?"Das neue Passwort steht in der Zeile des Profils.":"OK")+'</span>':'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";loadP();return ok}
 async function loadP(){try{const r=await fetch("/api/admin/profiles");if(!r.ok)return;const j=await r.json();if(document.activeElement!==$("inv"))$("inv").value=j.invite;
- $("pf").innerHTML=j.profile.map(p=>'<tr><td><b>'+esc(p.name)+"</b>"+(p.disabled?' <span class="tag e">gesperrt</span>':"")+'</td><td><code>'+esc(p.code)+'</code></td><td class="r"><a href="#" class="phl" data-n="'+encodeURIComponent(p.name)+'" title="Handys anzeigen">'+p.handys+(p.geraete&&p.geraete.length?(phOpen[p.name]?" ▴":" ▾"):"")+'</a></td><td class="r">'+fb(p.bytes)+'</td><td>'+fd(p.seen)+'</td><td><input type="checkbox" class="nrc" data-n="'+encodeURIComponent(p.name)+'"'+(p.meldungen?" checked":"")+'></td><td class="r"><button class="sm" data-a="resetcode" data-n="'+encodeURIComponent(p.name)+'">Code neu</button> <button class="sm" data-a="'+(p.disabled?"enable":"disable")+'" data-n="'+encodeURIComponent(p.name)+'">'+(p.disabled?"Entsperren":"Sperren")+'</button> <button class="sm" data-a="delete" data-n="'+encodeURIComponent(p.name)+'">Löschen</button></td></tr>'+(phOpen[p.name]?'<tr class="phrow"><td colspan="7">'+(p.geraete||[]).map(g=>'<div style="display:flex;gap:10px;align-items:center;padding:4px 0"><span style="flex:1"><b>'+esc(g.name)+'</b> <span class="mu">· zuletzt '+fd(g.seen)+' · Kennung '+esc(g.id.slice(0,6))+'…</span></span><button class="sm" data-dev="'+esc(g.id)+'">Entfernen</button></div>').join("")+"</td></tr>":"")).join("")||'<tr><td colspan="6" class="mu">Noch keine Profile.</td></tr>';
+ $("pf").innerHTML=j.profile.map(p=>{const en=encodeURIComponent(p.name),nc=NEWC[p.name];
+  return'<tr'+(nc?' class="neu"':"")+'><td class="nm"><b>'+esc(p.name)+"</b>"+(p.disabled?' <span class="tag e">gesperrt</span>':"")+(p.eigener_code?"<small>eigenes Passwort</small>":"")+'</td><td>'+(nc?'<div class="newc"><code>'+esc(nc)+'</code><button class="sm p" data-cp="'+esc(nc)+'">Kopieren</button></div><small>Nur jetzt sichtbar – bitte weitergeben</small>':'<span class="pwd">••••••••</span>')+'</td><td><a href="#" class="phl hpill" data-n="'+en+'" title="Handys anzeigen">'+p.handys+(p.handys==1?" Handy":" Handys")+(p.geraete&&p.geraete.length?(phOpen[p.name]?" ▴":" ▾"):"")+'</a></td><td class="r">'+fb(p.bytes)+'</td><td>'+fd(p.seen)+'</td><td><input type="checkbox" class="swc nrc" data-n="'+en+'"'+(p.meldungen?" checked":"")+'></td><td class="r"><button class="sm" data-a="resetcode" data-n="'+en+'">Passwort neu</button> <button class="sm" data-a="'+(p.disabled?"enable":"disable")+'" data-n="'+en+'">'+(p.disabled?"Entsperren":"Sperren")+'</button> <button class="sm dl" data-a="delete" data-n="'+en+'">Löschen</button></td></tr>'
+  +(phOpen[p.name]?'<tr class="phrow"><td colspan="7">'+(p.geraete||[]).map(g=>'<div style="display:flex;gap:10px;align-items:center;padding:4px 0"><span style="flex:1"><b>'+esc(g.name)+'</b> <span class="mu">· zuletzt '+fd(g.seen)+' · Kennung '+esc(g.id.slice(0,6))+'…</span></span><button class="sm" data-dev="'+esc(g.id)+'">Entfernen</button></div>').join("")+"</td></tr>":"")}).join("")||'<tr><td colspan="6" class="mu">Noch keine Profile.</td></tr>';
+ document.querySelectorAll("#pf button[data-cp]").forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.cp);b.textContent="Kopiert"}catch(e){b.textContent="Markieren und Strg+C"}});
  document.querySelectorAll("#pf .nrc").forEach(c=>c.onchange=async()=>{await post("/api/admin/notify",{profil:decodeURIComponent(c.dataset.n),an:c.checked});loadP();loadN()});
  document.querySelectorAll("#pf a.phl").forEach(a=>a.onclick=ev=>{ev.preventDefault();const n=decodeURIComponent(a.dataset.n);phOpen[n]=!phOpen[n];loadP()});
  document.querySelectorAll("#pf button[data-dev]").forEach(b=>b.onclick=async()=>{if(!confirm("Dieses Handy aus der Liste entfernen? Meldet es sich wieder, taucht es neu auf."))return;await post("/api/admin/handy/entfernen",{id:b.dataset.dev});loadP()});
@@ -260,18 +321,26 @@ setInterval(freunde,5000);freunde();
 const fms=v=>v>=10000?Math.round(v/1000)+" s":(v/1000).toFixed(1).replace(".",",")+" s";
 async function loadR(){if(!$("t6").classList.contains("on")||document.hidden)return;
  try{const r=await fetch("/api/admin/routing");if(!r.ok)return;const j=await r.json(),h=j.heute;
-  $("rlk").innerHTML=[[h.n,"Berechnungen heute"],[h.n?fms(h.avg_ms):"–","Ø Dauer"],[h.n?fms(h.max_ms):"–","Langsamste"],[j.aktiv,"Laufen gerade"],[h.langsam,"Langsam (ab "+(j.langsam_ab_ms/1000)+" s)"],[h.fehler,"Fehler"]].map(x=>'<div class="kpi"><b>'+x[0]+"</b><span>"+x[1]+"</span></div>").join("");
-  $("rlb").innerHTML="BRouter: "+(j.br.laeuft?'<span class="ok"><b>läuft</b></span> seit '+fd(j.br.seit)+" · "+j.br.mem_mb+" MB · "+j.br.threads+" gleichzeitig"+(j.br.neustarts?" · "+j.br.neustarts+"× automatisch neu gestartet":""):'<span class="er"><b>aus</b></span> (startet bei der nächsten Anfrage)')+(j.cache&&(j.cache.treffer||j.cache.fehlt)?" Zwischenspeicher: "+j.cache.treffer+" von "+(j.cache.treffer+j.cache.fehlt)+" Strecken ohne Neuberechnung.":"")+" Die Zähler gelten für heute und beginnen nach jedem Server-Neustart bei null.";
+  $("rlk").innerHTML=[[h.n,"Berechnungen heute",""],[h.n?fms(h.avg_ms):"–","Ø Dauer",""],[h.n?fms(h.max_ms):"–","Langsamste",""],[j.aktiv,"Laufen gerade",""],[h.langsam,"Langsam (ab "+(j.langsam_ab_ms/1000)+" s)",h.langsam?"warn2":""],[h.fehler,"Fehler",h.fehler?"err2":""]].map(x=>'<div class="kpi '+x[2]+'"><b>'+x[0]+"</b><span>"+x[1]+"</span></div>").join("");
+  const c=j.cache||{},ct=(c.treffer||0)+(c.fehlt||0);
+  $("rlb").innerHTML='<span class="chip'+(j.br.laeuft?"":" off")+'"><span class="dot"></span><b>BRouter '+(j.br.laeuft?"läuft":"aus")+"</b> "+(j.br.laeuft?"<small>seit "+fd(j.br.seit)+"</small>":"<small>startet bei der nächsten Anfrage</small>")+"</span>"+
+   (j.br.laeuft?'<span class="chip">'+j.br.mem_mb+' MB Arbeitsspeicher</span><span class="chip">'+j.br.threads+" gleichzeitig</span>":"")+
+   '<span class="chip">Zwischenspeicher <small>'+(ct?c.treffer+" von "+ct+" ohne Neuberechnung":"noch leer")+"</small></span>"+
+   '<span class="chip">'+(j.br.neustarts||0)+"× automatisch neu gestartet</span>";
   if(document.activeElement!==$("rlm")&&document.activeElement!==$("rlt")){$("rlm").value=String(j.cfg.mem_mb);$("rlt").value=String(j.cfg.threads)}
   $("rlt2").innerHTML=j.letzte.length?j.letzte.map(x=>'<tr'+(x.code!=200?' class="er"':"")+'><td>'+new Date(x.ts*1000).toLocaleTimeString("de-DE")+"</td><td>"+esc(x.prof)+'</td><td class="r">'+x.punkte+'</td><td class="r">'+(x.km!=null?x.km.toString().replace(".",",")+" km":(x.code!=200?"Fehler "+x.code:"–"))+'</td><td class="r" style="'+(x.ms>=j.langsam_ab_ms?"color:#b85c00;font-weight:700":"")+'">'+fms(x.ms)+"</td></tr>").join(""):'<tr><td class="mu" colspan="5">Noch keine Berechnung seit dem Start.</td></tr>'}catch(e){}}
 $("rlGo").onclick=async()=>{$("rlx").textContent="";const[ok,j]=await post("/api/admin/routing/leistung",{mem_mb:+$("rlm").value,threads:+$("rlt").value});$("rlx").textContent=ok?"Gespeichert, BRouter startet neu.":(j.fehler||"Nicht möglich.");setTimeout(loadR,1500)};
 setInterval(loadR,3000);setTimeout(loadR,500);
 // ---- Admin-Meldungen ----
+const NGR=[["🛠️","Server & Technik","typ",["haengt","start","brouter","selbsttest","platte"]],["🗺️","Karten & Daten","typ",["lauf_ok","lauf_fehler","baustellen","scdb","zertifikat"]],["👤","Profile & Version","typ",["profil","version"]],["📊","Status-Infos in der App","info",["version","update","karten","baustellen","scdb","speicher","routing","handys","live","zertifikat"]]];
+const NSM={typ:{haengt:"keine Bewegung seit 15 Minuten",brouter:"die Routenberechnung war ausgefallen",selbsttest:"2 Minuten nach dem Start",lauf_ok:"Karten und Straßendaten",zertifikat:"30 Tage vorher",platte:"mehr als 90 % belegt"},info:{version:"Version und Laufzeit",update:"mit Prozent",karten:"bereit und Stand",baustellen:"Stand und Anzahl",scdb:"Alter der Liste",speicher:"belegter Platz",routing:"online und Dauer",handys:"aktive Handys und Profile",live:"Anzahl, wer gerade teilt",zertifikat:"Tage bis zum Ablauf"}};
+const NLB={typ:{scdb:"Blitzerliste (SCDB) ist fällig",lauf_ok:"Update fertig",lauf_fehler:"Update mit Fehlern oder abgebrochen",haengt:"Server hängt",baustellen:"Baustellen-Abruf fehlgeschlagen",zertifikat:"Mobilithek-Zertifikat läuft ab",platte:"Festplatte fast voll",brouter:"BRouter neu gestartet",selbsttest:"Selbsttest meldet Problem",start:"Server neu gestartet",profil:"Neues Profil angelegt",version:"Neue Server-Version nach dem Update"},info:{version:"Server-Version",update:"Update läuft",karten:"Karten",baustellen:"Baustellen",scdb:"Blitzerliste",speicher:"Speicher",routing:"Routing",handys:"Handys und Profile",live:"Live-Standort",zertifikat:"Mobilithek-Zertifikat"}};
 async function loadN(){try{const r=await fetch("/api/admin/notify");if(!r.ok)return;const j=await r.json();
- const box=$("nft");if(!box.contains(document.activeElement)){box.innerHTML=j.typen.map(t=>'<label><input type="checkbox" class="nty" data-k="'+esc(t.key)+'"'+(t.on?" checked":"")+"> "+esc(t.label)+"</label>").join("");
-  box.querySelectorAll(".nty").forEach(c=>c.onchange=async()=>{await post("/api/admin/notify",{typ:c.dataset.k,an:c.checked})})}
- const bi=$("nfi");if(!bi.contains(document.activeElement)){bi.innerHTML=(j.infos||[]).map(t=>'<label><input type="checkbox" class="nif" data-k="'+esc(t.key)+'"'+(t.on?" checked":"")+"> "+esc(t.label)+"</label>").join("");
-  bi.querySelectorAll(".nif").forEach(c=>c.onchange=async()=>{await post("/api/admin/notify",{info:c.dataset.k,an:c.checked})})}
+ const box=$("nfg");if(!box.contains(document.activeElement)){
+  const by={typ:Object.fromEntries(j.typen.map(t=>[t.key,t])),info:Object.fromEntries((j.infos||[]).map(t=>[t.key,t]))};
+  box.innerHTML=NGR.map((g,gi)=>'<div class="blk"><div class="bh"><span class="hd">'+g[0]+" "+g[1]+'</span>'+(g[2]=="info"?'<span class="tag w">über den Meldungen</span>':"")+"</div>"+g[3].map(k=>{const t=by[g[2]][k];if(!t)return"";const sm=NSM[g[2]][k];
+   return'<label class="tg"><span><b>'+esc(NLB[g[2]][k]||t.label)+"</b>"+(sm?"<small>"+esc(sm)+"</small>":"")+'</span><input type="checkbox" class="swc nsw" data-t="'+g[2]+'" data-k="'+esc(k)+'"'+(t.on?" checked":"")+"></label>"}).join("")+"</div>").join("");
+  box.querySelectorAll(".nsw").forEach(c=>c.onchange=async()=>{await post("/api/admin/notify",c.dataset.t=="typ"?{typ:c.dataset.k,an:c.checked}:{info:c.dataset.k,an:c.checked})})}
  $("nfe").innerHTML=j.events.length?j.events.map(e=>'<div style="padding:3px 0;border-bottom:1px solid var(--bd2)"><span class="mu">'+fd(e.ts)+"</span> "+esc(e.text)+"</div>").join(""):'<span class="mu">Noch keine Meldungen.</span>';
  $("nfm").textContent=j.recip.length?"Empfänger: "+j.recip.join(", "):"Noch kein Empfänger gewählt (Tab Profile)."}catch(e){}}
 $("nfTest").onclick=async()=>{await post("/api/admin/notify",{test:true});loadN()};
@@ -317,25 +386,34 @@ $("scUp").onclick=async()=>{const fs=[...$("scf").files];if(!fs.length){$("scm")
 $("scClr").onclick=async()=>{if(!confirm("Die hochgeladene Blitzer-Liste löschen? Es gelten dann nur die OSM-Blitzer."))return;const[ok,j]=await post("/api/admin/scdb/clear",{});$("scm").innerHTML=ok?'<span class="ok">Gelöscht.</span>':'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";load()};
 // ---- Protokoll ----
 const lvName={kurz:"Kurz",normal:"Normal",ausfuehrlich:"Ausführlich",eigene:"Eigene Auswahl"};
+const LGR=[["🗺️","Karten & Daten",["download","karte","orte","strassen","blitzer"]],["📱","Handys & Nutzer",["handy","anmeldung","freunde"]],["🧹","Server",["aufraeumen"]]];
+const LNM={download:["Downloads","Größe, Dauer, Tempo"],karte:["Karte und Routen","Bauen und Aktualisieren"],orte:["Orte","Tanken, Essen und mehr"],strassen:["Straßendaten","Mengen"],blitzer:["Blitzer und SCDB-Liste","Abruf und Import"],handy:["Handy-Anfragen","Was die App abruft"],anmeldung:["Anmeldungen und Sync","Anmelden, Abgleich"],freunde:["Freunde und Live-Standort","Teilen, Anfragen"],aufraeumen:["Aufräumen","Löschen alter Daten"]};
+const lsev=tx=>/FEHLER|fehlgeschlagen/.test(tx)?"e":/WARNUNG/.test(tx)?"w":"";
 function logLine(x){const m=x.match(/^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d) (.*)$/s);const t=m?m[2]:"",tx=m?m[3]:x;
- const c=/FEHLER|WARNUNG|fehlgeschlagen/.test(tx)?"e":/^Abgebrochen|Abbrechen/.test(tx)?"a":/^Fertig/.test(tx)?"o":"";
- return'<div><span class="t">'+esc(m?m[1].slice(5).split("-").reverse().join(".")+" "+t:"")+"</span>  "+(c?'<span class="'+c+'">':"<span>")+esc(tx)+"</span></div>"}
+ const c=lsev(tx),k=c?"":/^Abgebrochen|Abbrechen/.test(tx)?"a":/^Fertig/.test(tx)?"o":"";
+ return'<div class="ln '+c+'"><i></i><span class="t">'+esc(m?m[1].slice(5).split("-").reverse().join(".")+" "+t:"")+'</span><span class="x '+k+'">'+esc(tx)+"</span></div>"}
 async function loadLog(){if(!$("t6").classList.contains("on"))return;
- try{const r=await fetch("/api/admin/log?n=500"+(lfil?"&nur="+lfil:""));if(!r.ok)return;const j=await r.json();
-  const box=$("lg");box.innerHTML=j.zeilen.slice().reverse().map(logLine).join("")||'<div class="mu">Noch nichts protokolliert.</div>';
+ try{const q=($("lq").value||"").trim().toLowerCase();const r=await fetch("/api/admin/log?n="+(q||lfil?2000:500));if(!r.ok)return;const j=await r.json();
+  let L=j.zeilen.slice().reverse();
+  if(lfil=="fehler")L=L.filter(x=>lsev(x)=="e");else if(lfil=="warn")L=L.filter(x=>lsev(x)!="");
+  if(q)L=L.filter(x=>x.toLowerCase().includes(q));
+  const box=$("lg");box.innerHTML=L.slice(0,500).map(logLine).join("")||'<div class="mu">'+(q||lfil?"Nichts gefunden.":"Noch nichts protokolliert.")+"</div>";
+  $("lcnt").textContent=L.length+(L.length==1?" Zeile":" Zeilen")+(L.length>500?" (die neuesten 500 werden gezeigt)":"");
   document.querySelectorAll("#lf button").forEach(b=>b.classList.toggle("on",b.dataset.f==lfil));
   const sig=JSON.stringify([j.level,j.cats]);
   if(sig!=lcSig){lcSig=sig;document.querySelectorAll("#lv button").forEach(b=>b.classList.toggle("on",b.dataset.l==j.level));$("lvx").textContent=j.level=="eigene"?"Eigene Auswahl":"";
-   $("lc").innerHTML=j.kategorien.map(k=>'<label><input type="checkbox" value="'+k[0]+'"'+(j.cats.includes(k[0])?" checked":"")+"> "+esc(k[1])+"</label>").join("");
+   const ok=new Set(j.kategorien.map(k=>k[0]));
+   $("lc").innerHTML=LGR.map(g=>'<div class="blk"><div class="bh"><span class="hd">'+g[0]+" "+g[1]+"</span></div>"+g[2].filter(k=>ok.has(k)).map(k=>'<label class="tg"><span><b>'+esc(LNM[k][0])+"</b><small>"+esc(LNM[k][1])+'</small></span><input type="checkbox" class="swc" value="'+k+'"'+(j.cats.includes(k)?" checked":"")+"></label>").join("")+"</div>").join("");
    document.querySelectorAll("#lc input").forEach(x=>x.onchange=async()=>{await post("/api/admin/logcfg",{cats:[...document.querySelectorAll("#lc input:checked")].map(y=>y.value)});lcSig="";loadLog()})}
  }catch(e){}}
+$("lq").oninput=()=>loadLog();
 document.querySelectorAll("#lv button").forEach(b=>b.onclick=async()=>{await post("/api/admin/logcfg",{level:b.dataset.l});lcSig="";loadLog()});
 document.querySelectorAll("#lf button").forEach(b=>b.onclick=()=>{lfil=b.dataset.f;loadLog()});
 $("lClr").onclick=async()=>{if(!confirm("Das ganze Protokoll löschen?"))return;await post("/api/admin/logclear",{});loadLog()};
 document.querySelectorAll("#tabs a").forEach(a=>a.addEventListener("click",()=>setTimeout(loadLog,50)));
 
 // ---- Baustellen ----
-async function bsLoad(){try{const r=await fetch("/api/admin/baustellen",{headers:{"X-Admin-Password":$("pw").value}});if(!r.ok)return;const j=await r.json();BSJ=j;strip();
+async function bsLoad(){try{const r=await fetch("/api/admin/baustellen",{headers:{"X-Admin-Password":$("pw").value}});if(!r.ok)return;const j=await r.json();BSJ=j;strip();$("bsl").textContent=(j.quelle=="live"?"Letzter Abruf: "+(j.geprueft?fd(j.geprueft):"noch nie")+" · Quelle: Mobilithek":j.quelle=="test"?"Kein Abo hinterlegt, es gilt die Testdatei (kein automatischer Abruf).":"Keine Quelle hinterlegt (kein automatischer Abruf).");
  const run=j.state=="running";$("bsbar").style.display=run?"block":"none";$("bsi").style.width=j.pct+"%";$("bsStop").style.display=run?"inline-block":"none";$("bsGo").disabled=run;
  const q={live:"Mobilithek (Abo)",test:"Testdatei",none:"keine"}[j.quelle]||j.quelle;
  let h='<div class="stats"><div><b>'+nf(j.n)+'</b><span>Meldungen</span></div><div><b>'+nf(j.n_gesperrt)+'</b><span>davon Sperrungen</span></div><div><b>'+nf(j.geom)+'</b><span>mit echter Straße</span></div></div>';
