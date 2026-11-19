@@ -18,7 +18,7 @@ import baustellen as BSM
 import friends as FR
 import notify as NT
 SESS_TOKEN = hmac.new(ADMIN_PW.encode(), b"hudsess", hashlib.sha256).hexdigest() if ADMIN_PW else ""
-VERSION = "1.49.1"; STARTED = int(time.time())
+VERSION = "1.51.0"; STARTED = int(time.time())
 UA = f"hudpilot-server/{VERSION} (private use)"
 LIMITS_DIR = os.environ.get("LIMITS_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "limits"))   # Import-Code der App (Klassen-Ordner, gebaut mit limits-tool/build.sh)
 LIMITS_MAIN = "io.github.th3s1nc.osmandhudbridge.limit.LimitsCliKt"
@@ -71,7 +71,7 @@ LOG_PRESETS = {"kurz": [], "normal": ["download", "karte", "orte", "strassen", "
 CFG_LOCK = threading.Lock()
 CFG = {"limit_in_mbit": 0.0, "limit_out_mbit": 0.0, "win_start": 1, "win_end": 6,
        "every_days": int(os.environ.get("UPDATE_EVERY_DAYS", "30")),
-       "log_level": "normal", "log_cats": list(LOG_PRESETS["normal"]), "extern_karten": False,
+       "log_level": "normal", "log_cats": list(LOG_PRESETS["normal"]), "extern_karten": False, "sperre_aus_bis": 0,
        "br_mem_mb": 4096, "br_threads": 8,   # Rechenleistung für BRouter (Routenberechnung)
        "bs_aktiv": True, "bs_win_start": None, "bs_win_end": None, "bs_every_h": 24,   # Baustellen-Abruf: eigener Schalter, eigenes Zeitfenster, Abstand in Stunden
        "nur_gebaute": True, "versteckt": [],   # Sichtbarkeit in der App: nur gebaute Regionen anbieten; einzelne Regionen ausblenden
@@ -1682,16 +1682,33 @@ def settings_save(body):
     json.dump({"ts": int(time.time()), "device": str(body.get("device") or "")[:60], "data": data}, open(settings_file(), "w", encoding="utf-8"), ensure_ascii=False)
 def _lim(key): return 5 if key.startswith("x:") else 10   # von außen strenger als im Heimnetz
 LOCK_S = 900                                                   # Sperrzeit und Zählfenster: 15 Minuten
+SPERRE_AUS_S = 3600                                            # Der Schalter "Sperre ausschalten" gilt 1 Stunde, dann schaltet sich die Sperre von selbst wieder ein
+def sperre_aus_rest():
+    """Sekunden, die die Anmelde-Sperre noch ausgeschaltet ist (0 = Sperre ist aktiv)."""
+    return max(0, int(float(CFG.get("sperre_aus_bis") or 0) - time.time()))
+def sperre_info():
+    now = time.time(); rows = []
+    for k, f in list(FAILS.items()):
+        if blocked(k): rows.append({"wer": k.split(":", 1)[1] if k[:2] in ("x:", "a:") else k, "art": "Admin" if k.startswith("a:") else ("extern" if k.startswith("x:") else "Heimnetz"), "rest": max(0, int(LOCK_S - (now - f[1])))})
+    return {"aus_rest": sperre_aus_rest(), "gesperrt": sorted(rows, key=lambda r: -r["rest"]), "limit_extern": _lim("x:"), "limit_heim": _lim(""), "minuten": LOCK_S // 60}
+def sperre_aufheben():
+    n = sum(1 for k in list(FAILS) if blocked(k)); FAILS.clear(); return n
+def sperre_schalten(aus):
+    with CFG_LOCK:
+        CFG["sperre_aus_bis"] = int(time.time()) + SPERRE_AUS_S if aus else 0; save_cfg()
+    FAILS.clear()   # beim Umschalten beginnt die Zählung neu
 def blocked(key):
+    if sperre_aus_rest() > 0: return False
     f = FAILS.get(key)
     if not f: return False
     if time.time() - f[1] > LOCK_S: FAILS.pop(key, None); return False
     return f[0] >= _lim(key)
 def fail(key):
+    if sperre_aus_rest() > 0: return   # Sperre ausgeschaltet: nichts zählen (das Protokoll schreibt die Anmeldung trotzdem)
     f = FAILS.get(key)
     if not f or time.time() - f[1] > LOCK_S: FAILS[key] = [1, time.time()]
     else: f[0] += 1
-    if FAILS[key][0] == _lim(key): log(f"WARNUNG: Zu viele falsche Anmeldungen von {key.replace('x:', '')}{' (extern)' if key.startswith('x:') else ''}, gesperrt für 15 Minuten")
+    if FAILS[key][0] == _lim(key): log(f"WARNUNG: Zu viele falsche Anmeldungen von {key.replace('x:', '').replace('a:', '')}{' (extern)' if key.startswith('x:') else ''}, gesperrt für 15 Minuten")
 def find_profile(name):
     n = str(name).strip().lower()
     for k, v in PST["profiles"].items():
@@ -1988,6 +2005,20 @@ def parse_pts(text):
         rows.append([t, la, lo, f(3), sp, int(f(5) or 0), f(6)])
     return rows
 
+def smooth_lean(a):
+    """Schräglage glätten wie in der App: Median über 5 Punkte (2 vor, 2 nach dem Punkt, am Rand ein kleineres Fenster).
+    Ein einzelner Ruck (1 bis 2 Punkte) verschwindet, eine echte Kurve bleibt. None bleibt None; weniger als 3 Werte im Fenster: Rohwert."""
+    n = len(a); out = [None] * n
+    for i in range(n):
+        if a[i] is None: continue
+        r = min(2, i, n - 1 - i); lo, hi = i - r, i + r
+        if r == 0 and n >= 3: lo = 0 if i == 0 else n - 3; hi = lo + 2
+        w = sorted(abs(a[j]) for j in range(lo, hi + 1) if a[j] is not None)
+        if len(w) < 3: out[i] = a[i]; continue
+        m = w[len(w) // 2] if len(w) % 2 else (w[len(w) // 2 - 1] + w[len(w) // 2]) / 2
+        out[i] = m if a[i] >= 0 else -m
+    return out
+
 def analyse(rows):
     """Kennzahlen und Reihen einer Fahrt. Gleiche Regeln wie in der App (Tempo ab 2 km/h = Bewegung, Überschreitung ab Limit + 3)."""
     n = len(rows); dist = [0.0] * n; moving = 0; d = 0.0; mx = 0.0
@@ -2021,7 +2052,7 @@ def analyse(rows):
             if v is None: continue
             if v - ref >= 3: asc += v - ref; ref = v
             elif ref - v >= 3: desc += ref - v; ref = v
-    lean = [r[6] for r in rows if r[6] is not None]
+    lean = [v for v in smooth_lean([r[6] for r in rows]) if v is not None]   # geglättet: Ausreißer zählen nicht
     start, end = rows[0][0], rows[-1][0]
     st = {"start": start, "end": end, "total_ms": max(0, end - start), "moving_ms": moving, "dist_m": int(d), "max_kmh": int(round(mx)),
           "avg_kmh": int(round(d / 1000 / (moving / 3600000))) if moving > 0 else 0, "points": n, "asc_m": int(round(asc)), "desc_m": int(round(desc)),
@@ -2080,7 +2111,7 @@ def ride_detail(rid):
     return {"id": rid, "name": m["name"], "kind": m.get("kind", "free"), "demo": bool(m.get("demo")), "stats": st,
             "t": [round((r[0] - t0) / 1000, 1) for r in rows], "lat": [r[1] for r in rows], "lon": [r[2] for r in rows],
             "ele": [None if r[3] is None else round(r[3], 1) for r in rows], "speed": [round(r[4], 1) for r in rows],
-            "limit": [r[5] or None for r in rows], "lean": [None if r[6] is None else round(r[6], 1) for r in rows],
+            "limit": [r[5] or None for r in rows], "lean": [None if v is None else round(v, 1) for v in smooth_lean([r[6] for r in rows])],
             "acc": [round(a, 2) for a in acc], "dist": [round(x) for x in dist]}
 def ride_gpx(rid):
     d = ride_detail(rid)
@@ -2326,6 +2357,9 @@ class H(BaseHTTPRequestHandler):
         elif path == "/api/admin/notify":
             if not self.authed(): return self.send_json({"fehler": "Bitte anmelden."}, 401)
             self.send_json(NOTES.admin())
+        elif path == "/api/admin/sperre":
+            if not self.authed(): return self.send_json({"fehler": "Bitte anmelden."}, 401)
+            self.send_json(sperre_info())
         elif path == "/api/admin/routing":
             if not self.authed(): return self.send_json({"fehler": "Bitte anmelden."}, 401)
             self.send_json(routing_info())
@@ -2614,6 +2648,14 @@ class H(BaseHTTPRequestHandler):
                 except Exception as ex: log("BRouter-Neustart:", ex)
             threading.Thread(target=_restart, daemon=True).start()
             return self.send_json({"ok": True})
+        if p == "/api/admin/sperre":   # {"aktion": "aufheben" | "aus" | "an"}
+            a = str(body.get("aktion", ""))
+            if a == "aufheben":
+                n = sperre_aufheben(); log(f"Anmelde-Sperre aufgehoben ({n} Adresse(n) freigegeben) von {self.real_ip()}", cat="anmeldung")
+            elif a in ("aus", "an"):
+                sperre_schalten(a == "aus"); log("WARNUNG: Anmelde-Sperre " + ("für 1 Stunde AUSGESCHALTET" if a == "aus" else "wieder eingeschaltet") + f" von {self.real_ip()}")
+            else: return self.send_json({"fehler": "Unbekannte Aktion."}, 400)
+            return self.send_json({"ok": True, **sperre_info()})
         if p == "/api/admin/logclear":
             log_clear(); log("Protokoll geleert"); return self.send_json({"ok": True})
         if p == "/api/config":

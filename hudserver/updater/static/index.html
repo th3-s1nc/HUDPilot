@@ -117,6 +117,9 @@ pre,.logbox{margin:0;max-height:560px;overflow:auto;font:12px/1.5 ui-monospace,C
  <div class="row">Einladungscode: <input type="text" id="inv" size="10"> <button class="sm" id="bInv">Speichern</button></div>
  <div class="tw"><table><thead><tr><th>Name</th><th>Passwort</th><th>Handys</th><th class="r">Größe</th><th>Zuletzt</th><th title="Dieses Profil bekommt die Admin-Meldungen in der App">Meldungen</th><th></th></tr></thead><tbody id="pf"></tbody></table></div>
  <div class="row"><input type="text" id="pn" placeholder="Neuer Name"> <button class="sm" id="bNew">Profil anlegen</button><span id="pm"></span></div></div>
+ <div class="card" id="spc"><h2>Anmelde-Sperre</h2><div class="note" id="spn" style="margin:-4px 0 10px"></div>
+  <div class="row"><span id="spt" class="tag w"></span> <button class="sm" id="spAuf">Sperren jetzt aufheben</button> <button class="sm" id="spAus">Sperre 1 Stunde ausschalten</button><span id="spm"></span></div>
+  <div class="tw"><table><thead><tr><th>Adresse</th><th>Art</th><th class="r">Noch gesperrt</th></tr></thead><tbody id="spb"></tbody></table></div></div>
  <div class="card" id="frc"><h2>Friends &amp; Live</h2><div class="kpis" id="frk" style="margin-bottom:10px"></div><div id="frn"></div>
   <div class="note" style="margin:10px 0 6px"><b>Geteilte Zeit</b></div><div class="kpis" id="frg" style="margin-bottom:4px"></div>
   <div class="note" style="margin:12px 0 4px"><b>Verbindungen</b> (Positionen sieht die Verwaltung nie)</div><div class="tw"><table><tbody id="frt"></tbody></table></div></div>
@@ -285,6 +288,17 @@ document.querySelectorAll("#t5 input[type=number]").forEach(x=>x.oninput=()=>dir
 $("logout").onclick=async e=>{e.preventDefault();await fetch("/api/logout",{method:"POST",body:"{}"});location.href="/"};
 // ---- Profile ----
 const NEWC={};   // frisch vergebene Passwörter (nur bis die Seite neu geladen wird; der Server kennt sie danach nicht mehr im Klartext)
+// ---- Anmelde-Sperre ----
+function spZeit(s){return s>=60?Math.ceil(s/60)+" Min.":s+" Sek."}
+function spShow(j){if(!j||j.aus_rest===undefined)return;const aus=j.aus_rest>0;
+ $("spn").textContent="Nach "+j.limit_extern+" falschen Passwörtern von außen (im Heimnetz "+j.limit_heim+") wird die Adresse "+j.minuten+" Minuten gesperrt.";
+ $("spt").textContent=aus?"Sperre AUS, noch "+spZeit(j.aus_rest):"Sperre aktiv";$("spt").className="tag "+(aus?"b":"w");
+ $("spAus").textContent=aus?"Sperre wieder einschalten":"Sperre 1 Stunde ausschalten";$("spAus").dataset.a=aus?"an":"aus";
+ $("spb").innerHTML=j.gesperrt.length?j.gesperrt.map(r=>"<tr><td>"+esc(r.wer)+"</td><td>"+esc(r.art)+'</td><td class="r">'+spZeit(r.rest)+"</td></tr>").join(""):'<tr><td colspan="3" class="note">Niemand gesperrt.</td></tr>'}
+async function spLoad(){try{const r=await fetch("/api/admin/sperre");if(r.ok)spShow(await r.json())}catch(e){}}
+async function spAct(a){$("spm").textContent="";const[ok,j]=await post("/api/admin/sperre",{aktion:a});if(ok)spShow(j);else $("spm").innerHTML='<span class="er">'+esc(j.fehler||"Fehler")+"</span>"}
+$("spAuf").onclick=()=>spAct("aufheben");$("spAus").onclick=()=>spAct($("spAus").dataset.a||"aus");
+spLoad();setInterval(spLoad,5000);
 async function papi(body,url){const[ok,j]=await post(url||"/api/admin/profile",body);if(ok&&j.code&&body.name)NEWC[body.name.trim()]=j.code;$("pm").innerHTML=ok?'<span class="ok">'+(j.code?"Das neue Passwort steht in der Zeile des Profils.":"OK")+'</span>':'<span class="er">'+esc(j.fehler||"Fehler")+"</span>";loadP();return ok}
 async function loadP(){try{const r=await fetch("/api/admin/profiles");if(!r.ok)return;const j=await r.json();if(document.activeElement!==$("inv"))$("inv").value=j.invite;
  $("pf").innerHTML=j.profile.map(p=>{const en=encodeURIComponent(p.name),nc=NEWC[p.name];

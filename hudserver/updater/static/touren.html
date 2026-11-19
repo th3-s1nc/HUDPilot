@@ -27,7 +27,7 @@ h2{margin:0 0 4px;font-size:20px}.sub{color:var(--mu);margin-bottom:10px;font-si
 .wl{padding:20px;overflow:auto;width:100%}.wl h2{margin:0}.wg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-top:16px}
 .wc{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:2px;transition:transform .15s,border-color .15s}.wc:hover{transform:translateY(-2px);border-color:var(--ac)}
 .wc .wp{height:110px;border-radius:10px;background:linear-gradient(135deg,rgba(255,122,0,.10),rgba(255,122,0,.03));margin-bottom:6px}.wc span{color:var(--mu);font-size:13px}
-</style></head><body><!--AUTH--><!--NAV-->
+.seg{display:inline-flex;background:var(--bd,#e3e6ec);border-radius:10px;padding:3px;vertical-align:middle}.seg button{border:0;background:none;padding:5px 12px;border-radius:8px;font-weight:600;color:inherit;cursor:pointer;opacity:.75}.seg button.on{background:#ff7a00;color:#000;opacity:1}</style></head><body><!--AUTH--><!--NAV-->
 <div class="wrap"><div id="list"><div class="tabs"><div class="tab on" id="t1">Geplant</div><div class="tab" id="t2">Gefahren</div><div class="tab" id="t3">Aufnahmen</div></div><div id="items"></div></div>
 <div id="det"><div class="empty">Wähle links eine Tour, um Karte, Diagramme und Kennzahlen zu sehen.</div></div></div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -93,6 +93,9 @@ async function showTour(t){cur=null;charts=[];
   $("info").textContent=(f.properties["track-length"]/1000).toFixed(1).replace(".",",")+" km · "+fmtT(f.properties["total-time"]*1000)+" · Anstieg "+(f.properties["filtered ascend"]||"?")+" m";
   if(map.loaded())addLayers();else map.on("load",addLayers);fit(f.geometry.coordinates)}catch(e){$("info").textContent="Route nicht berechenbar."}}
 /* ---------- Gefahrene Tour ---------- */
+let LAT=false;try{LAT=localStorage.getItem("hudlean")=="lat"}catch(e){}
+const gOf=v=>Math.sign(v)*Math.tan(Math.abs(v)*Math.PI/180);
+const lvName=()=>LAT?"Laterals":"Angle";
 const lerp=(stops,v)=>stops;
 function colorExpr(prop,lo,hi,cols){const n=cols.length;const e=["interpolate",["linear"],["get",prop]];cols.forEach((c,i)=>{e.push(lo+(hi-lo)*i/(n-1),c)});return e}
 const METRICS={"Tempo":{k:"speed",cols:["#2e9e5b","#ffd000","#ff3b30"],u:"km/h"},"Schräglage":{k:"lean",abs:1,cols:["#2e9e5b","#ffd000","#ff3b30"],u:"°"},"Höhe":{k:"ele",cols:["#2b6cff","#2e9e5b","#d9a441","#8b5a2b"],u:"m"},"Einfarbig":{k:null}};
@@ -100,9 +103,9 @@ async function showRide(id){charts=[];const d=await api("/api/ride?id="+id);if(!
  const k=(b,l)=>'<div class="k"><b>'+b+"</b><span>"+l+"</span></div>";
  $("det").innerHTML='<h2>'+esc(d.name)+'</h2><div class="sub">'+fmtD(s.start)+' · '+((d.kind||"free")=="nav"?"Navigationsfahrt":"freie Aufzeichnung")+'</div><div class="bar"><button class="p" onclick="location.href=\'/api/ride/gpx?id='+id+'\'">GPX</button><button onclick="location.href=\'/api/ride/csv?id='+id+'\'">CSV</button><button id="opr">Im Planer öffnen</button><button id="rn">Umbenennen</button><button id="dl">Löschen</button></div>'+
  '<div class="kpi">'+k(fmtKm(s.dist_m),"Strecke")+k(fmtT(s.total_ms),"Gesamtzeit")+k(fmtT(s.moving_ms),"in Bewegung")+k(s.avg_kmh+" km/h","Schnitt")+k(s.max_kmh+" km/h","Höchstgeschwindigkeit")+
- (s.has_ele?k("↑ "+s.asc_m+" m  ↓ "+s.desc_m+" m","Höhenmeter"):"")+(s.has_limit?k(s.over,"Tempolimit überschritten"):"")+(s.has_lean?k("◀ "+s.lean_left+"°  ▶ "+s.lean_right+"°","größte Schräglage links / rechts"):"")+
+ (s.has_ele?k("↑ "+s.asc_m+" m  ↓ "+s.desc_m+" m","Höhenmeter"):"")+(s.has_limit?k(s.over,"Tempolimit überschritten"):"")+(s.has_lean?k(LAT?"◀ "+gOf(s.lean_left).toFixed(2).replace(".",",")+" g  ▶ "+gOf(s.lean_right).toFixed(2).replace(".",",")+" g":"◀ "+s.lean_left+"°  ▶ "+s.lean_right+"°","größte "+lvName()+" links / rechts"):"")+
  k(s.max_acc.toFixed(1).replace(".",",")+" m/s²","stärkstes Beschleunigen")+k(s.max_brake.toFixed(1).replace(".",",")+" m/s²","stärkstes Bremsen")+'</div>'+
- '<div class="bar"><b>Linie einfärben nach:</b><select id="met">'+Object.keys(METRICS).filter(m=>m=="Einfarbig"||(m=="Höhe"?s.has_ele:m=="Schräglage"?s.has_lean:true)).map(m=>"<option>"+m+"</option>").join("")+"</select></div>"+mapBar()+'<div id="chs"></div>';
+ '<div class="bar"><b>Linie einfärben nach:</b><select id="met">'+Object.keys(METRICS).filter(m=>m=="Einfarbig"||(m=="Höhe"?s.has_ele:m=="Schräglage"?s.has_lean:true)).map(m=>'<option value="'+m+'">'+(m=="Schräglage"?lvName():m)+"</option>").join("")+"</select>"+(s.has_lean?' <b style="margin-left:14px">Anzeige:</b> <span class="seg" id="lvs"><button type="button" data-l="0" class="'+(LAT?"":"on")+'">Angle</button><button type="button" data-l="1" class="'+(LAT?"on":"")+'">Laterals</button></span>':"")+"</div>"+mapBar()+'<div id="chs"></div>';
  $("opr").onclick=()=>location.href="/planer?ride="+encodeURIComponent(id);
  $("rn").onclick=async()=>{const n=prompt("Neuer Name:",d.name);if(n){await api("/api/ride/rename",{id,name:n});await load();showRide(id)}};
  $("dl").onclick=async()=>{if(confirm("Fahrt löschen?")){await api("/api/ride/delete",{id});sel=null;$("det").innerHTML='<div class="empty">Gelöscht.</div>';load()}};
@@ -111,20 +114,21 @@ async function showRide(id){charts=[];const d=await api("/api/ride?id="+id);if(!
  map.on("load",()=>{pin(co[0],"S","#1a8f3c");pin(co[co.length-1],"Z","#c62828");const e=document.createElement("div");e.className="hov";e.style.display="none";hov=new maplibregl.Marker({element:e}).setLngLat(co[0]).addTo(map);hov._e=e;fit(co)});
  const setMetric=()=>{layerData=buildLine(d,METRICS[$("met").value]);if(map.loaded())addLayers();else map.on("load",addLayers)};
  $("met").onchange=setMetric;setMetric();
+ document.querySelectorAll("#lvs button").forEach(b=>b.onclick=async()=>{LAT=b.dataset.l=="1";try{localStorage.setItem("hudlean",LAT?"lat":"deg")}catch(e){}const mv=$("met").value;await showRide(id);if($("met"))$("met").value=mv;$("met").onchange()});
  buildCharts(d)}
 function buildLine(d,m){const n=d.lat.length,step=Math.max(1,Math.floor(n/5000)),feats=[];let lo=1e9,hi=-1e9;
- const val=i=>{if(!m.k)return null;let v=d[m.k][i];if(v==null)return null;return m.abs?Math.abs(v):v};
+ const lat=m.k=="lean"&&LAT;const val=i=>{if(!m.k)return null;let v=d[m.k][i];if(v==null)return null;if(lat)return Math.tan(Math.abs(v)*Math.PI/180);return m.abs?Math.abs(v):v};
  for(let i=0;i<n;i++){const v=val(i);if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v)}}
  if(m.k=="speed")lo=0;if(m.abs)lo=0;if(hi<=lo)hi=lo+1;
  for(let i=0;i+step<n;i+=step){const j=i+step;const a=val(i),b=val(j);feats.push({type:"Feature",geometry:{type:"LineString",coordinates:[[d.lon[i],d.lat[i]],[d.lon[j],d.lat[j]]]},properties:{v:a==null?(b==null?lo:b):b==null?a:(a+b)/2}})}
- $("leg").textContent=m.k?(lo.toFixed(0)+" "+m.u+" ▬▬▬ "+hi.toFixed(0)+" "+m.u):"";
+ $("leg").textContent=m.k?(lat?lo.toFixed(2).replace(".",",")+" g ▬▬▬ "+hi.toFixed(2).replace(".",",")+" g":lo.toFixed(0)+" "+m.u+" ▬▬▬ "+hi.toFixed(0)+" "+m.u):"";
  return{fc:{type:"FeatureCollection",features:feats},color:m.k?colorExpr("v",lo,hi,m.cols):null}}
 /* ---------- Diagramme ---------- */
 function chartDef(title,unit,series,opt){return{title,unit,series,opt:opt||{}}}
 function buildCharts(d){charts=[];const box=$("chs");box.innerHTML="";const xs=d.dist.map(v=>v/1000);
  const defs=[chartDef("Tempo und Tempolimit","km/h",[{ys:d.speed,c:"#ff7a00",fill:1,n:"Tempo"},...(d.stats.has_limit?[{ys:d.limit,c:"#e53935",step:1,n:"Limit"}]:[])],{zero:0})];
  if(d.stats.has_ele)defs.push(chartDef("Höhenprofil","m",[{ys:d.ele,c:"#2e9e5b",fill:1,n:"Höhe"}]));
- if(d.stats.has_lean)defs.push(chartDef("Schräglage (oben = links, unten = rechts)","°",[{ys:d.lean,c:"#2b6cff",fill:1,n:"Schräglage"}],{zero:1}));
+ if(d.stats.has_lean)defs.push(chartDef(lvName()+" (oben = links, unten = rechts)",LAT?"g":"°",[{ys:LAT?d.lean.map(v=>v==null?null:gOf(v)):d.lean,c:"#2b6cff",fill:1,n:lvName()}],{zero:1}));
  defs.push(chartDef("Beschleunigen / Bremsen","m/s²",[{ys:d.acc,c:"#8e44ad",fill:1,n:"Beschl."}],{zero:1}));
  defs.forEach(df=>{const w=document.createElement("div");w.className="ch";w.innerHTML='<h4><span>'+df.title+'</span><span class="rd"></span></h4><canvas></canvas>';box.appendChild(w);
   const cv=w.querySelector("canvas");df.cv=cv;df.rd=w.querySelector(".rd");df.xs=xs;charts.push(df);
@@ -137,11 +141,11 @@ function redraw(hi){charts.forEach(df=>draw(df,hi))}
 function draw(df,hi){const cv=df.cv,dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;if(!W)return;cv.width=W*dpr;cv.height=H*dpr;const g=cv.getContext("2d");g.scale(dpr,dpr);
  const L=44,R=8,T=6,B=18;df.l=L*dpr;df.r=R*dpr;const xs=df.xs,xm=xs[xs.length-1]||1;
  let lo=1e9,hiV=-1e9;df.series.forEach(s=>s.ys.forEach(v=>{if(v!=null){lo=Math.min(lo,v);hiV=Math.max(hiV,v)}}));if(df.opt.zero!=null){lo=Math.min(lo,0);hiV=Math.max(hiV,0)}
- if(df.opt.zero==1){const m=Math.max(Math.abs(lo),Math.abs(hiV),1);lo=-m;hiV=m}if(hiV<=lo)hiV=lo+1;const pad=(hiV-lo)*.06;if(df.opt.zero!=0){lo-=pad}hiV+=pad;
+ if(df.opt.zero==1){const m=Math.max(Math.abs(lo),Math.abs(hiV),df.unit=="g"?.2:1);lo=-m;hiV=m}if(hiV<=lo)hiV=lo+1;const pad=(hiV-lo)*.06;if(df.opt.zero!=0){lo-=pad}hiV+=pad;
  const X=v=>L+(W-L-R)*v/xm,Y=v=>T+(H-T-B)*(1-(v-lo)/(hiV-lo));
  const cs=getComputedStyle(document.body);const mu=cs.getPropertyValue("--mu"),bd=cs.getPropertyValue("--bd");
  g.font="11px system-ui";g.fillStyle=mu;g.strokeStyle=bd;g.lineWidth=1;
- for(let i=0;i<=4;i++){const v=lo+(hiV-lo)*i/4,y=Y(v);g.beginPath();g.moveTo(L,y);g.lineTo(W-R,y);g.stroke();g.textAlign="right";g.fillText(Math.abs(v)>=100?v.toFixed(0):v.toFixed(1).replace(/\.0$/,""),L-4,y+4)}
+ for(let i=0;i<=4;i++){const v=lo+(hiV-lo)*i/4,y=Y(v);g.beginPath();g.moveTo(L,y);g.lineTo(W-R,y);g.stroke();g.textAlign="right";g.fillText(df.unit=="g"?v.toFixed(2).replace(".",","):Math.abs(v)>=100?v.toFixed(0):v.toFixed(1).replace(/\.0$/,""),L-4,y+4)}
  g.textAlign="center";const nx=Math.min(6,Math.max(2,Math.floor(W/90)));for(let i=0;i<=nx;i++){const v=xm*i/nx;g.fillText(v.toFixed(v<10?1:0)+" km",Math.min(W-22,Math.max(L+8,X(v))),H-4)}
  if(df.opt.zero!=null){g.strokeStyle=mu;g.beginPath();g.moveTo(L,Y(0));g.lineTo(W-R,Y(0));g.stroke()}
  df.series.forEach(s=>{g.beginPath();let on=false,first=0,lastX=0;
@@ -150,7 +154,7 @@ function draw(df,hi){const cv=df.cv,dpr=window.devicePixelRatio||1,W=cv.clientWi
   g.strokeStyle=s.c;g.lineWidth=1.6;g.stroke();
   if(s.fill&&!s.step){g.lineTo(lastX,Y(Math.max(lo,Math.min(hiV,df.opt.zero!=null?0:lo))));g.lineTo(first,Y(df.opt.zero!=null?0:lo));g.closePath();g.fillStyle=s.c+"33";g.fill()}});
  if(hi>=0){const x=X(xs[hi]);g.strokeStyle=cs.getPropertyValue("--tx");g.lineWidth=1;g.beginPath();g.moveTo(x,T);g.lineTo(x,H-B);g.stroke();
-  df.rd.textContent=df.series.map(s=>s.ys[hi]!=null?s.n+" "+(+s.ys[hi]).toFixed(1).replace(/\.0$/,"").replace(".",",")+" "+df.unit:"").filter(Boolean).join(" · ")+" · km "+xs[hi].toFixed(1).replace(".",",")}else df.rd.textContent=""}
+  df.rd.textContent=df.series.map(s=>s.ys[hi]!=null?s.n+" "+(+s.ys[hi]).toFixed(df.unit=="g"?2:1).replace(/\.0$/,"").replace(".",",")+" "+df.unit:"").filter(Boolean).join(" · ")+" · km "+xs[hi].toFixed(1).replace(".",",")}else df.rd.textContent=""}
 window.addEventListener("resize",()=>redraw(-1));
 function prevSvg(p,w,h){const D=window.hpDark?hpDark():(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches),pd=18,L2=Math.LN2;
  const mx=lo=>(lo+180)/360*256,my=la=>{const s=Math.sin(la*Math.PI/180);return(0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*256};
