@@ -128,7 +128,7 @@ class TrackSession {
         }
         if (p.limitKmh > 0) hasLimit = true
         over.update(p.speedKmh, p.limitKmh)
-        p.leanDeg?.let { hasLean = true; if (Math.abs(it) > maxLean) maxLean = Math.abs(it) }
+        if (p.leanDeg != null) hasLean = true
         list += p
         prev = p
     }
@@ -138,7 +138,7 @@ class TrackSession {
         val last = list.lastOrNull()?.timeMs ?: 0L
         return RideStats(
             first, last, movingMs, distM.toInt(), maxKmh.toInt(), list.size,
-            ascent.toInt(), descent.toInt(), over.count, Math.round(maxLean), hasEle, hasLimit, hasLean
+            ascent.toInt(), descent.toInt(), over.count, Math.round(RideAnalysis.maxLeanSmoothed(FloatArray(list.size) { list[it].leanDeg ?: Float.NaN })), hasEle, hasLimit, hasLean
         )
     }
 

@@ -183,9 +183,9 @@
     <string name="ui_immer_dabei_spur_zeit">Always included: track, time and speed. Additionally (off until you switch it on; cannot be changed during a recording):</string>
     <string name="ui_hoehe_barometer">Altitude (barometer)</string>
     <string name="ui_tempolimit_und_ueberschreitungen">Speed limit and violations</string>
-    <string name="ui_schraeglage_schaetzung">Lean angle (estimate)</string>
+    <string name="ui_schraeglage_schaetzung">Angle / Laterals (estimate)</string>
     <string name="ui_hinweise_zu_den_werten">Notes on the values</string>
-    <string name="ui_die_hoehe_nimmt_das">The barometer measures altitude, the GPS gives the base level. The lean angle is only an estimate from the gyro sensor and GPS speed (from about 15 km/h) and is most accurate when the phone sits firmly. A CSV table for Excel is added to every ride.</string>
+    <string name="ui_die_hoehe_nimmt_das">The barometer measures altitude, the GPS gives the base level. Angle (lean in degrees) and Laterals (sideways force in g) are only an estimate from the gyro sensor and GPS speed (from about 15 km/h) and is most accurate when the phone sits firmly. A CSV table for Excel is added to every ride.</string>
     <string name="ui_fruehere_saison">Previous season</string>
     <string name="ui_spaetere_saison">Next season</string>
     <string name="ui_fahrten">Rides</string>

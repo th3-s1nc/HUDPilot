@@ -188,9 +188,9 @@
     <string name="ui_immer_dabei_spur_zeit">Immer dabei: Spur, Zeit und Tempo. Zusätzlich (aus, bis du es einschaltest; während einer Aufnahme nicht änderbar):</string>
     <string name="ui_hoehe_barometer">Höhe (Barometer)</string>
     <string name="ui_tempolimit_und_ueberschreitungen">Tempolimit und Überschreitungen</string>
-    <string name="ui_schraeglage_schaetzung">Schräglage (Schätzung)</string>
+    <string name="ui_schraeglage_schaetzung">Angle / Laterals (Schätzung)</string>
     <string name="ui_hinweise_zu_den_werten">Hinweise zu den Werten</string>
-    <string name="ui_die_hoehe_nimmt_das">Die Höhe nimmt das Barometer, das GPS gibt das Niveau vor. Die Schräglage ist nur eine Schätzung aus Drehsensor und GPS-Tempo (ab ca. 15 km/h) und stimmt am besten, wenn das Handy fest sitzt. Dazu kommt zu jeder Fahrt eine CSV-Tabelle für Excel.</string>
+    <string name="ui_die_hoehe_nimmt_das">Die Höhe nimmt das Barometer, das GPS gibt das Niveau vor. Angle (Schräglage in Grad) und Laterals (Seitenkraft in g) sind nur eine Schätzung aus Drehsensor und GPS-Tempo (ab ca. 15 km/h) und stimmt am besten, wenn das Handy fest sitzt. Dazu kommt zu jeder Fahrt eine CSV-Tabelle für Excel.</string>
     <string name="ui_fruehere_saison">Frühere Saison</string>
     <string name="ui_spaetere_saison">Spätere Saison</string>
     <string name="ui_fahrten">Fahrten</string>

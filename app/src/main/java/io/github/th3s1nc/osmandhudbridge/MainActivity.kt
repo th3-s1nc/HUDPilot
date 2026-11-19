@@ -1228,8 +1228,12 @@ class MainActivity : AppCompatActivity() {
         }
         val conn = io.github.th3s1nc.osmandhudbridge.nav.OsmAndNotificationListener.connected
         val granted = try { androidx.core.app.NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName) } catch (_: Exception) { false }
+        if (granted && !conn) try {   // beim Öffnen der App gleich neues Verbinden anfordern
+            android.service.notification.NotificationListenerService.requestRebind(
+                android.content.ComponentName(this, io.github.th3s1nc.osmandhudbridge.nav.OsmAndNotificationListener::class.java))
+        } catch (_: Exception) { }
         row(conn, Tx.t("Benachrichtigungszugriff", "Notification access"),
-            when { conn -> Tx.t("Verbunden", "Connected"); granted -> Tx.t("Erlaubt, aber nicht verbunden. Tippen: aus- und einschalten", "Allowed but not connected. Tap: switch off and on"); else -> Tx.t("Fehlt. Tippen zum Einschalten", "Missing. Tap to switch on") },
+            when { conn -> Tx.t("Verbunden", "Connected"); granted -> Tx.t("Erlaubt, aber nicht verbunden. Tippen: aus- und einschalten", "Allowed but not connected. Tap: switch off and on") + (if (!batteryIgnored()) Tx.t(" · Tipp: Schalter „Akku-Optimierung aus“ einschalten, sonst beendet das Handy den Dienst", " · Tip: switch on „Battery optimisation off“, otherwise the phone stops the service") else "") + Tx.t(" · Tipp: in den Handy-Einstellungen für diese App Autostart erlauben und den Schlafmodus ausnehmen", " · Tip: in the phone settings allow autostart for this app and exclude it from sleep"); else -> Tx.t("Fehlt. Tippen zum Einschalten", "Missing. Tap to switch on") },
             if (conn) null else { { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) } })
         val home = io.github.th3s1nc.osmandhudbridge.pilot.RegionSync.homeUrl(this); val away = io.github.th3s1nc.osmandhudbridge.pilot.RegionSync.awayUrl(this)
         val has = io.github.th3s1nc.osmandhudbridge.pilot.ServerProfile.has(this)
@@ -1444,7 +1448,7 @@ class MainActivity : AppCompatActivity() {
         sb.append(Tx.t("\nHöchstes Tempo: ", "\nTop speed: ")).append(st.maxKmh).append(" km/h")
         if (st.hasEle) sb.append(Tx.t("\nAufstieg: ", "\nAscent: ")).append(st.ascentM).append(Tx.t(" m, Abstieg: ", " m, descent: ")).append(st.descentM).append(" m")
         if (st.hasLimit) sb.append(Tx.t("\nTempolimit überschritten: ", "\nSpeed limit exceeded: ")).append(st.overCount).append(Tx.t(" Mal", " times"))
-        if (st.hasLean) sb.append(Tx.t("\nMax. Schräglage: ", "\nMax lean angle: ")).append(st.maxLeanDeg).append(Tx.t("° (Schätzung)", "° (estimate)"))
+        if (st.hasLean) { val lat = io.github.th3s1nc.osmandhudbridge.track.LeanPref.lateral(this); sb.append("\nMax. " + io.github.th3s1nc.osmandhudbridge.track.LeanView.name(lat) + ": ").append(io.github.th3s1nc.osmandhudbridge.track.LeanView.value(st.maxLeanDeg.toFloat(), lat)).append(Tx.t(" (Schätzung)", " (estimate)")) }
         return sb.toString()
     }
 
@@ -1550,9 +1554,10 @@ class MainActivity : AppCompatActivity() {
         }
         show(R.id.swRecLean, R.id.tvRecLeanLive) {
             val l = last?.leanDeg
+            val lat = io.github.th3s1nc.osmandhudbridge.track.LeanPref.lateral(this)
             (if (l == null) Tx.t("Unter 15 km/h keine Schätzung", "No estimate below 15 km/h")
-            else Tx.t("Jetzt ", "Now ") + Math.abs(Math.round(l)) + "°" + (if (Math.round(l) > 0) Tx.t(" rechts", " right") else if (Math.round(l) < 0) Tx.t(" links", " left") else "")) +
-                Tx.t(" · max. ", " · max ") + (st?.maxLeanDeg ?: 0) + "°"
+            else Tx.t("Jetzt ", "Now ") + io.github.th3s1nc.osmandhudbridge.track.LeanView.value(l, lat) + (if (Math.round(l) > 0) Tx.t(" rechts", " right") else if (Math.round(l) < 0) Tx.t(" links", " left") else "")) +
+                Tx.t(" · max. ", " · max ") + io.github.th3s1nc.osmandhudbridge.track.LeanView.value((st?.maxLeanDeg ?: 0).toFloat(), lat)
         }
     }
 

@@ -79,6 +79,7 @@
             android:exported="false" />
 
         <receiver android:name=".FriendsAlarm" android:exported="false" />
+        <receiver android:name=".nav.ListenerKeepAlarm" android:exported="false" />
 
         <service
             android:name=".BridgeService"

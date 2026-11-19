@@ -121,7 +121,7 @@ object RideStore {
                     .put("start", st.startMs).put("end", st.endMs).put("moving", st.movingMs)
                     .put("dist", st.distanceM).put("max", st.maxKmh).put("points", st.points)
                     .put("uri", pub ?: JSONObject.NULL).put("curi", cpub ?: JSONObject.NULL)
-                    .put("asc", st.ascentM).put("desc", st.descentM).put("over", st.overCount).put("lean", st.maxLeanDeg)
+                    .put("asc", st.ascentM).put("desc", st.descentM).put("over", st.overCount).put("lean", st.maxLeanDeg).put("lv", 2)
                     .put("hasEle", st.hasEle).put("hasLimit", st.hasLimit).put("hasLean", st.hasLean)
                     .toString()
             )
@@ -166,13 +166,29 @@ object RideStore {
         }
     }
 
+    /** Rechnet die größte Schräglage einer alten Fahrt einmal mit der Glättung neu (Version "lv" 2) und speichert sie. */
+    private fun migrateLean(ctx: Context, f: File, j: JSONObject): JSONObject {
+        try {
+            val id = j.getString("id")
+            val pts = points(ctx, id)
+            if (pts.isNotEmpty()) {
+                val m = Math.round(RideAnalysis.maxLeanSmoothed(FloatArray(pts.size) { pts[it].leanDeg ?: Float.NaN }))
+                j.put("lean", m)
+            }
+            j.put("lv", 2)
+            f.writeText(j.toString())
+        } catch (_: Exception) { }
+        return j
+    }
+
     /** Alle gespeicherten Fahrten, neueste zuerst. */
     fun list(ctx: Context): List<Ride> {
         val files = dir(ctx).listFiles { f -> f.name.endsWith(".json") } ?: return emptyList()
         val out = ArrayList<Ride>()
         for (f in files) {
             try {
-                val j = JSONObject(f.readText())
+                var j = JSONObject(f.readText())
+                if (j.optBoolean("hasLean") && j.optInt("lv", 1) < 2) j = migrateLean(ctx, f, j)   // alte Fahrten: Schräglage ohne Ausreißer
                 out += Ride(
                     j.getString("id"), j.getString("name"),
                     RideStats(

@@ -31,6 +31,7 @@ class HudApp : Application() {
         super.onCreate()
         AppLang.apply(this)
         io.github.th3s1nc.osmandhudbridge.pilot.DeviceId.init(this)
+        io.github.th3s1nc.osmandhudbridge.nav.ListenerKeeper.schedule(this)   // Benachrichtigungszugriff auch bei geschlossener App im Blick behalten
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityStarted(a: Activity) {
                 AppPresence.started++
@@ -48,6 +49,7 @@ class HudApp : Application() {
 
     /** Die App wurde geöffnet: Dienst starten, wenn alles Nötige erlaubt ist (sonst übernimmt die Übersicht mit ihren Hinweisen). */
     private fun openedApp() {
+        try { io.github.th3s1nc.osmandhudbridge.nav.ListenerKeeper.heal(this, "App geöffnet", io.github.th3s1nc.osmandhudbridge.nav.ListenerKeepLogic.TOGGLE_GAP_OPEN_MS) } catch (_: Exception) { }
         try {
             BridgeService.userStopped = false
             if (BridgeService.running) return

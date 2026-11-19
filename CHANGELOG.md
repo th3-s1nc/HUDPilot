@@ -2,6 +2,31 @@
 
 (Deutsch. HUDPilot ist eine Kopie der OSMAnd HUD Bridge v0.11.101 mit eigener Navigation und zählt ab 0.1.0 neu. Der Verlauf der Bridge steht darunter.)
 
+## v0.42.7 (HUDPilot, Benachrichtigungszugriff bleibt verbunden)
+- Problem: Nach längerer Nichtbenutzung (etwa 8 Stunden) trennt Android die Verbindung zum Benachrichtigungszugriff, obwohl der Schalter an bleibt ("Erlaubt, aber nicht verbunden"). Bisher half nur Aus- und Einschalten von Hand.
+- Neu: Eine Prüfung etwa alle 15 Minuten läuft jetzt auch bei geschlossener App (ohne das Handy aufzuwecken). Ist der Zugriff erlaubt, aber nicht verbunden, fordert sie neues Verbinden an. Hilft das nicht, schaltet sie den Eintrag der App einmal kurz aus und wieder ein (wie du es von Hand tust), höchstens alle 6 Stunden; beim Öffnen der App höchstens alle 30 Minuten.
+- Neu: Nach einer Trennung wartet die App 2,5 Sekunden, bevor sie neu verbindet (sofort wird es von Android oft ignoriert).
+- Neu: Jeder Schritt steht im Protokoll ("requestRebind half", "Dienst aus- und eingeschaltet", "bleibt getrennt"), damit man sieht, was wirkt.
+- Neu: Der Hinweis in der Übersicht nennt zusätzlich die Handy-Einstellung "Autostart erlauben / Schlafmodus ausnehmen".
+- Nicht auf dem Handy getestet. Ob es auf dem Nubia Z80 Ultra wirkt, zeigt sich erst nach einer Nacht.
+- Neue Tests (ListenerKeepTest).
+
+## v0.42.6 (HUDPilot, Fehler beim Bauen behoben)
+- Behebt den Fehler "Unresolved reference 'Akku'" beim Bauen von 0.42.4 und 0.42.5: Im Hinweistext zum Benachrichtigungszugriff standen Anführungszeichen mitten im Text. Sie sind jetzt typografisch („ “). Sonst keine Änderung gegenüber 0.42.5.
+
+## v0.42.5 (HUDPilot, Angle | Laterals)
+- Fahrtbild: Über dem Schräglage-Diagramm sitzen zwei Knöpfe, "Angle | Laterals". Angle zeigt die Schräglage in Grad, Laterals die Seitenkraft in der Kurve in g (Tangens des Winkels, z. B. 20° = 0,36 g). Die Wahl ändert Kachel ("Max. Angle" / "Max. Laterals"), Überschrift, Skala und Werte im Diagramm. Sie gilt für alle Fahrten, auch alte; gespeichert wird weiter der Winkel. Voreinstellung: Angle.
+- Werkzeuge, Zusatzaufzeichnung: Der Schalter heißt "Angle / Laterals (Schätzung)" und entscheidet wie bisher nur, ob mitgeschrieben wird. Die Live-Zeile und die Kennzahlen im Text folgen der gewählten Anzeige.
+- Hinweistext angepasst. CSV und GPX bleiben unverändert (Winkel in Grad).
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
+## v0.42.4 (HUDPilot, Schräglage ohne Ausreißer, Benachrichtigungszugriff)
+- **Schräglage:** Die App nimmt pro Sekunde nicht mehr einen Zufallswert, sondern den mittleren Wert (Median) der Drehsensor-Messungen der letzten Sekunde. Ein kurzer Ruck (Schlagloch, Bodenwelle) wird nicht mehr als Schräglage gezählt, eine echte Kurve bleibt. Bei einer Testfahrt wurden 65° gemeldet, obwohl die Strecke gerade war (Ruck bei 77 km/h).
+- **Höchste Schräglage und Diagramm:** werden über 5 Punkte geglättet (Median). Alte Fahrten werden beim ersten Öffnen der Liste einmal neu ausgerechnet. Die echte höchste Kurve bleibt (leicht geglättet, z. B. 25° wird 24°).
+- **Benachrichtigungszugriff:** Wird die Verbindung getrennt, fordert die App sofort neues Verbinden an. Solange der Dienst läuft, prüft sie jede Minute und fordert bei Bedarf neu an; beim Öffnen der Status-Seite ebenfalls. Steht dort "Erlaubt, aber nicht verbunden", kommt bei fehlender Akku-Ausnahme ein Hinweis auf den Schalter "Akku-Optimierung aus". Hinweis: Manche Hersteller blockieren das Neuverbinden nach einem App-Update trotzdem, dann hilft nur Aus- und Einschalten.
+- Die Schräglage ist im Auto die Seitenbeschleunigung als Winkel, keine echte Neigung des Fahrzeugs.
+- Nicht auf einem echten Gerät getestet; die App wurde hier nicht gebaut.
+
 ## v0.42.3 (HUDPilot, Passwort versteckt)
 - Anmelde-Dialog (Profil auf dem Server): Das Passwort-Feld zeigt Punkte statt Klartext. Mit dem Haken "Anzeigen" lässt es sich einblenden (auch für den Einladungscode beim Anlegen).
 - Werkzeuge, GPS-Log: Der Schalter heißt nur noch "Aufzeichnung" (Englisch "Recording"). Vorher war der Text so lang, dass der Schalter rechts abgeschnitten war. Die Erklärung steht weiter hinter dem "i".

@@ -4,7 +4,9 @@ import io.github.th3s1nc.osmandhudbridge.track.AltitudeFilter
 import io.github.th3s1nc.osmandhudbridge.track.CsvWriter
 import io.github.th3s1nc.osmandhudbridge.track.GpxWriter
 import io.github.th3s1nc.osmandhudbridge.track.LeanEstimator
+import io.github.th3s1nc.osmandhudbridge.track.LeanView
 import io.github.th3s1nc.osmandhudbridge.track.OverTracker
+import io.github.th3s1nc.osmandhudbridge.track.RideAnalysis
 import io.github.th3s1nc.osmandhudbridge.track.TrackPoint
 import io.github.th3s1nc.osmandhudbridge.track.TrackSession
 import org.junit.Assert.assertEquals
@@ -107,5 +109,51 @@ class TrackExtrasTest {
         assertTrue(x.contains("xmlns:hb="))
         assertNotNull(x)
         assertFalse(GpxWriter.write("t", listOf(TrackPoint(t0, 48.0, 12.0, 400.0, 36f))).contains("hb:limit"))
+    }
+
+    @Test
+    fun schraeglageEinzelnerRuckZaehltNicht() {
+        // Gerade Fahrt, ein einzelner Ausreißer von 65 Grad zwischen ruhigen Werten
+        val a = floatArrayOf(1f, 4f, 39f, 65f, 15f, 2f, 2f, 3f, 1f)
+        val s = RideAnalysis.smoothLean(a)
+        assertTrue(s.max() <= 15f)
+        assertEquals(15, Math.round(RideAnalysis.maxLeanSmoothed(a)))
+        // Eine echte, länger gehaltene Kurve bleibt erhalten, links bleibt negativ
+        val kurve = floatArrayOf(2f, 10f, 22f, 24f, 25f, 24f, 22f, 8f, 1f)
+        assertEquals(24, Math.round(RideAnalysis.maxLeanSmoothed(kurve))) // Median glättet die Spitze leicht (25 -> 24)
+        assertTrue(RideAnalysis.smoothLean(floatArrayOf(0f, -20f, -22f, -21f, 0f))[2] < 0f)
+        // Fehlende Werte (zu langsam) bleiben fehlend
+        assertTrue(RideAnalysis.smoothLean(floatArrayOf(Float.NaN, 5f, 6f, 5f))[0].isNaN())
+        assertEquals(0f, RideAnalysis.maxLeanSmoothed(floatArrayOf(Float.NaN, Float.NaN)))
+    }
+
+    @Test
+    fun schraeglageSensorRuckImFensterWirdUebergangen() {
+        val l = LeanEstimator()
+        repeat(30) { l.onGravity(0f, 0f, 9.81f) }
+        // eine Sekunde ruhige Geradeausfahrt mit 100 Hz, dann ein Ruck von 50 ms
+        var t = 0L
+        repeat(100) { l.onGyro(0f, 0f, 0.0f, t); t += 10 }
+        repeat(5) { l.onGyro(0f, 0f, -2.0f, t); t += 10 }
+        val v = l.lean(21f, t)!!
+        assertTrue("Ruck darf nicht zählen: $v", Math.abs(v) < 5f)
+        // dieselbe Kurve über eine ganze Sekunde bleibt erhalten
+        val k = LeanEstimator()
+        repeat(30) { k.onGravity(0f, 0f, 9.81f) }
+        var t2 = 0L
+        repeat(150) { k.onGyro(0f, 0f, -0.3f, t2); t2 += 10 }
+        near(31.4f, k.lean(20f, t2)!!, 1.5f)
+    }
+
+    @Test
+    fun angleUndLateralsAnzeige() {
+        assertEquals("20°", LeanView.value(20f, false))
+        assertEquals("20°", LeanView.value(-19.6f, false))
+        assertEquals("0,36 g", LeanView.value(20f, true)) // tan(20°) = 0,364
+        assertEquals("0,36 g", LeanView.value(-20f, true))
+        assertEquals("0,00 g", LeanView.value(0f, true))
+        assertTrue(Math.abs(LeanView.g(45f) - 1.0f) < 0.001f)
+        assertEquals("Angle", LeanView.name(false))
+        assertEquals("Laterals", LeanView.name(true))
     }
 }

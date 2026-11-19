@@ -21,3 +21,11 @@ object RideFormat {
         return t.take(60).ifEmpty { "Fahrt" }
     }
 }
+
+/** Anzeige der Schräglage: "Angle" (Grad) oder "Laterals" (Seitenkraft in g, = Tangens des Winkels). Gespeichert wird immer der Winkel. */
+object LeanView {
+    fun g(deg: Float): Float = Math.tan(Math.toRadians(Math.abs(deg).toDouble())).toFloat()
+    fun value(deg: Float, lateral: Boolean): String =
+        if (lateral) String.format(Locale.GERMANY, "%.2f g", g(deg)) else Math.abs(Math.round(deg)).toString() + "°"
+    fun name(lateral: Boolean) = if (lateral) "Laterals" else "Angle"
+}

@@ -46,6 +46,11 @@ class LeanEstimator {
     private var gz = 0.0
     private var haveG = false
     private var yaw = 0.0
+    // Drehraten der letzten Sekunde: ein kurzer Ruck (Schlagloch, Bodenwelle) geht nicht als Schräglage ein, eine Kurve schon
+    private val winT = LongArray(WIN)
+    private val winV = DoubleArray(WIN)
+    private var winN = 0
+    private var winPos = 0
 
     /** Schwerkraft (oder Beschleunigung) im Handy-Koordinatensystem. */
     fun onGravity(x: Float, y: Float, z: Float) {
@@ -54,23 +59,37 @@ class LeanEstimator {
     }
 
     /** Drehrate in rad/s im Handy-Koordinatensystem. */
-    fun onGyro(x: Float, y: Float, z: Float) {
+    fun onGyro(x: Float, y: Float, z: Float, nowMs: Long = System.nanoTime() / 1_000_000L) {
         if (!haveG) return
         val n = Math.sqrt(gx * gx + gy * gy + gz * gz)
         if (n < 1.0) return
         // Android-Schwerkraft zeigt nach oben: Drehung gegen den Uhrzeigersinn (Linkskurve) ist positiv, daher Vorzeichen drehen
         val r = -(x * gx + y * gy + z * gz) / n
         yaw += (r - yaw) * 0.2
+        winT[winPos] = nowMs; winV[winPos] = yaw
+        winPos = (winPos + 1) % WIN
+        if (winN < WIN) winN++
     }
 
-    fun lean(speedMps: Float): Float? {
+    /** Mittlere Drehrate (Median) der letzten Sekunde; ohne frische Werte die letzte geglättete. */
+    private fun yawMedian(nowMs: Long): Double {
+        val v = ArrayList<Double>(winN)
+        for (i in 0 until winN) if (nowMs - winT[i] <= WINDOW_MS) v += winV[i]
+        if (v.isEmpty()) return yaw
+        v.sort()
+        return if (v.size % 2 == 1) v[v.size / 2] else (v[v.size / 2 - 1] + v[v.size / 2]) / 2.0
+    }
+
+    fun lean(speedMps: Float, nowMs: Long = System.nanoTime() / 1_000_000L): Float? {
         if (!haveG || speedMps < MIN_MPS) return null
-        val deg = Math.toDegrees(Math.atan(speedMps * yaw / 9.81)).toFloat()
+        val deg = Math.toDegrees(Math.atan(speedMps * yawMedian(nowMs) / 9.81)).toFloat()
         return deg.coerceIn(-MAX_DEG, MAX_DEG)
     }
 
     companion object {
         const val MIN_MPS = 4.2f // ca. 15 km/h
-        const val MAX_DEG = 65f
+        const val MAX_DEG = 65f // nur Sicherheitsgrenze
+        const val WIN = 128 // genug Platz für eine Sekunde bei 100 Hz
+        const val WINDOW_MS = 1000L
     }
 }

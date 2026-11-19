@@ -177,6 +177,7 @@ class BridgeService : Service(), HudClient.Listener {
         }
         BridgeBus.log("Dienst gestartet" + (if (hudWanted(prefs)) ", HUD ${prefs.getString(KEY_NAME, null) ?: "?"}" else ", ohne HUD"))
         checkNotificationAccess()
+        handler.postDelayed(accessWatch, ACCESS_WATCH_MS)
         io.github.th3s1nc.osmandhudbridge.nav.NoticeBus.listener = { n -> handler.post { onNotice(n) } }
         io.github.th3s1nc.osmandhudbridge.pilot.PilotBus.sink = { u -> handler.post { onPilot(u) } }
         applyConfig() // startet auch die HUD-Verbindung, falls gewünscht
@@ -487,6 +488,21 @@ class BridgeService : Service(), HudClient.Listener {
      * Nach einem App-Update bindet Android den Benachrichtigungszugriff oft nicht neu, obwohl der Schalter "an" zeigt.
      * Darum beim Start neues Verbinden anfordern und nach 10 s prüfen; sonst eine klare Warnung ins Protokoll.
      */
+    /** Prüft jede Minute, ob der Benachrichtigungszugriff verbunden ist, und fordert sonst neues Verbinden an. */
+    private val accessWatch: Runnable = object : Runnable {
+        override fun run() {
+            if (closing) return
+            try {
+                val granted = androidx.core.app.NotificationManagerCompat.getEnabledListenerPackages(this@BridgeService).contains(packageName)
+                if (granted && !io.github.th3s1nc.osmandhudbridge.nav.OsmAndNotificationListener.connected) {
+                    android.service.notification.NotificationListenerService.requestRebind(
+                        android.content.ComponentName(this@BridgeService, io.github.th3s1nc.osmandhudbridge.nav.OsmAndNotificationListener::class.java))
+                }
+            } catch (_: Exception) { }
+            handler.postDelayed(this, ACCESS_WATCH_MS)
+        }
+    }
+
     private fun checkNotificationAccess() {
         val cn = android.content.ComponentName(this, io.github.th3s1nc.osmandhudbridge.nav.OsmAndNotificationListener::class.java)
         val granted = try {
@@ -717,6 +733,7 @@ class BridgeService : Service(), HudClient.Listener {
         const val KEY_REC_LIMIT = "rec_limit" // Aufzeichnung: Tempolimit und Überschreitungen
         const val KEY_REC_LEAN = "rec_lean" // Aufzeichnung: Schräglage
         private const val IDLE_STOP_MS = 10 * 60 * 1000L
+        private const val ACCESS_WATCH_MS = 60_000L
         private const val CHANNEL = "bridge"
         private const val NOTIF_ID = 1
 

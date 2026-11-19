@@ -13,6 +13,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import io.github.th3s1nc.osmandhudbridge.track.Ride
+import io.github.th3s1nc.osmandhudbridge.track.LeanPref
+import io.github.th3s1nc.osmandhudbridge.track.LeanView
 import io.github.th3s1nc.osmandhudbridge.track.RideAnalysis
 import io.github.th3s1nc.osmandhudbridge.track.RideChartView
 import io.github.th3s1nc.osmandhudbridge.track.RideFormat
@@ -32,6 +34,11 @@ class RideDetailActivity : AppCompatActivity() {
     private val charts = ArrayList<RideChartView>()
     private lateinit var map: RouteMapView
     private var markerIdx = -1
+    private var leanTitle: TextView? = null
+    private var leanChart: RideChartView? = null
+    private var leanSeries: FloatArray? = null
+    private var leanBtnA: TextView? = null
+    private var leanBtnL: TextView? = null
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
@@ -112,7 +119,7 @@ class RideDetailActivity : AppCompatActivity() {
         list += "${fmt1(s.maxAccel)} m/s²" to Tx.t("Beschleunigen", "Acceleration")
         list += "${fmt1(s.maxBrake)} m/s²" to Tx.t("Bremsen", "Braking")
         if (st.hasEle) list += "↓ ${st.descentM} m" to Tx.t("Abstieg", "Descent")
-        if (st.hasLean) list += "${st.maxLeanDeg}°" to Tx.t("Max. Schräglage", "Max lean angle")
+        if (st.hasLean) { val lat = LeanPref.lateral(this); list += LeanView.value(st.maxLeanDeg.toFloat(), lat) to ("Max. " + LeanView.name(lat)) }
         if (st.hasLimit) list += Tx.t("${st.overCount} Mal", "${st.overCount} times") to Tx.t("Limit überschritten", "Limit exceeded")
         list += RideFormat.duration(st.totalMs) to Tx.t("Gesamtzeit", "Total time")
         val box = findViewById<LinearLayout>(R.id.tiles)
@@ -155,6 +162,31 @@ class RideDetailActivity : AppCompatActivity() {
         markerIdx = i
     }
 
+    /** Zeichnet das Schräglage-Diagramm und die Kachel nach der gewählten Anzeige (Angle in Grad, Laterals in g) neu. */
+    private fun applyLean() {
+        val c = leanChart ?: return
+        val raw = leanSeries ?: return
+        val lat = LeanPref.lateral(this)
+        leanTitle?.text = LeanView.name(lat)
+        for ((btn, on) in listOf(leanBtnA to !lat, leanBtnL to lat)) btn?.apply {
+            setTextColor(if (on) 0xFF000000.toInt() else 0xFFA8A8B0.toInt())
+            background = if (on) android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(10).toFloat(); setColor(0xFFFF7A00.toInt()) } else null
+        }
+        val vals = FloatArray(raw.size) { val v = raw[it]; if (v.isNaN()) v else if (lat) Math.copySign(LeanView.g(v), v) else v }
+        val m = vals.filter { !it.isNaN() }.maxOfOrNull { Math.abs(it) } ?: 10f
+        val step = if (lat) 0.1f else 10f
+        val r = Math.max(step, niceCeil(m, step))
+        c.kind = RideChartView.Kind.BARS
+        c.sideLabels = true
+        // links ist negativ, im Diagramm oben (L); rechts positiv, unten (R): Werte spiegeln
+        c.axisFormat = { v -> if (lat) String.format(Locale.GERMANY, "%.1f", Math.abs(v)) else Math.abs(Math.round(v)).toString() }
+        c.setData(FloatArray(vals.size) { -vals[it] }, -r, r)
+        c.format = { v -> LeanView.value(if (lat) Math.toDegrees(Math.atan(Math.abs(v).toDouble())).toFloat() else v, lat) + " " + (if (v > 0) Tx.t("links", "left") else if (v < 0) Tx.t("rechts", "right") else "") }
+        val tiles = findViewById<LinearLayout>(R.id.tiles)
+        tiles.removeAllViews()
+        buildTiles()
+    }
+
     private fun buildCharts() {
         val s: RideSeries = RideAnalysis.series(points)
         if (RideAnalysis.hasData(s.ele)) addChart(Tx.t("Höhenprofil", "Elevation profile")) { c ->
@@ -165,15 +197,32 @@ class RideDetailActivity : AppCompatActivity() {
             c.format = { v -> Math.round(v).toString() + " m" }
             c.setData(s.ele, lo, niceCeil(mx, 100f))
         }
-        if (RideAnalysis.hasData(s.lean)) addChart(Tx.t("Schräglage", "Lean angle")) { c ->
-            val m = s.lean.filter { !it.isNaN() }.maxOfOrNull { Math.abs(it) } ?: 10f
-            val r = Math.max(10f, niceCeil(m, 10f))
-            c.kind = RideChartView.Kind.BARS
-            c.sideLabels = true
-            // links ist negativ, im Diagramm oben (L); rechts positiv, unten (R): Werte spiegeln
-            c.axisFormat = { v -> Math.abs(Math.round(v)).toString() }
-            c.setData(FloatArray(s.lean.size) { -s.lean[it] }, -r, r)
-            c.format = { v -> Math.abs(Math.round(v)).toString() + "° " + (if (v > 0) Tx.t("links", "left") else if (v < 0) Tx.t("rechts", "right") else "") }
+        if (RideAnalysis.hasData(s.lean)) {
+            val box = findViewById<LinearLayout>(R.id.charts)
+            val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(22), 0, dp(6)) }
+            val title = TextView(this).apply { textSize = 18f; setTextColor(0xFFFFFFFF.toInt()); setTypeface(typeface, android.graphics.Typeface.BOLD) }
+            head.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            fun seg(text: String, lateral: Boolean) = TextView(this).apply {
+                this.text = text; textSize = 13f; gravity = Gravity.CENTER
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setPadding(dp(12), dp(7), dp(12), dp(7))
+                setOnClickListener { LeanPref.set(this@RideDetailActivity, lateral); applyLean() }
+            }
+            leanBtnA = seg("Angle", false); leanBtnL = seg("Laterals", true)
+            val pill = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(12).toFloat(); setColor(0xFF1C1C1E.toInt()) }
+                setPadding(dp(3), dp(3), dp(3), dp(3))
+            }
+            pill.addView(leanBtnA); pill.addView(leanBtnL)
+            head.addView(pill)
+            box.addView(head)
+            val c = RideChartView(this)
+            c.onSelect = { i -> select(i) }
+            box.addView(c, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(120)))
+            charts += c
+            leanTitle = title; leanChart = c; leanSeries = s.lean
+            applyLean()
         }
         addChart(Tx.t("Beschleunigung", "Acceleration")) { c ->
             val m = Math.max(2f, niceCeil(Math.max(s.maxAccel, -s.maxBrake), 1f))

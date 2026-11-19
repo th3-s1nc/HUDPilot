@@ -26,7 +26,12 @@ class OsmAndNotificationListener : NotificationListenerService() {
     override fun onListenerDisconnected() {
         connected = false
         instance = null
-        BridgeBus.log(Tx.t("Benachrichtigungszugriff getrennt", "Notification access disconnected"))
+        BridgeBus.log(Tx.t("Benachrichtigungszugriff getrennt, neues Verbinden in wenigen Sekunden", "Notification access disconnected, reconnecting in a few seconds"))
+        // Nicht im selben Aufruf: Android baut die Verbindung gerade noch ab und ignoriert ein sofortiges requestRebind oft.
+        val app = applicationContext
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            if (!connected) ListenerKeeper.heal(app, "nach Trennung", ListenerKeepLogic.TOGGLE_GAP_BG_MS)
+        }, ListenerKeepLogic.REBIND_DELAY_MS)
         BridgeBus.changed()
     }
 

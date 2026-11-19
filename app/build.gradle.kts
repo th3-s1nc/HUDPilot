@@ -10,8 +10,8 @@ android {
         applicationId = "io.github.th3s1nc.hudpilot"
         minSdk = 26
         targetSdk = 34
-        versionCode = 105
-        versionName = "0.42.3"
+        versionCode = 109
+        versionName = "0.42.7"
     }
     buildTypes {
         release { isMinifyEnabled = false }
