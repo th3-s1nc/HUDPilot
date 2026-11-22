@@ -114,6 +114,9 @@ public final class PilotRouting {
       if (startDirection >= 0 && startDirection < 360) {
         rc.startDirection = Integer.valueOf(startDirection);
         rc.forceUseStartDirection = true;
+        // Normal kostet ein Umdrehen am Start nur etwa 2 Abbiegungen (rund 180 m): der Router dreht dann bei jedem Umweg lieber um.
+        // Mit dieser Strafe fährt er lieber bis zu 60 km weiter nach vorn, bevor er dich zum Wenden schickt.
+        rc.startUTurnPenalty = 60000;
       }
 
       if (nogoLines != null && !nogoLines.isEmpty()) {

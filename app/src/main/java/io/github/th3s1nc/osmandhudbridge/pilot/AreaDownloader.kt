@@ -48,7 +48,7 @@ object AreaDownloader {
         try {
             if (c.responseCode == 200) Remote(c.contentLengthLong, c.lastModified) else null
         } finally { c.disconnect() }
-    } catch (_: Exception) { null }
+    } catch (e: Exception) { BridgeBus.logErr("Download (Größe prüfen)", e); null }
 
     fun cancel() { cancel.set(true) }
 
@@ -92,7 +92,8 @@ object AreaDownloader {
                 tmp.writeBytes(bytes)
                 if (!tmp.renameTo(f)) { f.writeBytes(bytes); tmp.delete() }
             } finally { c.disconnect() }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            BridgeBus.logErr("Download (Kachel)", e)
         }
     }
 

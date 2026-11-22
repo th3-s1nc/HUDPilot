@@ -146,6 +146,16 @@ class AdminMessagesActivity : AppCompatActivity() {
         body.addView(label(Tx.t("Meldungen", "Messages")))
         val evs = AdminNotes.events(this).sortedByDescending { it.id }
         if (evs.isEmpty()) body.addView(tv(Tx.t("Noch keine Meldungen.", "No messages yet."), 14f, GREY).apply { setPadding(dp(2), 0, 0, 0) })
+        if (evs.isNotEmpty()) body.addView(tv(Tx.t("Liste leeren", "Clear list"), 14f, ACC, bold = true).apply {
+            setPadding(dp(2), dp(2), dp(2), dp(12))
+            setOnClickListener {
+                androidx.appcompat.app.AlertDialog.Builder(this@AdminMessagesActivity)
+                    .setMessage(Tx.t("Alle Meldungen auf diesem Handy löschen? Auf dem Server bleiben sie erhalten.", "Delete all messages on this phone? They stay on the server."))
+                    .setPositiveButton(Tx.t("Leeren", "Clear")) { _, _ -> AdminNotes.clear(this@AdminMessagesActivity); render() }
+                    .setNegativeButton(Tx.t("Abbrechen", "Cancel"), null)
+                    .show()
+            }
+        })
         for (e in evs) body.addView(messageCard(e, e.id > seenAtOpen), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
         AdminNotes.markRead(this)   // Seite gesehen: alles gilt als gelesen (der orange Rand bleibt für diesen Besuch)
     }

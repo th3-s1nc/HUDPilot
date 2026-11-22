@@ -2,6 +2,17 @@
 
 (Deutsch. HUDPilot ist eine Kopie der OSMAnd HUD Bridge v0.11.101 mit eigener Navigation und zählt ab 0.1.0 neu. Der Verlauf der Bridge steht darunter.)
 
+## v0.42.8 (HUDPilot, Neuberechnung ohne Umdrehen, Zwischenziel-Regel, Protokoll, Admin-Meldungen)
+- Behoben: Nach dem Verlassen der Route rechnete die App ständig neu und wollte immer zurück zum Punkt, an dem man die Route verlassen hatte (Fahrt vom 22.11.: 477 Neuberechnungen). Ursache: Die Startrichtung war für den Routenrechner nur ein weicher Wunsch, ein Umdrehen kostete kaum etwas.
+- Neu: Es wird nie ein Umdrehen vorgeschlagen. Eine neue Route muss in der aktuellen Fahrtrichtung beginnen, sonst wird sie verworfen (auch im Stand).
+- Neu: Reihenfolge bei der Neuberechnung: zurück auf die alte Route weiter vorn (nie hinter das nächste Zwischenziel; versucht 4, 10 und 25 km), sonst neue Route über die verbleibenden Zwischenziele und zum Ziel. Fahrprofil, Vermeiden und Sperrungen gelten immer.
+- Neu: Ein Zwischenziel (oder Formpunkt, nie das Endziel) wird sofort übersprungen, wenn der Weg dorthin (ohne Umdrehen, nach Fahrprofil) mehr als 20 Minuten länger ist als geplant. Kurze Ansage "Zwischenziel übersprungen" und eine Protokollzeile.
+- Neu: Gibt es keine Route ohne Umdrehen, bleibt die letzte Route, die Anzeige zeigt "Weiterfahren", Neuversuch alle 8 Sekunden, ohne Ansage. Die Ansage "Route wird neu berechnet" kommt höchstens einmal pro Minute.
+- Neu: Wichtige Fehler (Server, Downloads, Bluetooth, Admin-Meldungen) stehen jetzt im Protokoll (dieselbe Meldung höchstens einmal pro Minute).
+- Neu: Admin-Meldungen: es werden nur noch 15 behalten, und mit "Liste leeren" löscht man sie auf dem Handy (der Server behält sie).
+- Nicht gefahren und nicht in Android Studio gebaut. Die Grenzen (20 Minuten, Umdreh-Strafe) lassen sich nachstellen.
+- Neue Tests (RouteDirectionTest, RerouteTest, AdminNotesLogicTest).
+
 ## v0.42.7 (HUDPilot, Benachrichtigungszugriff bleibt verbunden)
 - Problem: Nach längerer Nichtbenutzung (etwa 8 Stunden) trennt Android die Verbindung zum Benachrichtigungszugriff, obwohl der Schalter an bleibt ("Erlaubt, aber nicht verbunden"). Bisher half nur Aus- und Einschalten von Hand.
 - Neu: Eine Prüfung etwa alle 15 Minuten läuft jetzt auch bei geschlossener App (ohne das Handy aufzuwecken). Ist der Zugriff erlaubt, aber nicht verbunden, fordert sie neues Verbinden an. Hilft das nicht, schaltet sie den Eintrag der App einmal kurz aus und wieder ein (wie du es von Hand tust), höchstens alle 6 Stunden; beim Öffnen der App höchstens alle 30 Minuten.

@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import org.json.JSONObject
 import java.util.concurrent.Executors
+import io.github.th3s1nc.osmandhudbridge.BridgeBus
 
 /**
  * Automatischer Abgleich mit dem eigenen Server (ab App 0.25.0, abschaltbar im Server-Bildschirm):
@@ -106,9 +107,9 @@ object AutoSync {
         val app = ctx.applicationContext
         if (!enabled(app) || !ready(app)) return
         exec.execute {
-            try { TourSync.uploadPending(app) } catch (_: Exception) { }
-            try { TourSync.fetchPlanned(app) } catch (_: Exception) { }
-            val o = try { syncSettings(app) } catch (_: Exception) { Outcome.None }
+            try { TourSync.uploadPending(app) } catch (e: Exception) { BridgeBus.logErr("Touren hochladen", e) }
+            try { TourSync.fetchPlanned(app) } catch (e: Exception) { BridgeBus.logErr("Geplante Touren holen", e) }
+            val o = try { syncSettings(app) } catch (e: Exception) { BridgeBus.logErr("Einstellungen abgleichen", e); Outcome.None }
             main.post { onDone(o) }
         }
     }
@@ -122,7 +123,7 @@ object AutoSync {
                 val p = prefs(app)
                 if (p.getString("set_fp", "").isNullOrEmpty()) return@execute   // erster Abgleich läuft über syncSettings
                 if (fingerprint(app) != p.getString("set_fp", "")) push(app)
-            } catch (_: Exception) { }
+            } catch (e: Exception) { BridgeBus.logErr("Einstellungen sichern", e) }
         }
     }
 }

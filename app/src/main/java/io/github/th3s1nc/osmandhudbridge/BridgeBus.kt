@@ -44,6 +44,26 @@ object BridgeBus {
         }
     }
 
+    private val errLast = HashMap<String, Long>()
+
+    /**
+     * Einen Fehler, der sonst still verschluckt würde, ins Protokoll schreiben (Ort + Art + Text). Dieselbe Meldung
+     * höchstens einmal pro Minute, damit ein dauerhaft ausgefallener Server das Protokoll nicht füllt.
+     */
+    fun logErr(what: String, e: Throwable) {
+        val name = e.javaClass.simpleName
+        val key = "$what|$name"
+        val now = android.os.SystemClock.elapsedRealtime()
+        synchronized(errLast) {
+            val last = errLast[key]
+            if (last != null && now - last < 60_000L) return
+            if (errLast.size > 100) errLast.clear()
+            errLast[key] = now
+        }
+        val msg = name + (e.message?.takeIf { it.isNotBlank() }?.let { ": " + it.take(120) } ?: "")
+        log(Tx.t("Fehler ($what): $msg", "Error ($what): $msg"))
+    }
+
     /** Datei zum Teilen; wartet kurz, bis alles geschrieben ist. */
     fun logFile(): File? {
         val f = file ?: return null

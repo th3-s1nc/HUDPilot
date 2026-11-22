@@ -14,9 +14,25 @@ class AdminNotesLogicTest {
         assertEquals(listOf(1, 2, 3, 4), m.map { it.id })
     }
 
-    @Test fun mergeBehaeltHoechstensFuenfzig() {
+    @Test fun mergeBehaeltHoechstensFuenfzehn() {
         val m = AdminNotesLogic.merge((1..40).map { ev(it) }, (41..80).map { ev(it) })
-        assertEquals(50, m.size); assertEquals(31, m.first().id); assertEquals(80, m.last().id)
+        assertEquals(15, m.size); assertEquals(66, m.first().id); assertEquals(80, m.last().id)
+    }
+
+    @Test fun nachListeLeerenKommenAlteMeldungenNichtWieder() {
+        val vomServer = (1..30).map { ev(it) }
+        val rest = AdminNotesLogic.afterClear(vomServer, 30)
+        assertEquals(emptyList<Int>(), rest.map { it.id })
+        val neu = AdminNotesLogic.afterClear(vomServer + ev(31) + ev(32), 30)
+        assertEquals(listOf(31, 32), neu.map { it.id })
+        assertEquals(2, AdminNotesLogic.unread(AdminNotesLogic.merge(emptyList(), neu), 30))
+    }
+
+    @Test fun serverNummernNeuBegonnenHebtDieLoeschmarkeAuf() {
+        assertEquals(30, AdminNotesLogic.validCleared(30, 45))   // normal
+        assertEquals(30, AdminNotesLogic.validCleared(30, 30))
+        assertEquals(0, AdminNotesLogic.validCleared(30, 5))     // Server hat bei 1 neu angefangen
+        assertEquals(30, AdminNotesLogic.validCleared(30, 0))    // keine Angabe: Marke bleibt
     }
 
     @Test fun ungelesenUndLetzteNummer() {

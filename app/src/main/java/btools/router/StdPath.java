@@ -87,6 +87,10 @@ final class StdPath extends OsmPath {
 
     // penalty for turning angle
     int turncost = (int) ((1. - cosangle) * turncostbase + 0.2); // e.g. turncost=90 -> 90 degree = 90m penalty
+    // Start gegen die Fahrtrichtung (Umdrehen): sehr teuer, damit die Route in Fahrtrichtung beginnt
+    if (isStartpoint && rc.startDirectionValid && rc.startUTurnPenalty > 0 && cosangle < 0.) {
+      turncost += (int) (-cosangle * rc.startUTurnPenalty);
+    }
 
     int newPrio = (int) rc.expctxWay.getPriorityClassifier();
     int oldPrio = lastpriorityclassifier;

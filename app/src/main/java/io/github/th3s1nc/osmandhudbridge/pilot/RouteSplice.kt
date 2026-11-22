@@ -14,10 +14,10 @@ object RouteSplice {
     class Target(val index: Int, val atM: Int)
 
     /** Einstiegspunkt auf der alten Route oder null, wenn die normale Neuberechnung besser ist. */
-    fun target(route: PilotRoute, progressM: Int): Target? {
+    fun target(route: PilotRoute, progressM: Int, aheadM: Int = AHEAD_M): Target? {
         val n = route.points.size
         if (n < 3 || route.totalM - progressM < MIN_REMAINING_M || route.waypointIndex.isEmpty()) return null
-        var want = progressM + AHEAD_M
+        var want = progressM + aheadM
         // Nicht über den nächsten Wegpunkt hinaus: der muss weiter angefahren werden
         for (k in 1 until route.waypointIndex.size) {
             val c = route.cumM[route.waypointIndex[k].coerceIn(0, n - 1)]

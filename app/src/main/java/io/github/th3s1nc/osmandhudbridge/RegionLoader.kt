@@ -77,7 +77,8 @@ class RegionLoader(private val act: AppCompatActivity) {
             val fresh = cache.isFile && System.currentTimeMillis() - cache.lastModified() < 7L * 24 * 3600 * 1000
             val text: String? = try {
                 if (fresh) cache.readText() else fetchIndex(cache)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                BridgeBus.logErr("Regionsliste laden", e)
                 try { if (cache.isFile) cache.readText() else null } catch (_: Exception) { null }
             }
             val ix = try { text?.let { RegionIndex.parse(it) } } catch (_: Exception) { null }

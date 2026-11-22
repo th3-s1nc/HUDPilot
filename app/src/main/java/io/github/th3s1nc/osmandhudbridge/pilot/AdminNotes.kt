@@ -5,6 +5,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import io.github.th3s1nc.osmandhudbridge.BridgeBus
 
 /**
  * Admin-Meldungen vom eigenen Server (ab Server v1.33.0): nur für Profile, die der Admin im Webserver dafür bestimmt hat.
@@ -47,6 +48,13 @@ object AdminNotes {
         prefs(ctx).edit().putInt("an_seen", AdminNotesLogic.lastId(events(ctx))).apply()
     }
 
+    /** Liste auf diesem Handy leeren. Der Server behält seine Meldungen; die gelöschten kommen nicht wieder. */
+    fun clear(ctx: Context) {
+        val p = prefs(ctx)
+        val last = maxOf(AdminNotesLogic.lastId(events(ctx)), p.getInt("an_announced", 0), p.getInt("an_cleared", 0))
+        p.edit().putInt("an_cleared", last).putInt("an_seen", last).putInt("an_announced", last).remove("an_events").apply()
+    }
+
     private fun parse(a: JSONArray): List<AdminNotesLogic.Ev> {
         val out = ArrayList<AdminNotesLogic.Ev>(a.length())
         for (i in 0 until a.length()) {
@@ -67,7 +75,8 @@ object AdminNotes {
         val p = prefs(app)
         val old = events(app)
         return try {
-            val c = URL(base.trimEnd('/') + "/api/notify?since=" + AdminNotesLogic.lastId(old)).openConnection() as HttpURLConnection
+            val cleared0 = p.getInt("an_cleared", 0)
+            val c = URL(base.trimEnd('/') + "/api/notify?since=" + maxOf(AdminNotesLogic.lastId(old), cleared0)).openConnection() as HttpURLConnection
             try {
                 c.connectTimeout = 4_000; c.readTimeout = 8_000; c.setRequestProperty("User-Agent", "HUDPilot")
                 ServerProfile.apply(app, c)
@@ -76,10 +85,12 @@ object AdminNotes {
                 if (code !in 200..299) return emptyList()
                 val j = JSONObject(c.inputStream.bufferedReader().use { it.readText() })
                 if (!j.optBoolean("erlaubt", false)) {
-                    p.edit().putBoolean("an_allowed", false).remove("an_events").remove("an_status").remove("an_seen").remove("an_announced").apply()
+                    p.edit().putBoolean("an_allowed", false).remove("an_events").remove("an_status").remove("an_seen").remove("an_announced").remove("an_cleared").apply()
                     return emptyList()
                 }
-                val merged = AdminNotesLogic.merge(old, parse(j.optJSONArray("events") ?: JSONArray()))
+                val cleared = AdminNotesLogic.validCleared(cleared0, j.optInt("letzte", 0))
+                if (cleared != cleared0) p.edit().putInt("an_cleared", cleared).apply()
+                val merged = AdminNotesLogic.merge(old, AdminNotesLogic.afterClear(parse(j.optJSONArray("events") ?: JSONArray()), cleared))
                 val first = !p.contains("an_announced")
                 val ann = p.getInt("an_announced", 0)
                 val fresh = if (first) emptyList() else AdminNotesLogic.toAnnounce(merged, ann)
@@ -90,6 +101,6 @@ object AdminNotes {
                 ed.apply()
                 fresh
             } finally { c.disconnect() }
-        } catch (_: Exception) { emptyList() }
+        } catch (e: Exception) { BridgeBus.logErr("Admin-Meldungen", e); emptyList() }
     }
 }

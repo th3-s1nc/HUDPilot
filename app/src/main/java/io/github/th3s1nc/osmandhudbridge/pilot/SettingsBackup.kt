@@ -6,6 +6,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import io.github.th3s1nc.osmandhudbridge.BridgeBus
 
 /**
  * Einstellungen pro Profil auf dem eigenen Server sichern und auf einem anderen Handy wieder holen (ab Server v1.12).
@@ -112,7 +113,7 @@ object SettingsBackup {
             val dev = (android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL).trim()
             val (code, _) = call(ctx, "/api/settings/save", JSONObject().put("device", dev).put("data", collect(ctx)))
             if (code == 200) Result(true, Tx.t("Einstellungen gesichert.", "Settings saved.")) else problem(code)
-        } catch (_: Exception) { ServerProfile.reachable = false; Result(false, Tx.t("Server nicht erreichbar.", "Server not reachable.")) }
+        } catch (e: Exception) { ServerProfile.reachable = false; BridgeBus.logErr("Server (Einstellungen)", e); Result(false, Tx.t("Server nicht erreichbar.", "Server not reachable.")) }
     }
 
     /** Gesicherte Einstellungen vom Server lesen (noch nicht einspielen). whenSec = 0: es gibt keine Sicherung. Blockiert. */
@@ -123,7 +124,7 @@ object SettingsBackup {
             if (code != 200 || txt == null) return problem(code)
             val j = JSONObject(txt)
             Result(true, "", j.optLong("ts", 0L), j.optString("device"), j.optJSONObject("data"))
-        } catch (_: Exception) { ServerProfile.reachable = false; Result(false, Tx.t("Server nicht erreichbar.", "Server not reachable.")) }
+        } catch (e: Exception) { ServerProfile.reachable = false; BridgeBus.logErr("Server (Einstellungen)", e); Result(false, Tx.t("Server nicht erreichbar.", "Server not reachable.")) }
     }
 
     /** Zeit und Handy der Sicherung als kurzer Text. */

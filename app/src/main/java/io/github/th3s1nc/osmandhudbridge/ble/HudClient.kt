@@ -351,7 +351,7 @@ class HudClient(private val context: Context, private val listener: Listener) {
             }
             return
         }
-        val ok = try { writeFrame(frames[frameIdx]) } catch (e: Exception) { false }
+        val ok = try { writeFrame(frames[frameIdx]) } catch (e: Exception) { BridgeBus.logErr("Bluetooth senden", e); false }
         if (!ok) {
             attemptFailed()
             return

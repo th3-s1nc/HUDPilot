@@ -220,6 +220,8 @@ public final class RoutingContext {
   public Integer startDirection;
   public boolean startDirectionValid;
   public boolean forceUseStartDirection;
+  /** Zusatzkosten (in Metern) für ein Umdrehen am Start, wenn eine Startrichtung gilt. 0 = nur die normale Abbiege-Strafe. */
+  public int startUTurnPenalty;
   public Integer roundTripStartDirection;
   public Integer roundTripDistance;
   public Integer roundTripDirectionAdd;

@@ -96,7 +96,7 @@ class VoiceLogic {
         const val EARLY_GAP_MS = 6_000L
         const val NOW_GAP_MS = 2_500L
         /** "Route wird neu berechnet" höchstens einmal in dieser Zeit (ms). */
-        const val REROUTE_SAY_GAP_MS = 45_000L
+        const val REROUTE_SAY_GAP_MS = 60_000L
 
         /**
          * Zu diesen Pfeilen gibt es keine Ansage: geradeaus, Einfädeln, Ziel und Zwischenziel melden sich selbst,

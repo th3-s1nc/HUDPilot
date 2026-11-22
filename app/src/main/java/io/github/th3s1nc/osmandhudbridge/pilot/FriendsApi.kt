@@ -5,6 +5,7 @@ import io.github.th3s1nc.osmandhudbridge.limit.Tx
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import io.github.th3s1nc.osmandhudbridge.BridgeBus
 
 /** Freunde und Live-Standort auf dem eigenen Server (ab Server v1.30.0). Alles blockiert: nicht im Hauptthread aufrufen. */
 object FriendsApi {
@@ -32,7 +33,7 @@ object FriendsApi {
                 if (code == 401) ServerProfile.authFailed = true
                 Res(code, try { JSONObject(txt ?: "{}") } catch (_: Exception) { null })
             } finally { c.disconnect() }
-        } catch (_: Exception) { ServerProfile.reachable = false; null }
+        } catch (e: Exception) { ServerProfile.reachable = false; BridgeBus.logErr("Server (Friends)", e); null }
     }
 
     private fun out(r: Res?): Out = when {

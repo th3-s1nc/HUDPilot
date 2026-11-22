@@ -25,6 +25,7 @@ class Guide(route: PilotRoute, private var wps: List<Waypoint>) {
     private var doneBefore = 0.0   // Strecke aus früheren Routen (vor Neuberechnungen)
     private var lateral = 0.0
     private var rerouteStreak = 0  // Neuberechnungen kurz hintereinander: Wartezeit wird länger (Schleifen bremsen)
+    private var holdUntilMs = 0L   // keine Route ohne Umdrehen gefunden: bis dahin nicht neu versuchen (auch nicht bei über 100 m Abstand)
 
     /** Abstand zur Route (m), ab dem eine Position als "daneben" zählt. */
     var offRouteM = 40.0
@@ -35,6 +36,11 @@ class Guide(route: PilotRoute, private var wps: List<Waypoint>) {
 
     val waypoints: List<Waypoint> get() = wps
 
+    companion object {
+        /** Nach einer gescheiterten oder abgelehnten Neuberechnung (kein Weg ohne Umdrehen) so lange nicht neu versuchen (ms). */
+        const val HOLD_MS = 8_000L
+    }
+
     fun setRoute(r: PilotRoute, newWps: List<Waypoint>, nowMs: Long) {
         rerouteStreak = if (nowMs - lastRerouteMs < 90_000L) (rerouteStreak + 1).coerceAtMost(4) else 0
         doneBefore += progress
@@ -44,12 +50,13 @@ class Guide(route: PilotRoute, private var wps: List<Waypoint>) {
         progress = 0.0
         offCount = 0
         lastRerouteMs = nowMs
+        holdUntilMs = 0L
         finishedFlag = false
     }
 
     /** Nach Abweichung: true, wenn jetzt neu berechnet werden soll. */
     fun shouldReroute(nowMs: Long): Boolean =
-        !finishedFlag && offCount >= offRouteFixes &&
+        !finishedFlag && offCount >= offRouteFixes && nowMs >= holdUntilMs &&
             (nowMs - lastRerouteMs >= cooldownMs() || (lateral > 100.0 && nowMs - lastRerouteMs >= 3_000L))
 
     /** Aktuelle Wartezeit bis zur nächsten Neuberechnung: 5 s, nach schneller Wiederholung 10, 15 s (mehr nicht). Wer schon über 100 m weg ist, wartet nur 3 s. */
@@ -62,6 +69,7 @@ class Guide(route: PilotRoute, private var wps: List<Waypoint>) {
     fun rerouteFailed(nowMs: Long) {
         rerouteStreak = if (nowMs - lastRerouteMs < 90_000L) (rerouteStreak + 1).coerceAtMost(4) else 0
         lastRerouteMs = nowMs
+        holdUntilMs = nowMs + HOLD_MS
     }
 
     /** Wegpunkte, die ab der aktuellen Position noch vor uns liegen (für die Neuberechnung). */

@@ -208,11 +208,18 @@ object Replan {
     fun remaining(route: PilotRoute, wps: List<Waypoint>, distM: Int, lat: Double, lon: Double): List<Waypoint> {
         val out = ArrayList<Waypoint>()
         out.add(Waypoint(lat, lon, false, "Position"))
+        for (w in remainingIndices(route, wps, distM)) out.add(wps[w].copy(visit = wps[w].visit && w != wps.size - 1))
+        return out
+    }
+
+    /** Indizes (in [wps]) der Wegpunkte, die noch vor dir liegen, ohne den Start; das Ziel ist immer dabei. */
+    fun remainingIndices(route: PilotRoute, wps: List<Waypoint>, distM: Int): List<Int> {
+        val out = ArrayList<Int>()
         for (w in 1 until wps.size) {
             val last = w == wps.size - 1
             val idx = route.waypointIndex.getOrNull(w)
             val ahead = idx == null || route.cumM[idx.coerceIn(0, route.cumM.size - 1)] > distM
-            if (last || ahead) out.add(wps[w].copy(visit = wps[w].visit && !last))
+            if (last || ahead) out.add(w)
         }
         return out
     }

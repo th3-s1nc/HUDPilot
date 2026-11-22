@@ -6,6 +6,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import io.github.th3s1nc.osmandhudbridge.BridgeBus
 
 /** Touren mit dem eigenen Server abgleichen: geplante Touren holen/sichern, gefahrene Fahrten hochladen. */
 object TourSync {
@@ -32,7 +33,7 @@ object TourSync {
             if (code == 200) ServerProfile.authFailed = false
             if (code != 200) return null
             return c.inputStream.bufferedReader().use { it.readText() }
-        } catch (_: Exception) { ServerProfile.reachable = false; return null } finally { c.disconnect() }
+        } catch (e: Exception) { ServerProfile.reachable = false; BridgeBus.logErr("Server (Touren)", e); return null } finally { c.disconnect() }
     }
 
     // ---------------- geplante Touren ----------------

@@ -7,13 +7,19 @@ package io.github.th3s1nc.osmandhudbridge.pilot
 object AdminNotesLogic {
     class Ev(val id: Int, val ts: Long, val typ: String, val text: String)
 
-    const val MAX_KEPT = 50
+    const val MAX_KEPT = 15
 
     /** Neue Meldungen an die gemerkten anhängen: nur Nummern, die noch fehlen, höchstens [MAX_KEPT], neueste zuletzt. */
     fun merge(old: List<Ev>, fresh: List<Ev>): List<Ev> {
         val have = old.map { it.id }.toSet()
         return (old + fresh.filter { it.id !in have }).sortedBy { it.id }.takeLast(MAX_KEPT)
     }
+
+    /** Nach "Liste leeren": Meldungen bis zu dieser Nummer kommen nicht wieder (der Server schickt sonst den ganzen Verlauf). */
+    fun afterClear(evs: List<Ev>, clearedId: Int): List<Ev> = evs.filter { it.id > clearedId }
+
+    /** Hat der Server seine Nummern neu begonnen (letzte Nummer kleiner als die gemerkte Löschmarke), gilt die Löschmarke nicht mehr. */
+    fun validCleared(clearedId: Int, serverLastId: Int): Int = if (serverLastId in 1 until clearedId) 0 else clearedId
 
     /** Wie viele Meldungen sind neuer als die zuletzt gelesene Nummer? */
     fun unread(evs: List<Ev>, seenId: Int): Int = evs.count { it.id > seenId }
