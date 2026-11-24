@@ -49,6 +49,7 @@ class HudApp : Application() {
 
     /** Die App wurde geöffnet: Dienst starten, wenn alles Nötige erlaubt ist (sonst übernimmt die Übersicht mit ihren Hinweisen). */
     private fun openedApp() {
+        try { io.github.th3s1nc.osmandhudbridge.nav.Automation.onAppOpened(this) } catch (_: Exception) { }
         try { io.github.th3s1nc.osmandhudbridge.nav.ListenerKeeper.heal(this, "App geöffnet", io.github.th3s1nc.osmandhudbridge.nav.ListenerKeepLogic.TOGGLE_GAP_OPEN_MS) } catch (_: Exception) { }
         try {
             BridgeService.userStopped = false

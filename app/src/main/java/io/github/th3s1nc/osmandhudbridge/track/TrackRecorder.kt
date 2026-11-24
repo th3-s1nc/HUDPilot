@@ -16,6 +16,7 @@ object TrackRecorder {
     private var writer: BufferedWriter? = null
 
     val active: Boolean get() = session != null
+    private var appCtx: Context? = null
 
     /** Neue Aufnahme. Eine ältere, nicht gespeicherte Sicherung wird dabei überschrieben. */
     fun start(ctx: Context) {
@@ -23,6 +24,8 @@ object TrackRecorder {
         session = TrackSession()
         openWriter(ctx, append = false)
         BridgeBus.log(Tx.t("Aufzeichnung gestartet", "Recording started"))
+        appCtx = ctx.applicationContext
+        io.github.th3s1nc.osmandhudbridge.nav.Automation.onRecordStarted(ctx)
     }
 
     /** Macht mit einer zuvor beendeten Aufnahme weiter ([saved] kommt aus [finish] oder der Sicherung). */
@@ -31,6 +34,8 @@ object TrackRecorder {
         session = TrackSession().also { it.restore(saved) }
         openWriter(ctx, append = true)
         BridgeBus.log(Tx.t("Aufzeichnung fortgesetzt", "Recording resumed"))
+        appCtx = ctx.applicationContext
+        io.github.th3s1nc.osmandhudbridge.nav.Automation.onRecordStarted(ctx)
     }
 
     /** Beendet die Aufnahme und gibt die Punkte zurück. Die Sicherung bleibt, bis gespeichert oder verworfen wird. */
@@ -40,6 +45,7 @@ object TrackRecorder {
         try { writer?.close() } catch (_: Exception) {}
         writer = null
         BridgeBus.log(Tx.t("Aufzeichnung beendet, ${s.points.size} Punkte", "Recording ended, ${s.points.size} points"))
+        appCtx?.let { io.github.th3s1nc.osmandhudbridge.nav.Automation.onRecordStopped(it) }
         return s.points.toList()
     }
 

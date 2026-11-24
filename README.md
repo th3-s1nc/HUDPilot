@@ -32,6 +32,9 @@ An unofficial hobby app for private use.
 - Plan tours in the browser (server) and ride them in the app, favourites, profiles (own name and code on the server), back up settings and fetch them on another phone
 - Status page with connections, server, road works and a storage overview (maps, routes, road data, rides)
 
+**Automation** (off by default, see "Automation" below)
+- Open HUDPilot when your Bluetooth device connects, start and stop the recording in Moket with your navigation or recording, open Spotify (optionally with Play) and jump back to HUDPilot afterwards
+
 **Language:** German and English (follows the phone language or can be switched in the app).
 
 ## Requirements
@@ -42,9 +45,18 @@ An unofficial hobby app for private use.
 
 Tested by the author with a HUD on a Xiaomi Mi 10T (LineageOS) and a Nubia Z80 Ultra (stock Android). Other devices, firmware versions and Android versions are untested.
 
-## Without your own server: adding a map by hand
-The server is optional. Without it the app still navigates, but you bring the map yourself, and you lose the convenience: no region download, no automatic road data (speed limits, speed cameras, level crossings), no road works.
+## Without your own server
+The server is optional. Without it the app still navigates and warns, but you bring some things yourself and you lose some convenience. This is what you get without a server:
 
+| What | Without a server |
+|---|---|
+| Map | Your own Protomaps file (`.pmtiles`), see **A** |
+| Routing data (`.rd5`) | Fetched on tap from the BRouter directory (brouter.de) when you first calculate a route there. Your position is not sent. |
+| Speed limits | Online from OpenStreetMap (Overpass) automatically, or offline from an `.osm.pbf` file you import, see **B** |
+| Speed cameras | Your own list (SCDB, GPX), see **C** |
+| Region download, road works, tour planning, profiles, settings backup | Need the server |
+
+**A. Map (`.pmtiles`)**
 1. Get a **Protomaps map file (`.pmtiles`)** for your area. The HUDPilot Updater builds its maps like this, with the free `pmtiles` command-line tool and the daily planet build from `build.protomaps.com` (see `maps.protomaps.com/builds`):
    ```
    pmtiles extract <planet-file-or-URL> map.pmtiles --bbox=WEST,SOUTH,EAST,NORTH --maxzoom=15
@@ -52,13 +64,24 @@ The server is optional. Without it the app still navigates, but you bring the ma
    (`--bbox` is the rectangle you want, in degrees, e.g. `11.0,47.5,13.0,49.0`.)
 2. Copy `map.pmtiles` to the phone (USB cable, cloud, download).
 3. In the app: **Menu → Map → "Choose own map (.pmtiles) …"** and pick the file. Copying a big file takes a while. The map is used as soon as the message "Map loaded." appears.
-4. Routing data (`.rd5`) is fetched on tap from the BRouter directory (brouter.de) when you first calculate a route there, without sending your position.
+
+**B. Speed limits offline (optional)**
+Without this, the app asks an Overpass server (OpenStreetMap) for speed limits and street names and sends your approximate position. For offline use:
+1. Download a regional extract in `.osm.pbf` format for your area, for example from Geofabrik (`download.geofabrik.de`), and copy it to the phone.
+2. In the app: **Tools → ROAD DATA → "Choose file"** and pick the `.osm.pbf` file. The app turns it into tiles. This can take a while for a big region and runs as a foreground service with a progress bar.
+3. Switch **Offline data** on if the app should not load anything from the internet at all. The (i) button shows what is loaded.
+
+**C. Speed cameras (optional)**
+In **Tools → CAMERAS** you can import your own camera list, for example a GPX file from SCDB. Speed camera warnings are off by default; read the note that appears when you switch them on (not allowed for drivers in Germany and some other countries).
+
+**D. Routing data**
+Nothing to prepare: the app fetches the `.rd5` files on tap from brouter.de when you first calculate a route in an area (without your position). Calculate the first route in each area while online.
 
 Good to know:
 - Only Protomaps maps fit the built-in map style. Other map formats do not work.
 - The style is built for the map files the server downloads today. It is not guaranteed that every Protomaps file looks right.
 - A map picked this way replaces the previous one. Regions loaded from a server are managed separately.
-- This path has **not been tested on a fresh phone without any server**.
+- These paths have **not been tested on a fresh phone without any server**. The steps come from reading the code. If something differs on your phone, please open an issue.
 - Besides maps, you can open your own routes: **Menu → "Open GPX file …"**.
 
 ## Messages on the HUD
@@ -75,6 +98,21 @@ Limits of the HUD itself:
 - Messages appear only in the **Explorer** and **City** displays. The other displays have no room for them.
 - Texts are cut to 19 characters and shown in plain ASCII (umlauts and emoji are simplified). The HUD does not scroll.
 - Spotify, WhatsApp and Moket are named only to describe what works; this project has no connection to them.
+
+## Automation
+In **Tools → AUTOMATION** (after "Setup") you can let the phone start things for you. Everything is **off by default**, and every step is written to the log ("Automation: …").
+
+| Card | What it does |
+|---|---|
+| **Bluetooth**, "Autostart on connect" | Pick a paired device (for example a headset). When it connects, HUDPilot opens by itself. The HUD is not involved: you connect it yourself, as before. Needs Android 12 or newer; Android asks once whether HUDPilot may watch the device. |
+| **Moket**, "Auto-Aufnahme" | Starts the recording in Moket when your navigation and/or recording starts, and stops it at the end (choose which one with the two switches). If both run, Moket stops only when both are over. Uses the links Moket offers for automations (`moket://ride/start` and `moket://ride/stop`). |
+| **Spotify**, "Autostart" | Opens Spotify when HUDPilot starts (at most every 2 minutes), after a start delay of 0 to 30 s. "Auto-Play" additionally sends Play after a delay of 0 to 30 s (needs notification access). |
+| **Auto-Return** | After Moket or Spotify were opened, HUDPilot comes back to the front after 1 to 15 s. Needs the permission **"Display over other apps"** on most phones (button in the card). If Android still refuses, a notification to tap appears. |
+
+Good to know:
+- For Moket you need a version with the automation links (1.1.0 or newer). In Moket, set **Battery → "Not restricted"**, otherwise the ride does not start while the app is closed.
+- Moket and Spotify are only named to describe what works; this project has no connection to them.
+- This is **not tested on many phones**. Whether Android allows opening and bringing apps to the front from the background depends on the phone and manufacturer. If something does not work, the log shows which step failed.
 
 ## Installation
 
@@ -105,6 +143,7 @@ The APK ends up in `app/build/outputs/apk/debug/`. Tests (no phone needed): `./g
 - If you run your own server (optional), the app sends it a random device ID and the device name (e.g. "Google Pixel 7") so the server's admin page can show which phone is downloading. Never sent to third parties.
 - Without imported road data the approximate position is sent to an Overpass server (OpenStreetMap) for street names and speed limits. With the *Offline data* switch nothing is sent. Routing data comes from your server or, on request, from the BRouter directory, without your location.
 - The app remembers your last position on the phone only (to centre the map right after opening). It is never sent anywhere.
+- Automation stores your switches and the name and address of the chosen Bluetooth device on the phone only. Nothing is sent anywhere.
 - Rides, tours, favourites and settings stay on your phone and, if you switch it on, on your own server. The log stays on the device. It may contain caller or sender names; check it before sharing.
 
 ## Protocol

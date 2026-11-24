@@ -864,6 +864,126 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:layout_marginBottom="10dp" android:orientation="horizontal" android:gravity="center_vertical">
+                <TextView android:id="@+id/hdrAutomation" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/accent" android:textSize="12sp" android:textStyle="bold" android:letterSpacing="0.08" />
+                <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" android:layout_marginStart="10dp" android:background="?attr/colorOutlineVariant" />
+            </LinearLayout>
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.HudBridge.Card"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                    <View android:layout_width="3dp" android:layout_height="18dp" android:layout_marginEnd="10dp" android:background="@color/accent" />
+                        <TextView android:id="@+id/titleAutoBt" android:textSize="18sp" style="@style/TextAppearance.Material3.TitleMedium" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="6dp" android:layout_marginBottom="6dp" android:background="?attr/colorOutlineVariant" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="horizontal" android:gravity="center_vertical">
+                    <TextView android:id="@+id/lblAutoBt" style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                    <FrameLayout android:id="@+id/btnInfoAutoBt" android:layout_width="44dp" android:layout_height="44dp" android:clickable="true" android:focusable="true" android:contentDescription="@string/ui_erklaerung">
+                        <TextView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:background="@drawable/bg_info_btn" android:gravity="center" android:includeFontPadding="false" android:text="i" android:textColor="#D7D7DC" android:textSize="13sp" android:textStyle="bold" />
+                    </FrameLayout>
+                    <Space android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/swAutoBt" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+            <TextView android:id="@+id/tvInfoAutoBt" android:visibility="gone" style="@style/TextAppearance.Material3.BodySmall" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="2dp" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnAutoBtDevice" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.HudBridge.Card"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                    <View android:layout_width="3dp" android:layout_height="18dp" android:layout_marginEnd="10dp" android:background="@color/accent" />
+                        <TextView android:id="@+id/titleAutoMoket" android:textSize="18sp" style="@style/TextAppearance.Material3.TitleMedium" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="6dp" android:layout_marginBottom="6dp" android:background="?attr/colorOutlineVariant" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="horizontal" android:gravity="center_vertical">
+                    <TextView android:id="@+id/lblAutoMoket" style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                    <FrameLayout android:id="@+id/btnInfoAutoMoket" android:layout_width="44dp" android:layout_height="44dp" android:clickable="true" android:focusable="true" android:contentDescription="@string/ui_erklaerung">
+                        <TextView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:background="@drawable/bg_info_btn" android:gravity="center" android:includeFontPadding="false" android:text="i" android:textColor="#D7D7DC" android:textSize="13sp" android:textStyle="bold" />
+                    </FrameLayout>
+                    <Space android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/swAutoMoket" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+            <TextView android:id="@+id/tvInfoAutoMoket" android:visibility="gone" style="@style/TextAppearance.Material3.BodySmall" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="2dp" />
+            <LinearLayout android:id="@+id/boxAutoMoket" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:orientation="horizontal" android:gravity="center_vertical">
+                    <TextView android:id="@+id/lblMoketNav" style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                    <Space android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/swMoketNav" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="0dp" android:orientation="horizontal" android:gravity="center_vertical">
+                    <TextView android:id="@+id/lblMoketRec" style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                    <Space android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/swMoketRec" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.HudBridge.Card"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                    <View android:layout_width="3dp" android:layout_height="18dp" android:layout_marginEnd="10dp" android:background="@color/accent" />
+                        <TextView android:id="@+id/titleAutoSpotify" android:textSize="18sp" style="@style/TextAppearance.Material3.TitleMedium" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="6dp" android:layout_marginBottom="6dp" android:background="?attr/colorOutlineVariant" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="horizontal" android:gravity="center_vertical">
+                    <TextView android:id="@+id/lblAutoSpotify" style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                    <FrameLayout android:id="@+id/btnInfoAutoSpotify" android:layout_width="44dp" android:layout_height="44dp" android:clickable="true" android:focusable="true" android:contentDescription="@string/ui_erklaerung">
+                        <TextView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:background="@drawable/bg_info_btn" android:gravity="center" android:includeFontPadding="false" android:text="i" android:textColor="#D7D7DC" android:textSize="13sp" android:textStyle="bold" />
+                    </FrameLayout>
+                    <Space android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/swAutoSpotify" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+            <TextView android:id="@+id/tvInfoAutoSpotify" android:visibility="gone" style="@style/TextAppearance.Material3.BodySmall" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="2dp" />
+            <LinearLayout android:id="@+id/boxAutoSpotify" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <TextView android:id="@+id/txtStartDelay" style="@style/TextAppearance.Material3.BodyMedium" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" />
+                    <com.google.android.material.slider.Slider android:id="@+id/sldStartDelay" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="0" android:valueTo="30" android:stepSize="1" android:value="0" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:orientation="horizontal" android:gravity="center_vertical">
+                    <TextView android:id="@+id/lblAutoPlay" style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                    <FrameLayout android:id="@+id/btnInfoAutoPlay" android:layout_width="44dp" android:layout_height="44dp" android:clickable="true" android:focusable="true" android:contentDescription="@string/ui_erklaerung">
+                        <TextView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:background="@drawable/bg_info_btn" android:gravity="center" android:includeFontPadding="false" android:text="i" android:textColor="#D7D7DC" android:textSize="13sp" android:textStyle="bold" />
+                    </FrameLayout>
+                    <Space android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/swAutoPlay" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+            <TextView android:id="@+id/tvInfoAutoPlay" android:visibility="gone" style="@style/TextAppearance.Material3.BodySmall" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="2dp" />
+            <LinearLayout android:id="@+id/boxAutoPlay" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <TextView android:id="@+id/txtPlayDelay" style="@style/TextAppearance.Material3.BodyMedium" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" />
+                    <com.google.android.material.slider.Slider android:id="@+id/sldPlayDelay" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="0" android:valueTo="30" android:stepSize="1" android:value="5" />
+            </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    <com.google.android.material.card.MaterialCardView
+        style="@style/Widget.HudBridge.Card"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                    <View android:layout_width="3dp" android:layout_height="18dp" android:layout_marginEnd="10dp" android:background="@color/accent" />
+                        <TextView android:id="@+id/titleAutoReturn" android:textSize="18sp" style="@style/TextAppearance.Material3.TitleMedium" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="6dp" android:layout_marginBottom="6dp" android:background="?attr/colorOutlineVariant" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="horizontal" android:gravity="center_vertical">
+                    <TextView android:id="@+id/lblAutoReturn" style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                    <FrameLayout android:id="@+id/btnInfoAutoReturn" android:layout_width="44dp" android:layout_height="44dp" android:clickable="true" android:focusable="true" android:contentDescription="@string/ui_erklaerung">
+                        <TextView android:layout_width="22dp" android:layout_height="22dp" android:layout_gravity="center" android:background="@drawable/bg_info_btn" android:gravity="center" android:includeFontPadding="false" android:text="i" android:textColor="#D7D7DC" android:textSize="13sp" android:textStyle="bold" />
+                    </FrameLayout>
+                    <Space android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/swAutoReturn" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+            <TextView android:id="@+id/tvInfoAutoReturn" android:visibility="gone" style="@style/TextAppearance.Material3.BodySmall" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="2dp" />
+            <LinearLayout android:id="@+id/boxAutoReturn" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <TextView android:id="@+id/txtReturn" style="@style/TextAppearance.Material3.BodyMedium" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" />
+                    <com.google.android.material.slider.Slider android:id="@+id/sldReturn" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="1" android:valueTo="15" android:stepSize="1" android:value="5" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/btnAutoOverlay" style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" />
+                    <TextView android:id="@+id/tvAutoOverlay" style="@style/TextAppearance.Material3.BodySmall" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="2dp" android:layout_marginTop="4dp" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:layout_marginBottom="10dp" android:orientation="horizontal" android:gravity="center_vertical">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="HUD" android:textColor="@color/accent" android:textSize="12sp" android:textStyle="bold" android:letterSpacing="0.08" />
                 <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" android:layout_marginStart="10dp" android:background="?attr/colorOutlineVariant" />
             </LinearLayout>

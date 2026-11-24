@@ -119,6 +119,7 @@ object PilotNav {
                 Tx.t("Hinweise", "instructions") + ", ${wps.size} " + Tx.t("Wegpunkte", "waypoints") + ", " +
                 Tx.t("Profil ", "profile ") + profile + if (simulate) Tx.t(", Simulation", ", simulation") else ""
         )
+        if (!simulate) io.github.th3s1nc.osmandhudbridge.nav.Automation.onNavStarted(context)
     }
 
     private var gpsWarned = false
@@ -151,6 +152,7 @@ object PilotNav {
         message = ""
         if (had && !arrived) { PilotBus.clear(); PilotVoice.silence() }
         if (had) for (l in listeners) l.onStopped(arrived)
+        if (had && !simulated) { val c = ctx; if (c != null) io.github.th3s1nc.osmandhudbridge.nav.Automation.onNavStopped(c) }
         // Erst nach den Listenern (sie fragen noch "war es eine Simulation?"). Ein hängengebliebener Schalter ließ das echte GPS ignorieren.
         simulated = false
     }

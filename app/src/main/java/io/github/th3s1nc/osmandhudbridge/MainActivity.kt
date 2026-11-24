@@ -86,6 +86,7 @@ class MainActivity : AppCompatActivity() {
         setupLanguage()
         setupSettings()
         setupTools()
+        setupAutomation()
         setupInfo()
         setupTracking()
         findViewById<View>(R.id.btnHeaderMap).setOnClickListener { openMap() }
@@ -103,6 +104,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        try { autoOverlayShow() } catch (_: Exception) { }
         io.github.th3s1nc.osmandhudbridge.pilot.Baustellen.refresh(this)
         pendingHud?.let { on ->
             pendingHud = null
@@ -1089,6 +1091,195 @@ class MainActivity : AppCompatActivity() {
         findViewById<android.widget.TextView>(R.id.tvLiability).text = getString(R.string.about_liability)
         findViewById<android.widget.TextView>(R.id.tvPrivacy).text = getString(R.string.about_privacy)
         findViewById<android.widget.TextView>(R.id.tvLicenses).text = getString(R.string.about_licenses)
+    }
+
+    // ---------------- Automation ----------------
+
+    private val autoPrefs by lazy { getSharedPreferences(io.github.th3s1nc.osmandhudbridge.nav.Automation.PREFS, MODE_PRIVATE) }
+    private var autoPendingDev: io.github.th3s1nc.osmandhudbridge.nav.AutoBluetooth.Dev? = null
+    private var autoBtUpdating = false
+
+    private val autoBtPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) autoPickDevice() else {
+            Toast.makeText(this, Tx.t("Ohne die Berechtigung \"Bluetooth-Verbindung\" geht die Geräteauswahl nicht", "Device choice needs the Bluetooth permission"), Toast.LENGTH_LONG).show()
+            autoBtOff()
+        }
+    }
+
+    private val autoBtChooser = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { res ->
+        val dev = autoPendingDev
+        if (res.resultCode == RESULT_OK && dev != null) {
+            io.github.th3s1nc.osmandhudbridge.nav.AutoBluetooth.observe(this, dev.address)
+            autoBtSave(dev)
+        } else {
+            BridgeBus.log(Tx.t("Automation: Anmeldung des Geräts abgebrochen", "Automation: device registration cancelled"))
+            autoBtOff()
+        }
+    }
+
+    private fun autoBtSave(dev: io.github.th3s1nc.osmandhudbridge.nav.AutoBluetooth.Dev) {
+        val old = autoPrefs.getString(io.github.th3s1nc.osmandhudbridge.nav.Automation.KEY_BT_ADDR, "") ?: ""
+        if (old.isNotEmpty() && !old.equals(dev.address, ignoreCase = true)) io.github.th3s1nc.osmandhudbridge.nav.AutoBluetooth.stopObserving(this, old)
+        autoPrefs.edit().putBoolean(io.github.th3s1nc.osmandhudbridge.nav.Automation.KEY_BT, true)
+            .putString(io.github.th3s1nc.osmandhudbridge.nav.Automation.KEY_BT_ADDR, dev.address)
+            .putString(io.github.th3s1nc.osmandhudbridge.nav.Automation.KEY_BT_NAME, dev.name).apply()
+        autoBtShow()
+    }
+
+    private fun autoBtOff() {
+        autoPrefs.edit().putBoolean(io.github.th3s1nc.osmandhudbridge.nav.Automation.KEY_BT, false).apply()
+        autoBtShow()
+    }
+
+    private fun autoBtShow() {
+        autoBtUpdating = true
+        try {
+            findViewById<MaterialSwitch>(R.id.swAutoBt).isChecked = autoPrefs.getBoolean(io.github.th3s1nc.osmandhudbridge.nav.Automation.KEY_BT, false)
+            val name = autoPrefs.getString(io.github.th3s1nc.osmandhudbridge.nav.Automation.KEY_BT_NAME, "") ?: ""
+            findViewById<MaterialButton>(R.id.btnAutoBtDevice).text = if (name.isEmpty()) Tx.t("Gerät wählen", "Choose device") else name
+        } finally { autoBtUpdating = false }
+    }
+
+    /** Liste der gekoppelten Geräte zeigen; nach der Wahl meldet Android das Gerät an (einmalige Bestätigung). */
+    private fun autoPickDevice() {
+        val list = io.github.th3s1nc.osmandhudbridge.nav.AutoBluetooth.bonded(this)
+        if (list == null) {
+            if (Build.VERSION.SDK_INT >= 31) autoBtPermission.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            return
+        }
+        if (list.isEmpty()) {
+            AlertDialog.Builder(this)
+                .setMessage(Tx.t("Keine gekoppelten Geräte. Erst in den Bluetooth-Einstellungen des Handys koppeln.", "No paired devices. Pair it in the phone's Bluetooth settings first."))
+                .setPositiveButton("OK", null).show()
+            autoBtOff()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(Tx.t("Gerät wählen", "Choose device"))
+            .setItems(list.map { it.name }.toTypedArray()) { _, i ->
+                val dev = list[i]
+                autoPendingDev = dev
+                io.github.th3s1nc.osmandhudbridge.nav.AutoBluetooth.associate(this, dev.address,
+                    onChooser = { sender -> runOnUiThread { try { autoBtChooser.launch(androidx.activity.result.IntentSenderRequest.Builder(sender).build()) } catch (e: Exception) { autoBtFail(e.message ?: e.javaClass.simpleName) } } },
+                    onReady = { runOnUiThread { autoBtSave(dev) } },
+                    onFail = { msg -> runOnUiThread { autoBtFail(msg) } })
+            }
+            .setNegativeButton(Tx.t("Abbrechen", "Cancel")) { _, _ -> autoBtOff() }
+            .setOnCancelListener { autoBtOff() }
+            .show()
+    }
+
+    private fun autoBtFail(msg: String) {
+        BridgeBus.log(Tx.t("Automation: Gerät konnte nicht angemeldet werden ($msg)", "Automation: could not register device ($msg)"))
+        Toast.makeText(this, Tx.t("Gerät konnte nicht angemeldet werden: $msg", "Could not register device: $msg"), Toast.LENGTH_LONG).show()
+        autoBtOff()
+    }
+
+    /** Zeigt am Knopf, ob "Über anderen Apps anzeigen" schon erlaubt ist. */
+    private fun autoOverlayShow() {
+        val ok = try { android.provider.Settings.canDrawOverlays(this) } catch (_: Exception) { false }
+        findViewById<MaterialButton>(R.id.btnAutoOverlay).text = Tx.t("Über anderen Apps anzeigen", "Display over other apps")
+        findViewById<TextView>(R.id.tvAutoOverlay).text = if (ok)
+            Tx.t("Erlaubt. HUDPilot darf sich aus dem Hintergrund nach vorn holen.", "Allowed. HUDPilot may bring itself to the front from the background.")
+        else Tx.t("Noch nicht erlaubt. Kommt HUDPilot nicht zurück, hier erlauben.", "Not allowed yet. If HUDPilot does not come back, allow it here.")
+    }
+
+    private fun setupAutomation() {
+        val A = io.github.th3s1nc.osmandhudbridge.nav.Automation
+        val L = io.github.th3s1nc.osmandhudbridge.pilot.AutomationLogic
+        fun tv(id: Int, t: String) { findViewById<TextView>(id).text = t }
+        tv(R.id.hdrAutomation, "AUTOMATION")
+        // Bluetooth
+        tv(R.id.titleAutoBt, "Bluetooth")
+        tv(R.id.lblAutoBt, Tx.t("Autostart bei Verbindung", "Autostart on connect"))
+        tv(R.id.tvInfoAutoBt, Tx.t("HUDPilot öffnet sich von selbst, sobald das gewählte Gerät (zum Beispiel dein Sena) verbindet. Das HUD hat damit nichts zu tun, das verbindest du weiter selbst. Das Gerät muss am Handy gekoppelt sein. Android fragt einmal nach, ob HUDPilot das Gerät beobachten darf. Ab Android 12.",
+            "HUDPilot opens by itself as soon as the chosen device (for example your Sena) connects. The HUD is not involved, you connect it yourself. The device must be paired with the phone. Android asks once whether HUDPilot may watch the device. Android 12 or newer."))
+        setupInfoToggle(R.id.btnInfoAutoBt, R.id.tvInfoAutoBt)
+        autoBtShow()
+        findViewById<MaterialSwitch>(R.id.swAutoBt).setOnCheckedChangeListener { _, on ->
+            if (autoBtUpdating) return@setOnCheckedChangeListener
+            if (!io.github.th3s1nc.osmandhudbridge.nav.AutoBluetooth.supported) {
+                Toast.makeText(this, Tx.t("Geht erst ab Android 12", "Needs Android 12 or newer"), Toast.LENGTH_LONG).show()
+                autoBtOff(); return@setOnCheckedChangeListener
+            }
+            if (on) {
+                val addr = autoPrefs.getString(A.KEY_BT_ADDR, "") ?: ""
+                if (addr.isEmpty()) autoPickDevice() else {
+                    autoPrefs.edit().putBoolean(A.KEY_BT, true).apply()
+                    io.github.th3s1nc.osmandhudbridge.nav.AutoBluetooth.observe(this, addr)
+                }
+            } else {
+                autoPrefs.edit().putBoolean(A.KEY_BT, false).apply()
+                io.github.th3s1nc.osmandhudbridge.nav.AutoBluetooth.stopObserving(this, autoPrefs.getString(A.KEY_BT_ADDR, "") ?: "")
+            }
+        }
+        findViewById<MaterialButton>(R.id.btnAutoBtDevice).setOnClickListener { autoPickDevice() }
+
+        // Moket
+        tv(R.id.titleAutoMoket, "Moket")
+        tv(R.id.lblAutoMoket, "Auto-Aufnahme")
+        tv(R.id.tvInfoAutoMoket, Tx.t("Startet die Aufnahme in Moket, wenn die gewählte Fahrt beginnt, und stoppt sie am Ende. Läuft eine Navigation und eine Aufnahme gleichzeitig, stoppt Moket erst, wenn beides zu Ende ist. Moket kommt dabei kurz nach vorn.",
+            "Starts the recording in Moket when the chosen ride begins and stops it at the end. If a navigation and a recording run together, Moket stops only when both are over. Moket briefly comes to the front."))
+        setupInfoToggle(R.id.btnInfoAutoMoket, R.id.tvInfoAutoMoket)
+        tv(R.id.lblMoketNav, Tx.t("Bei Navigation", "On navigation"))
+        tv(R.id.lblMoketRec, Tx.t("Bei Aufnahme", "On recording"))
+        val boxMoket = findViewById<View>(R.id.boxAutoMoket)
+        fun bindSwitch(id: Int, key: String, def: Boolean, after: (Boolean) -> Unit = {}) {
+            val sw = findViewById<MaterialSwitch>(id)
+            sw.isChecked = autoPrefs.getBoolean(key, def)
+            sw.setOnCheckedChangeListener { _, on -> autoPrefs.edit().putBoolean(key, on).apply(); after(on) }
+        }
+        bindSwitch(R.id.swAutoMoket, A.KEY_MOKET, false) { boxMoket.visibility = if (it) View.VISIBLE else View.GONE }
+        boxMoket.visibility = if (autoPrefs.getBoolean(A.KEY_MOKET, false)) View.VISIBLE else View.GONE
+        bindSwitch(R.id.swMoketNav, A.KEY_MOKET_NAV, true)
+        bindSwitch(R.id.swMoketRec, A.KEY_MOKET_REC, true)
+
+        // Spotify
+        tv(R.id.titleAutoSpotify, "Spotify")
+        tv(R.id.lblAutoSpotify, "Autostart")
+        tv(R.id.tvInfoAutoSpotify, Tx.t("Öffnet Spotify, sobald HUDPilot startet (höchstens alle 2 Minuten, damit es nicht in einer Schleife läuft).",
+            "Opens Spotify as soon as HUDPilot starts (at most every 2 minutes, so it cannot loop)."))
+        setupInfoToggle(R.id.btnInfoAutoSpotify, R.id.tvInfoAutoSpotify)
+        tv(R.id.lblAutoPlay, "Auto-Play")
+        tv(R.id.tvInfoAutoPlay, Tx.t("Schickt nach der Verzögerung ein Play an Spotify. Das braucht den Benachrichtigungszugriff. Klappt es nicht, steht im Protokoll, was Spotify geantwortet hat.",
+            "Sends Play to Spotify after the delay. This needs notification access. If it does not work, the log shows what Spotify answered."))
+        setupInfoToggle(R.id.btnInfoAutoPlay, R.id.tvInfoAutoPlay)
+        val boxSp = findViewById<View>(R.id.boxAutoSpotify)
+        val boxPlay = findViewById<View>(R.id.boxAutoPlay)
+        bindSwitch(R.id.swAutoSpotify, A.KEY_SPOTIFY, false) { boxSp.visibility = if (it) View.VISIBLE else View.GONE }
+        boxSp.visibility = if (autoPrefs.getBoolean(A.KEY_SPOTIFY, false)) View.VISIBLE else View.GONE
+        bindSwitch(R.id.swAutoPlay, A.KEY_PLAY, false) { boxPlay.visibility = if (it) View.VISIBLE else View.GONE }
+        boxPlay.visibility = if (autoPrefs.getBoolean(A.KEY_PLAY, false)) View.VISIBLE else View.GONE
+        val sldStart = findViewById<Slider>(R.id.sldStartDelay)
+        val s0 = L.clampStartDelay(autoPrefs.getInt(A.KEY_START_DELAY, L.START_DELAY_DEFAULT))
+        sldStart.value = s0.toFloat(); tv(R.id.txtStartDelay, L.startDelayText(s0, Tx.en))
+        sldStart.addOnChangeListener { _, v, _ -> val n = v.toInt(); autoPrefs.edit().putInt(A.KEY_START_DELAY, n).apply(); tv(R.id.txtStartDelay, L.startDelayText(n, Tx.en)) }
+        val sldPlay = findViewById<Slider>(R.id.sldPlayDelay)
+        val d0 = L.clampPlayDelay(autoPrefs.getInt(A.KEY_PLAY_DELAY, L.PLAY_DELAY_DEFAULT))
+        sldPlay.value = d0.toFloat(); tv(R.id.txtPlayDelay, L.delayText(d0, Tx.en))
+        sldPlay.addOnChangeListener { _, v, _ -> val n = v.toInt(); autoPrefs.edit().putInt(A.KEY_PLAY_DELAY, n).apply(); tv(R.id.txtPlayDelay, L.delayText(n, Tx.en)) }
+
+        // Danach
+        tv(R.id.titleAutoReturn, "Auto-Return")
+        tv(R.id.lblAutoReturn, Tx.t("Aktivieren", "Enable"))
+        tv(R.id.tvInfoAutoReturn, Tx.t("Holt HUDPilot wieder nach vorn, nachdem Moket oder Spotify geöffnet wurden. Android erlaubt das aus dem Hintergrund oft nur mit der Berechtigung „Über anderen Apps anzeigen“ (Knopf darunter). Verweigert Android es trotzdem, kommt eine Benachrichtigung zum Antippen. Im Protokoll steht, ob es geklappt hat.",
+            "Brings HUDPilot back to the front after Moket or Spotify were opened. From the background Android often allows this only with the “Display over other apps” permission (button below). If Android still refuses, a notification to tap appears. The log shows whether it worked."))
+        setupInfoToggle(R.id.btnInfoAutoReturn, R.id.tvInfoAutoReturn)
+        val boxRet = findViewById<View>(R.id.boxAutoReturn)
+        bindSwitch(R.id.swAutoReturn, A.KEY_RETURN, false) { boxRet.visibility = if (it) View.VISIBLE else View.GONE }
+        boxRet.visibility = if (autoPrefs.getBoolean(A.KEY_RETURN, false)) View.VISIBLE else View.GONE
+        val sldRet = findViewById<Slider>(R.id.sldReturn)
+        val r0 = L.clampReturn(autoPrefs.getInt(A.KEY_RETURN_S, L.RETURN_DEFAULT))
+        sldRet.value = r0.toFloat(); tv(R.id.txtReturn, L.returnText(r0, Tx.en))
+        sldRet.addOnChangeListener { _, v, _ -> val n = v.toInt(); autoPrefs.edit().putInt(A.KEY_RETURN_S, n).apply(); tv(R.id.txtReturn, L.returnText(n, Tx.en)) }
+        findViewById<MaterialButton>(R.id.btnAutoOverlay).setOnClickListener {
+            try {
+                startActivity(Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:$packageName")))
+            } catch (_: Exception) {
+                Toast.makeText(this, Tx.t("Einstellung nicht gefunden", "Setting not found"), Toast.LENGTH_LONG).show()
+            }
+        }
+        autoOverlayShow()
     }
 
     private fun setupTools() {

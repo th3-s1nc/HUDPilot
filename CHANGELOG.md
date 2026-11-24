@@ -2,6 +2,25 @@
 
 (Deutsch. HUDPilot ist eine Kopie der OSMAnd HUD Bridge v0.11.101 mit eigener Navigation und zählt ab 0.1.0 neu. Der Verlauf der Bridge steht darunter.)
 
+## v0.42.10 (HUDPilot, Automation nachgebessert)
+- Behoben: Moket öffnete sich zwar, die Aufnahme startete aber nicht. HUDPilot benutzt jetzt die Links, die Moket selbst für Automationen anbietet (moket://ride/start und moket://ride/stop). Im Protokoll steht, welcher Link gesendet wurde.
+- Neu: Spotify "Autostart" hat einen Regler "Startverzögerung" (0 bis 30 Sekunden, Anfangswert 0). Auto-Play und Auto-Return zählen ab dem Öffnen von Spotify.
+- Geändert: Die Karte "Danach" heißt jetzt "Auto-Return", der Schalter "Aktivieren".
+- Neu: In der Karte Auto-Return gibt es einen Knopf "Über anderen Apps anzeigen" (öffnet die Android-Einstellung) und eine Zeile, ob es schon erlaubt ist. Ohne diese Berechtigung lässt Android das Zurückspringen aus dem Hintergrund oft nicht zu.
+- Neue Tests für die Startverzögerung.
+- Nicht auf dem Handy getestet.
+
+## v0.42.9 (HUDPilot, Automation)
+- Neu: In Werkzeuge gibt es nach "Einrichtung" den Bereich "Automation" mit vier Karten (gleicher Stil wie die übrigen Karten, jeweils mit i-Knopf).
+- Bluetooth, "Autostart bei Verbindung": Man wählt ein gekoppeltes Gerät (zum Beispiel das Sena). Verbindet es, öffnet sich HUDPilot von selbst. Das HUD hat damit nichts zu tun, das verbindet man weiter selbst. Benutzt die Begleitgeräte-Funktion von Android (ab Android 12, einmalige Bestätigung).
+- Moket, "Auto-Aufnahme": Startet und stoppt die Aufnahme in Moket (über dessen Schnittstelle ab Moket 1.1.0). Wählbar bei Navigation und/oder bei Aufnahme. Laufen beide gleichzeitig, stoppt Moket erst, wenn beides zu Ende ist.
+- Spotify, "Autostart": Öffnet Spotify, sobald HUDPilot startet (höchstens alle 2 Minuten). "Auto-Play" schickt danach ein Play an Spotify, mit einstellbarer Verzögerung von 0 bis 30 Sekunden (Anfangswert 5 s).
+- Danach, "Auto-Return": Holt HUDPilot nach Moket/Spotify wieder nach vorn, einstellbar 1 bis 15 Sekunden (Anfangswert 5 s). Verweigert Android das, kommt eine Benachrichtigung zum Antippen.
+- Alle Schritte stehen im Protokoll ("Automation: ...").
+- Alles ist standardmäßig aus.
+- Nicht auf dem Handy getestet. Offen ist vor allem, ob Android auf dem Nubia das Öffnen und den Vordergrund aus dem Hintergrund erlaubt und wie Spotify auf Play reagiert.
+- Neue Tests (AutomationLogicTest).
+
 ## v0.42.8 (HUDPilot, Neuberechnung ohne Umdrehen, Zwischenziel-Regel, Protokoll, Admin-Meldungen)
 - Behoben: Nach dem Verlassen der Route rechnete die App ständig neu und wollte immer zurück zum Punkt, an dem man die Route verlassen hatte (Fahrt vom 22.11.: 477 Neuberechnungen). Ursache: Die Startrichtung war für den Routenrechner nur ein weicher Wunsch, ein Umdrehen kostete kaum etwas.
 - Neu: Es wird nie ein Umdrehen vorgeschlagen. Eine neue Route muss in der aktuellen Fahrtrichtung beginnen, sonst wird sie verworfen (auch im Stand).

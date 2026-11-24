@@ -14,10 +14,17 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE" />
+    <uses-permission android:name="android.permission.REQUEST_COMPANION_RUN_IN_BACKGROUND" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
+    <uses-feature android:name="android.software.companion_device_setup" android:required="false" />
 
     <queries>
+        <!-- Automation: Moket und Spotify müssen sichtbar sein, damit sie gestartet werden können -->
+        <package android:name="app.moket" />
+        <package android:name="com.spotify.music" />
         <!-- Karten-Apps, die GPX-Dateien anzeigen können (Knopf "In Karten-App ansehen") -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
@@ -95,6 +102,15 @@
             android:name=".DownloadService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <service
+            android:name=".nav.AutoStartService"
+            android:exported="true"
+            android:permission="android.permission.BIND_COMPANION_DEVICE_SERVICE">
+            <intent-filter>
+                <action android:name="android.companion.CompanionDeviceService" />
+            </intent-filter>
+        </service>
 
         <service
             android:name=".nav.OsmAndNotificationListener"
